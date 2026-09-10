@@ -13,6 +13,7 @@ export class CanvasConnection {
     this.profile = null;
     this.token = null;
     this.loginWindow = null;
+    this.connectionError = null;
     this.session = session.fromPartition('persist:canvas');
     this.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     this.session.on('will-download', event => event.preventDefault());
@@ -28,7 +29,7 @@ export class CanvasConnection {
       callback({ cancel: false });
     });
   }
-  get status() { return { connected: Boolean(this.profile), name: this.profile?.name || null, connecting: Boolean(this.loginWindow) }; }
+  get status() { return { connected: Boolean(this.profile), name: this.profile?.name || null, connecting: Boolean(this.loginWindow), error: this.connectionError }; }
   async restore() {
     try {
       const credential = JSON.parse(await fs.readFile(this.file, 'utf8'));
@@ -37,17 +38,34 @@ export class CanvasConnection {
       }
     } catch (error) { if (error.code !== 'ENOENT') this.restoreError = 'Saved Canvas connection could not be restored. Reconnect Canvas.'; }
   }
+  async hasSavedSession() {
+    if (this.token) return true;
+    const cookies = await this.session.cookies.get({ url: this.settings.value.canvasBaseUrl });
+    return cookies.length > 0;
+  }
   client(options = {}) {
     return new CanvasClient({ origin: this.settings.value.canvasBaseUrl, token: this.token,
       fetcher: (url, init) => this.session.fetch(url, init), ...options });
   }
   async verify() {
-    this.profile = null;
-    const profile = await this.client().read('profile');
-    if (!profile?.id) throw new Error('Canvas did not return an account profile.');
-    this.profile = { id: String(profile.id), name: String(profile.name || 'Canvas account') };
-    this.onChange();
-    return this.status;
+    if (this.verification) return this.verification;
+    this.verification = (async () => {
+      this.profile = null;
+      this.connectionError = null;
+      try {
+        const profile = await this.client().read('profile');
+        if (!profile?.id) throw new Error('Canvas did not return an account profile.');
+        this.profile = { id: String(profile.id), name: String(profile.name || 'Canvas account') };
+        await this.session.cookies.flushStore();
+        return this.status;
+      } catch (error) {
+        this.profile = null;
+        this.connectionError = error.message;
+        throw error;
+      } finally { this.onChange(); }
+    })();
+    try { return await this.verification; }
+    finally { this.verification = null; }
   }
   async connectToken(value) {
     if (typeof value !== 'string' || value.trim().length < 10 || value.length > 4096 || /[\r\n]/.test(value)) throw new Error('Enter a valid institution-issued Canvas API token.');
@@ -64,6 +82,7 @@ export class CanvasConnection {
     if (this.loginWindow) { this.loginWindow.focus(); return; }
     this.token = null;
     this.profile = null;
+    this.connectionError = null;
     await fs.rm(this.file, { force: true });
     this.loginWindow = new BrowserWindow({ width: 1000, height: 800, title: 'Sign in to Canvas · Close this window when finished',
       webPreferences: { session: this.session, nodeIntegration: false, contextIsolation: true, sandbox: true } });
@@ -77,7 +96,7 @@ export class CanvasConnection {
         await this.verify();
         this.loginWindow?.close();
         await this.onConnected();
-      } catch { /* Leave the login window available for the manual connection check. */ }
+      } catch { /* verify publishes the failure; leave login available for a manual retry. */ }
       finally { this.verifying = false; }
     });
     this.loginWindow.webContents.on('will-navigate', (event, value) => {
@@ -96,6 +115,7 @@ export class CanvasConnection {
     if (this.loginWindow) this.loginWindow.close();
     this.profile = null;
     this.token = null;
+    this.connectionError = null;
     await fs.rm(this.file, { force: true });
     await this.session.clearStorageData();
     this.onChange();

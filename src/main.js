@@ -64,7 +64,12 @@ else {
     const loadCourses = async () => {
       courses = await canvas.client().read('courses', {}, true);
       guide = await guides.load(store.value.canvasBaseUrl, canvas.profile.id);
-      await store.update({ lastGuideAccount: { origin: store.value.canvasBaseUrl, userId: canvas.profile.id } });
+      const previousAccount = store.value.lastGuideAccount;
+      const sameAccount = previousAccount?.origin === store.value.canvasBaseUrl && previousAccount?.userId === canvas.profile.id;
+      await store.update({
+        lastGuideAccount: { origin: store.value.canvasBaseUrl, userId: canvas.profile.id },
+        selectedCourseIds: sameAccount ? store.value.selectedCourseIds.filter(id => courses.some(course => String(course.id) === id)) : [],
+      });
     };
     canvas = new CanvasConnection({ directory: app.getPath('userData'), settings: store, onChange: publish, onConnected: async () => {
       try { await loadCourses(); run = { busy: false, message: 'Canvas connected. Choose your courses.' }; }
@@ -75,7 +80,7 @@ else {
     nativeTheme.themeSource = store.value.theme;
     window = new BrowserWindow({
       width: 1140, height: 820, minWidth: 800, minHeight: 600,
-      title: 'Canvas Weekly', show: !testMode,
+      title: 'Canvas Weekly', show: false,
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#f3f3f3',
       webPreferences: { preload: path.join(directory, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
     });
@@ -189,6 +194,14 @@ else {
       if (!window.isDestroyed()) window.webContents.send('state:changed', snapshot());
     });
     await window.loadURL(uiUrl);
+    if (!testMode) { window.show(); window.focus(); }
+    if (!testMode && await canvas.hasSavedSession()) {
+      try {
+        await canvas.verify(); await loadCourses();
+        run = { busy: false, message: 'Canvas connected. Choose your courses to create a guide.' };
+      } catch (error) { run = { busy: false, message: error.message }; }
+      publish();
+    }
   }).catch(error => { dialog.showErrorBox('Canvas Weekly could not start', error.message); app.quit(); });
   app.on('window-all-closed', () => app.quit());
   app.on('before-quit', () => { controller?.abort(); codex?.close(); });

@@ -83,3 +83,9 @@ Work log
   installed Codex handshake/account read succeeds without using existing account
   credentials. Fifteen unit tests and both desktop workflows pass. A real model
   planning turn still needs the user's separate ChatGPT sign-in.
+- 2026-09-10: Follow-up connection repair exposes failed profile checks instead
+  of silently leaving the Canvas login window open. Startup checks saved sessions,
+  successful checks flush cookie storage without extending expiry, and account
+  changes clear course selections. The screenshot's dashboard widget failure
+  does not establish API failure; live API access remains unverified. Desktop
+  checks cover visible expiry errors and account-switch isolation.

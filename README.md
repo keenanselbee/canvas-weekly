@@ -21,13 +21,21 @@ updates, revisions, separate student notes and change reporting are implemented.
 Optional ChatGPT sign-in and study suggestions use the installed official Codex
 runtime. Full linked-source details and Word export are the next milestones.
 
-In Settings, sign in to Canvas in the separate window, close it, then click Check
-connection. Course and Inbox navigation are disabled in the login window; it is
+In Settings, sign in to Canvas in the separate window. A successful account check
+returns to Canvas Weekly automatically. If it stays open, close it and click Check
+connection; the app now displays the actual connection error. Canvas dashboard
+widgets may fail because the login window blocks non-login write requests; those
+widgets are not used to collect course information. Course and Inbox navigation
+are disabled in the login window; it is
 only for authentication. If your institution does not allow session API reads,
 an institution-issued API token can be entered under Canvas connection options.
 Tokens are encrypted with Windows-backed Electron safeStorage. No API token is
 required if the permitted browser session method works. No account has been
 accessed by the automated tests.
+
+On restart the app checks any saved Canvas authorization. Login cookies retain
+the institution's expiry rules, so another sign-in may be required. The app does
+not extend session lifetimes. Switching accounts clears course selection.
 
 After connecting, choose courses and use Update guide on This week. Open guide
 opens the generated Markdown file in its associated Windows app. Existing manual

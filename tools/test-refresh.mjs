@@ -43,6 +43,23 @@ try {
   assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.changes.length, 0);
   await fs.mkdir('.codex-temp/visual', { recursive: true });
   await page.screenshot({ path: '.codex-temp/visual/factual-guide.png' });
-  console.log('Desktop refresh passed: synthetic Canvas connection, course selection, generation, repeat refresh and preserved notes.');
+  await application.evaluate(({ session }) => {
+    session.fromPartition('persist:canvas').fetch = async () => new Response('', { status: 401 });
+  });
+  await assert.rejects(page.evaluate(() => window.canvasWeekly.verifyCanvas()), /login expired/);
+  const failed = await page.evaluate(() => window.canvasWeekly.getState());
+  assert.equal(failed.canvas.connected, false);
+  assert.match(failed.canvas.error, /login expired/);
+  await page.getByText('Canvas login expired. Reconnect Canvas and try again.', { exact: true }).waitFor();
+  await application.evaluate(({ session }) => {
+    session.fromPartition('persist:canvas').fetch = async address => new Response(JSON.stringify(
+      new URL(address).pathname.endsWith('/profile') ? { id: 1000, name: 'Different student' } : [{ id: 1, name: 'Shared course' }]
+    ), { headers: { 'content-type': 'application/json' } });
+  });
+  const switched = await page.evaluate(() => window.canvasWeekly.verifyCanvas());
+  assert.equal(switched.canvas.error, null);
+  assert.deepEqual(switched.settings.selectedCourseIds, []);
+  assert.equal(switched.guide, null);
+  console.log('Desktop refresh passed: synthetic connection, generation, preserved notes, visible login errors and account-switch isolation.');
   await page.evaluate(() => window.canvasWeekly.disconnectCanvas());
 } finally { await application.close(); }

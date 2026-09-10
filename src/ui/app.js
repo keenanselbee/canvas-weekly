@@ -25,6 +25,7 @@ function announce(message) {
   notice.hidden = false;
 }
 function update(next) {
+  if (next.canvas.error && next.canvas.error !== state?.canvas.error) announce(next.canvas.error);
   const runChanged = state && (state.run?.busy !== next.run?.busy || state.run?.message !== next.run?.message);
   const connectionChanged = state && (JSON.stringify(state.canvas) !== JSON.stringify(next.canvas) || JSON.stringify(state.ai) !== JSON.stringify(next.ai));
   state = next;
