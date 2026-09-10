@@ -7,7 +7,7 @@ const json = (body, headers = {}) => new Response(JSON.stringify(body), { header
 test('collector exposes metadata reads only and explicitly preserves Inbox read state', () => {
   const url = requestUrl('https://canvas.example', 'conversation', { conversationId: 7 });
   assert.equal(url.searchParams.get('auto_mark_as_read'), 'false');
-  for (const operation of ['take', 'resume', 'questions', 'submissions', 'constructor', '__proto__']) {
+  for (const operation of ['take', 'resume', 'questions', 'submissions', 'modules', 'moduleItems', 'constructor', '__proto__']) {
     assert.throws(() => requestUrl('https://canvas.example', operation));
   }
   assert.throws(() => requestUrl('https://canvas.example', 'quizzes', { courseId: '../7' }));
@@ -62,8 +62,7 @@ test('expanded collection reads page bodies and message details without read-sta
     assert.equal(init.method, 'GET');
     const url = new URL(address); visited.push(url);
     if (url.pathname.endsWith('/pages')) { assert.equal(url.searchParams.get('include[]'), 'body'); return json([{ page_id: 2, title: 'Locked page' }]); }
-    if (url.pathname.endsWith('/modules')) return json([{ id: 3 }]);
-    if (url.pathname.endsWith('/modules/3/items')) return json([{ id: 4, type: 'Quiz', title: 'Quiz metadata' }]);
+    assert.equal(url.pathname.includes('/modules'), false, 'Module reads must never reach the transport');
     if (url.pathname === '/api/v1/conversations') return json([{ id: 5 }]);
     if (url.pathname === '/api/v1/conversations/5') { assert.equal(url.searchParams.get('auto_mark_as_read'), 'false'); return json({ id: 5, messages: [{ id: 6, body: 'Deadline moved' }] }); }
     return json(url.pathname === '/api/v1/courses/1' ? { id: 1 } : []);
@@ -71,5 +70,13 @@ test('expanded collection reads page bodies and message details without read-sta
   const [result] = await client.collect(['1']);
   assert.equal(result.sources.conversation[0].data.messages[0].body, 'Deadline moved');
   assert.equal(result.coverage.find(source => source.source === 'pageBodies').status, 'partial');
+  assert.equal(result.coverage.find(source => source.source === 'modules').status, 'unsupported');
+  assert.equal(Object.hasOwn(result.sources, 'modules'), false);
   assert.equal(visited.some(url => url.pathname.includes('/take') || url.pathname.includes('/questions')), false);
+});
+
+test('module progress routes are denied in the login browser as well as the collector', () => {
+  for (const route of ['/api/v1/courses/1/modules', '/api/v1/courses/1/modules/2/items', '/courses/1/modules', '/courses/1/modules/2', '/courses/1/modules/items/3']) {
+    assert.equal(blockedAssessmentUrl('https://canvas.example' + route), true, route);
+  }
 });

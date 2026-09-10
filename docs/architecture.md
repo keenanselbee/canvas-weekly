@@ -48,6 +48,11 @@ details. Do not access quiz questions, answers, attempt routes, or external tool
 launch endpoints. Enforce student self-submission scope. Allowing GET alone is
 insufficient: some reads mutate state.
 
+Module/module-item listing is disabled after the safety audit: Canvas can create
+and evaluate student progression on these reads. Preserve previous module evidence
+as stale and report missing coverage. See safety-audit.md for the evidence and
+outstanding network/logging work; no live-account invariance claim is supported.
+
 Browser authentication is a human-operated phase in an isolated profile with no
 app preload or Node integration. Close the login surface before collection and
 use reviewed structured reads through its session if institution-permitted. If

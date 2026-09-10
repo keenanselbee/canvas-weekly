@@ -9,8 +9,6 @@ const operations = {
   course: args => [`/api/v1/courses/${id(args.courseId)}`, { 'include[]': 'syllabus_body' }],
   assignments: args => [`/api/v1/courses/${id(args.courseId)}/assignments`, { 'include[]': 'submission', override_assignment_dates: 'true' }],
   quizzes: args => [`/api/v1/courses/${id(args.courseId)}/quizzes`, {}],
-  modules: args => [`/api/v1/courses/${id(args.courseId)}/modules`, {}],
-  moduleItems: args => [`/api/v1/courses/${id(args.courseId)}/modules/${id(args.moduleId)}/items`, { 'include[]': 'content_details' }],
   pages: args => [`/api/v1/courses/${id(args.courseId)}/pages`, { 'include[]': 'body' }],
   files: args => [`/api/v1/courses/${id(args.courseId)}/files`, {}],
   groups: args => [`/api/v1/courses/${id(args.courseId)}/assignment_groups`, {}],
@@ -49,6 +47,7 @@ export function blockedAssessmentUrl(value) {
     const route = decodeURIComponent(url.pathname).toLowerCase();
     return /\/(take|resume|submit|submissions|quiz_submissions|questions|quiz_questions|external_tools|external_tool_retrieve|assessment_questions|moderate)(\/|$)/.test(route)
       || /\/modules\/items\//.test(route)
+      || /\/courses\/\d+\/modules(\/|$)/.test(route)
       || /\/(quizzes|assignments)\/\d+\/(edit|preview|history|retake|start)(\/|$)/.test(route);
   } catch { return true; }
 }
@@ -120,8 +119,13 @@ export class CanvasClient {
   async collect(courseIds) {
     const courses = [];
     for (const courseId of courseIds) {
-      const record = { id: id(courseId), sources: {}, coverage: [] };
-      for (const operation of ['course', 'assignments', 'quizzes', 'groups', 'modules', 'pages', 'files', 'announcements', 'calendar', 'conversations']) {
+      // Canvas evaluates and can persist student progression when listing modules.
+      // Do not replace this with a page visit or module-item read: those also have
+      // progress side effects. Keep any previously collected evidence as stale.
+      const record = { id: id(courseId), sources: {}, coverage: [{ source: 'modules', status: 'unsupported',
+        message: 'Module collection is disabled because Canvas can update learning progress when these records are read. Check module requirements yourself in Canvas.',
+        checkedAt: new Date().toISOString() }] };
+      for (const operation of ['course', 'assignments', 'quizzes', 'groups', 'pages', 'files', 'announcements', 'calendar', 'conversations']) {
         this.signal?.throwIfAborted();
         this.onProgress(`Reading ${operation} for course ${courseId}`);
         try {
@@ -132,7 +136,7 @@ export class CanvasClient {
           record.coverage.push({ source: operation, status: 'error', message: error.message, checkedAt: new Date().toISOString() });
         }
       }
-      for (const [listing, operation, key] of [['modules', 'moduleItems', 'moduleId'], ['conversations', 'conversation', 'conversationId']]) {
+      for (const [listing, operation, key] of [['conversations', 'conversation', 'conversationId']]) {
         const candidates = record.sources[listing];
         if (!candidates) continue;
         record.sources[operation] = [];
@@ -143,7 +147,7 @@ export class CanvasClient {
           const source = `${operation}:${entry.id}`;
           this.onProgress(`Reading ${operation} ${entry.id} for course ${courseId}`);
           try {
-            const data = await this.read(operation, { courseId, [key]: entry.id }, operation === 'moduleItems');
+            const data = await this.read(operation, { courseId, [key]: entry.id });
             record.sources[operation].push({ id: String(entry.id), data });
             record.coverage.push({ source, status: 'ok', checkedAt: new Date().toISOString() });
           } catch (error) {

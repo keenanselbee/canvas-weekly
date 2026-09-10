@@ -20,10 +20,17 @@ A live four-course collection has saved 65 assessment records with explicit
 source gaps. Factual Markdown guides, in-app reading, same-week
 updates, revisions, separate student notes and change reporting are implemented.
 Optional ChatGPT sign-in and study suggestions use the installed official Codex
-runtime. Page bodies, module item descriptions, calendar events and course message
+runtime. Page bodies, calendar events and course message
 details now feed both the factual guide and optional AI evidence. External website
 connections, linked file contents and Word export remain in progress; see
 [external course sources](docs/external-course-sources.md).
+
+Safety audit follow-up: module and module-item reads are now disabled because
+Canvas can create or update student progression during these GET requests.
+Existing module evidence is retained as stale; new scans report the gap.
+The earlier live run cannot be certified unchanged: no before/after account
+baseline or complete request ledger was recorded. See the
+[safety audit](docs/safety-audit.md) for evidence and remaining repairs.
 
 In Settings, sign in to Canvas in the separate window. A successful account check
 returns to Canvas Weekly automatically. If it stays open, close it and click Check
@@ -147,8 +154,10 @@ These are observations from screenshots, not live verified course facts.
 1. Resolve output and week; obtain permitted access or pause for human login.
 2. Discover courses, selected enrollment scope, course timezone and source links.
 3. Baseline: collect course home/syllabus, assignments/groups, quiz metadata,
-   modules/items/pages/files, calendar events, announcements, relevant discussions,
+   pages/files, calendar events, announcements, relevant discussions,
    and course-related instructor Inbox messages with read state preserved.
+   Module requirements remain an explicit coverage gap until a collection method
+   without learning-progress side effects is verified.
 4. Follow relevant external materials and linked assignment prerequisites.
 5. Normalize course/item IDs, linked assignment/quiz IDs, exact timestamps,
    student-specific due overrides, unlock/close times, submission status,

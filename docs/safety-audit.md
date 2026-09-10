@@ -1,0 +1,70 @@
+Canvas collection safety audit
+==============================
+
+Audited 2026-09-10. Findings describe application code, saved local evidence and
+upstream Canvas source. They do not establish the exact UBC deployed version or
+prove the absence of historical account changes. No authenticated Canvas requests
+were issued for this audit.
+
+
+Findings and repair status
+-------------------------
+
+1. High: GET module listings are not free of learning-progress side effects.
+   The modules controller selects the current student and calls evaluate_for.
+   This can create a ContextModuleProgression and evaluate/save its state using
+   existing requirements and submission records. The saved live guide reports
+   successful module reads for all four courses. We cannot determine whether
+   progress actually changed without a prior baseline and server evidence.
+   Repair: removed both modules and moduleItems operations; blocked module routes
+   in the authentication browser too. Refresh reports unsupported module coverage,
+   and prior module evidence remains stale. Do not fall back to module page visits.
+2. High: no complete historical request ledger or account-state baseline exists.
+   Source coverage timestamps cannot prove every request or absence of writes.
+   A future request ledger cannot retroactively certify the earlier run.
+   Repair pending: credential-free local request intent/outcome logging and
+   actual Electron transport interception tests with synthetic endpoints.
+3. Medium: the login network guard allows broader GET subresources than needed.
+   It blocks common assessment routes and non-login Canvas writes but is not an
+   exact operation boundary for all traffic. SSO requests are a separate human
+   authentication phase, not authorization for autonomous browsing.
+   Repair pending: stricter collection/session network admission and login-phase
+   separation, with explicit institution-dependent authentication limitations.
+
+The finite collector contains no operation that starts/resumes a quiz, fetches
+attempt questions, submits work, sends messages, or edits account settings.
+Conversation details use auto_mark_as_read=false. This supports a limited claim
+about intended application operations, not proof of historical account invariance.
+Do not attempt to roll back Canvas progress without evidence of what changed.
+
+Ordinary authentication and API access can generate server-side access/activity
+records. The product must never promise literally zero persistent server changes.
+Its learning-state boundary requires endpoint-level review, not only GET methods.
+
+
+Evidence
+--------
+
+- Local Weekly Plan.md generated 2026-09-10T23:36:22.218Z in factual mode:
+  four courses, 65 assessment records and successful modules coverage for each.
+- src/canvas-client.js: finite operations, GET/manual redirects, protected
+  pagination, module removal and explicit coverage gap.
+- src/canvas-session.js: isolated login profile and network guard.
+- tests/canvas-client.test.js and tests/course-evidence.test.js: synthetic
+  rejection of module requests and stale retention. These are not live account
+  verification and do not prove the existing browser guard intercepts all traffic.
+- [Canvas modules controller](https://github.com/instructure/canvas-lms/blob/master/app/controllers/context_modules_api_controller.rb)
+- [Canvas module progression creation](https://github.com/instructure/canvas-lms/blob/master/app/models/context_module.rb)
+- [Canvas progression evaluation](https://github.com/instructure/canvas-lms/blob/master/app/models/context_module_progression.rb)
+- [Canvas activity logging](https://github.com/instructure/canvas-lms/blob/master/app/controllers/application_controller.rb)
+
+
+Guide requirements after safety repairs
+--------------------------------------
+
+The saved factual guide is an evidence list, not yet the intended personal study
+plan. Add source-linked tasks, suggested preparation dates distinct from actual
+deadlines, required versus optional reading, local completion tracking, and clear
+confirmation items for conflicting dates or unavailable sources. No dated tasks
+this week does not mean no studying is needed. ChatGPT connection and enabled
+study suggestions are separate states; a live model planning turn remains untested.

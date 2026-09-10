@@ -45,3 +45,16 @@ test('failed detail reads keep last known evidence and edited messages appear in
   const edited = record(); edited.sources.conversation[0].data.messages[0].body = 'Now due Friday.';
   assert.equal(reconcile([edited], first, context).changes.find(change => change.itemId === '1:message:8:9').field, 'course-information');
 });
+
+test('disabled module collection preserves historical requirements as stale with an explicit gap', () => {
+  const previous = reconcile([record()], null, context);
+  const current = record();
+  delete current.sources.modules;
+  delete current.sources.moduleItems;
+  current.coverage.push({ source: 'modules', status: 'unsupported', message: 'Disabled because reading can update learning progress.' });
+  const guide = buildGuide(reconcile([current], previous, context));
+  const module = guide.courses[0].evidence.find(source => source.kind === 'module');
+  assert.equal(module.stale, true);
+  assert.match(module.body, /Introduction/);
+  assert.match(renderMarkdown(guide), /Disabled because reading can update learning progress/);
+});
