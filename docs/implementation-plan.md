@@ -15,7 +15,7 @@ Milestone ledger
 | M1 | Native desktop shell, navigation, appearance and saved settings | App launches; system/light/dark work; folder picker; light/dark visual QA | Complete: 49a892d |
 | M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Live session API collection verified for four courses, with reported source gaps |
 | M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Complete: ddd9975; synthetic end-to-end verified |
-| M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Implemented; real runtime handshake verified, account login pending |
+| M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Real login and account restoration verified; model planning turn pending |
 | M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Canvas evidence expanded; external-site adapters and Word output pending |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Pending |
 
@@ -100,3 +100,7 @@ Work log
   Added HTML parsing, credential-line redaction, source links, stale retention
   and course-content diffs. Confirmation notices expire and can be dismissed;
   the sidebar names ChatGPT via Codex and indicates when suggestions are off.
+- 2026-09-10: Committed expanded evidence as 7da7e5b. All 19 tests and both
+  desktop workflows pass. The restarted live app confirms ChatGPT connected and
+  retains the 65-item offline guide. Canvas authorization did not survive this
+  browser session restart and requires human sign-in again.
