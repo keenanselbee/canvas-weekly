@@ -4,15 +4,21 @@ import fs from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { SettingsStore, validateSettings } from './settings.js';
 import { CanvasConnection } from './canvas-session.js';
+import { GuideStore } from './guide-store.js';
+import { reconcile, buildGuide } from './guide.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const uiUrl = pathToFileURL(path.join(directory, 'ui/index.html')).href;
 const testMode = process.env.CANVAS_WEEKLY_TEST === '1';
 if (!app.isPackaged) app.setPath('userData', path.resolve(directory, '../.local', testMode ? 'test-app' : 'app'));
 const store = new SettingsStore(app.getPath('userData'));
+const guides = new GuideStore(path.join(app.getPath('userData'), 'guides'));
 let window;
 let canvas;
 let courses = [];
+let guide = null;
+let run = { busy: false, message: '' };
+let controller;
 
 function snapshot() {
   return {
@@ -21,6 +27,8 @@ function snapshot() {
     appearance: { source: nativeTheme.themeSource, dark: nativeTheme.shouldUseDarkColors },
     canvas: canvas?.status || { connected: false },
     courses,
+    guide,
+    run,
     ai: { connected: false },
   };
 }
@@ -44,7 +52,17 @@ else {
   app.on('second-instance', () => { if (window) { window.show(); window.focus(); } });
   app.whenReady().then(async () => {
     await store.load();
-    canvas = new CanvasConnection({ directory: app.getPath('userData'), settings: store, onChange: publish });
+    if (store.value.lastGuideAccount) guide = await guides.load(store.value.lastGuideAccount.origin, store.value.lastGuideAccount.userId);
+    const loadCourses = async () => {
+      courses = await canvas.client().read('courses', {}, true);
+      guide = await guides.load(store.value.canvasBaseUrl, canvas.profile.id);
+      await store.update({ lastGuideAccount: { origin: store.value.canvasBaseUrl, userId: canvas.profile.id } });
+    };
+    canvas = new CanvasConnection({ directory: app.getPath('userData'), settings: store, onChange: publish, onConnected: async () => {
+      try { await loadCourses(); run = { busy: false, message: 'Canvas connected. Choose your courses.' }; }
+      catch (error) { run = { busy: false, message: error.message }; }
+      publish();
+    } });
     await canvas.restore();
     nativeTheme.themeSource = store.value.theme;
     window = new BrowserWindow({
@@ -58,35 +76,71 @@ else {
     window.webContents.on('will-navigate', event => event.preventDefault());
     window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     handle('state:get', snapshot);
-    handle('canvas:login', async () => { await canvas.openLogin(); return snapshot(); });
+    const requireIdle = () => { if (run.busy) throw new Error('Wait for the current refresh or cancel it first.'); };
+    handle('canvas:login', async () => { requireIdle(); guide = null; await canvas.openLogin(); return snapshot(); });
     handle('canvas:verify', async () => {
+      requireIdle(); guide = null;
       courses = [];
       await canvas.finishLogin();
-      courses = await canvas.client().read('courses', {}, true);
+      await loadCourses();
       return snapshot();
     });
     handle('canvas:token', async token => {
+      requireIdle(); guide = null;
       courses = [];
       await canvas.connectToken(token);
-      courses = await canvas.client().read('courses', {}, true);
+      await loadCourses();
       return snapshot();
     });
-    handle('canvas:disconnect', async () => { await canvas.disconnect(); courses = []; return snapshot(); });
+    handle('canvas:disconnect', async () => { requireIdle(); await canvas.disconnect(); await store.update({ lastGuideAccount: null }); courses = []; guide = null; return snapshot(); });
     handle('settings:canvas', async origin => {
+      requireIdle();
       validateSettings({ ...store.value, canvasBaseUrl: origin });
       const canvasBaseUrl = new URL(origin).origin;
       validateSettings({ ...store.value, canvasBaseUrl });
       if (canvasBaseUrl !== store.value.canvasBaseUrl) {
         await canvas.disconnect();
-        await store.update({ canvasBaseUrl, selectedCourseIds: [] });
+        await store.update({ canvasBaseUrl, selectedCourseIds: [], lastGuideAccount: null });
         courses = [];
+        guide = null;
       }
       return snapshot();
     });
     handle('courses:select', async selectedCourseIds => {
+      requireIdle();
       if (!Array.isArray(selectedCourseIds) || !selectedCourseIds.every(id => courses.some(course => String(course.id) === id))) throw new Error('Choose courses from the connected account.');
       await store.update({ selectedCourseIds: [...new Set(selectedCourseIds)] });
       return snapshot();
+    });
+    handle('guide:update', async () => {
+      requireIdle();
+      if (!canvas.profile) throw new Error('Connect Canvas before updating your guide.');
+      if (!store.value.selectedCourseIds.length) throw new Error('Choose at least one course first.');
+      const userId = canvas.profile.id;
+      controller = new AbortController();
+      run = { busy: true, message: 'Checking Canvas connection…' }; publish();
+      try {
+        await canvas.verify();
+        if (canvas.profile.id !== userId) throw new Error('Canvas account changed. Reconnect and select courses for this account.');
+        const previous = await guides.load(store.value.canvasBaseUrl, userId);
+        const records = await canvas.client({ signal: controller.signal, onProgress: message => { run = { busy: true, message }; publish(); } }).collect(store.value.selectedCourseIds);
+        if (!records.some(record => record.coverage.some(source => ['assignments', 'quizzes'].includes(source.source) && source.status === 'ok'))) throw new Error('No assessment information could be refreshed. Your previous guide has been preserved.');
+        const next = buildGuide(reconcile(records, previous, { origin: store.value.canvasBaseUrl, now: new Date().toISOString(), timeZone: store.value.timeZone }));
+        controller.signal.throwIfAborted();
+        run = { busy: true, message: 'Saving your weekly guide…' }; publish();
+        guide = await guides.export(next, snapshot().outputDirectory, userId, controller.signal);
+        run = { busy: false, message: records.some(record => record.coverage.some(source => source.status !== 'ok')) ? 'Guide updated with some information unavailable. Review source coverage.' : 'Weekly guide updated.' };
+        return snapshot();
+      } catch (error) {
+        run = { busy: false, message: controller.signal.aborted ? 'Refresh cancelled. Your previous guide is preserved.' : error.message };
+        throw new Error(run.message);
+      } finally { controller = null; publish(); }
+    });
+    handle('guide:cancel', () => { controller?.abort(); return snapshot(); });
+    handle('guide:open', async () => {
+      if (!guide?.outputPath) throw new Error('Create a guide first.');
+      const error = await shell.openPath(guide.outputPath);
+      if (error) throw new Error(error);
     });
     handle('settings:theme', async theme => {
       await store.update({ theme });
@@ -94,6 +148,7 @@ else {
       return snapshot();
     });
     handle('settings:output', async () => {
+      requireIdle();
       const result = await dialog.showOpenDialog(window, { title: 'Choose weekly guide folder', properties: ['openDirectory', 'createDirectory'], defaultPath: snapshot().outputDirectory });
       if (!result.canceled) await store.update({ outputDirectory: result.filePaths[0] });
       return snapshot();

@@ -5,10 +5,11 @@ import { CanvasClient, blockedAssessmentUrl } from './canvas-client.js';
 import { atomicJson } from './settings.js';
 
 export class CanvasConnection {
-  constructor({ directory, settings, onChange }) {
+  constructor({ directory, settings, onChange, onConnected = () => {} }) {
     this.file = path.join(directory, 'canvas-credential.json');
     this.settings = settings;
     this.onChange = onChange;
+    this.onConnected = onConnected;
     this.profile = null;
     this.token = null;
     this.loginWindow = null;
@@ -68,6 +69,17 @@ export class CanvasConnection {
       webPreferences: { session: this.session, nodeIntegration: false, contextIsolation: true, sandbox: true } });
     this.loginWindow.removeMenu();
     this.loginWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    this.loginWindow.webContents.on('did-navigate', async (_event, value) => {
+      const url = new URL(value);
+      if (url.origin !== new URL(this.settings.value.canvasBaseUrl).origin || !['/', '/dashboard'].includes(url.pathname) || this.verifying) return;
+      this.verifying = true;
+      try {
+        await this.verify();
+        this.loginWindow?.close();
+        await this.onConnected();
+      } catch { /* Leave the login window available for the manual connection check. */ }
+      finally { this.verifying = false; }
+    });
     this.loginWindow.webContents.on('will-navigate', (event, value) => {
       try { if (new URL(value).protocol !== 'https:' || blockedAssessmentUrl(value)) event.preventDefault(); }
       catch { event.preventDefault(); }

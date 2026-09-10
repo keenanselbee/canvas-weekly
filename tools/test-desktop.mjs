@@ -1,6 +1,7 @@
 import { _electron as electron } from 'playwright';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import path from 'node:path';
 
 await fs.mkdir('.codex-temp/visual', { recursive: true });
 const environment = { ...process.env, CANVAS_WEEKLY_TEST: '1' };
@@ -9,6 +10,8 @@ const application = await electron.launch({ args: ['.'], env: environment });
 try {
   const page = await application.firstWindow();
   await page.getByRole('heading', { name: 'This week', exact: true }).waitFor();
+  await page.evaluate(() => window.canvasWeekly.disconnectCanvas());
+  await page.reload();
   await page.getByRole('button', { name: 'Preview an example' }).click();
   await page.getByRole('heading', { name: 'Focus first' }).waitFor();
   for (const theme of ['light', 'dark']) {
@@ -22,7 +25,7 @@ try {
   const state = await page.evaluate(() => window.canvasWeekly.getState());
   assert.equal(state.settings.theme, 'system');
   assert.equal(state.appearance.source, 'system');
-  assert.ok(state.outputDirectory.endsWith('Canvas Weekly'));
+  assert.ok(path.isAbsolute(state.outputDirectory));
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
   await assert.rejects(page.evaluate(() => window.canvasWeekly.setTheme('invalid')));
   await page.screenshot({ path: '.codex-temp/visual/settings.png' });

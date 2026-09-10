@@ -9,6 +9,7 @@ export const defaults = {
   canvasBaseUrl: 'https://canvas.ubc.ca',
   timeZone: 'America/Vancouver',
   selectedCourseIds: [],
+  lastGuideAccount: null,
 };
 
 export function validateSettings(value) {

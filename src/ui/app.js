@@ -25,9 +25,11 @@ function announce(message) {
   notice.hidden = false;
 }
 function update(next) {
+  const runChanged = state && (state.run?.busy !== next.run?.busy || state.run?.message !== next.run?.message);
   state = next;
   document.documentElement.dataset.theme = state.appearance.dark ? 'dark' : 'light';
   document.querySelector('#connection-status').textContent = state.canvas.connected ? 'Canvas connected' : state.canvas.connecting ? 'Signing in to Canvas' : 'Canvas not connected';
+  if (runChanged) { if (state.run.message) announce(state.run.message); render(); }
 }
 function header(title, subtitle, action) {
   const header = node('header', 'page-header');
@@ -53,8 +55,17 @@ function row(title, description, control) {
 function go(destination) { page = destination; render(); }
 
 function renderWeek() {
-  header('This week', preview ? 'September 14 – 20, 2026' : 'A clear plan for the week ahead');
+  const actions = node('div', 'actions');
+  if (!preview && state.canvas.connected) {
+    const refresh = button(state.run.busy ? 'Updating…' : 'Update guide', async () => { update(await api.updateGuide()); render(); }, 'primary');
+    refresh.disabled = state.run.busy;
+    actions.append(refresh);
+    if (state.run.busy) actions.append(button('Cancel', () => api.cancelRefresh()));
+  }
+  if (!preview && state.guide) actions.append(button('Open guide', () => api.openGuide()));
+  header('This week', preview ? 'September 14 – 20, 2026' : state.guide ? `${state.guide.week.start} to ${state.guide.week.end}` : 'A clear plan for the week ahead', actions);
   if (preview) { renderPreview(); return; }
+  if (state.guide) { renderGuide(); return; }
   const welcome = card();
   welcome.classList.add('welcome');
   welcome.append(node('div', 'eyebrow', 'WELCOME TO CANVAS WEEKLY'), node('h2', '', 'Know what to focus on. Keep the details close.'), node('p', '', 'Bring deadlines, readings, and course updates into one weekly guide, with links back to the source.'));
@@ -66,10 +77,42 @@ function renderWeek() {
     step.append(node('span', 'step-number', String(index + 1)), text);
     steps.append(step);
   });
-  const actions = node('div', 'actions');
-  actions.append(button('Set up Canvas Weekly', () => go('settings'), 'primary'), button('Preview an example', () => { preview = true; render(); }));
-  welcome.append(steps, actions);
+  const welcomeActions = node('div', 'actions');
+  welcomeActions.append(button(state.canvas.connected ? 'Choose courses' : 'Set up Canvas Weekly', () => go(state.canvas.connected ? 'courses' : 'settings'), 'primary'), button('Preview an example', () => { preview = true; render(); }));
+  welcome.append(steps, welcomeActions);
   main.append(welcome, node('p', 'footer-note', 'Canvas Weekly gathers course information. It never starts quizzes, submits work, or sends messages.'));
+}
+
+function renderGuide() {
+  const guide = state.guide;
+  const format = value => value ? new Intl.DateTimeFormat(undefined, { timeZone: guide.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value)) : 'No date supplied';
+  main.append(node('p', 'footer-note', `${guide.mode} · Updated ${format(guide.generatedAt)} · ${guide.timeZone}`));
+  for (const [title, items] of [['This week and overdue', guide.inWeek], ['Looking ahead', guide.upcoming], ['Undated work', guide.undated]]) {
+    const section = card(title);
+    if (!items.length) section.append(node('p', 'muted', 'No outstanding items identified in the collected information.'));
+    for (const item of items) {
+      const task = node('div', 'task');
+      const content = node('div', 'task-content');
+      content.append(node('h3', '', item.title), node('p', '', `${item.courseName}${item.stale ? ' · Last known information — recheck Canvas' : ''}`));
+      const detail = node('details');
+      detail.append(node('summary', '', 'Instructions and details'), node('p', '', item.instructions || 'No instructions supplied.'), node('p', '', `Submission: ${item.status}. Available until: ${format(item.closesAt)}.`));
+      content.append(detail);
+      task.append(node('span', 'task-marker'), content, node('time', '', format(item.dueAt)));
+      section.append(task);
+    }
+    main.append(section);
+  }
+  const changes = card('What changed');
+  if (!guide.changes.length) changes.append(node('p', 'muted', 'No changes detected in collected assignment metadata.'));
+  for (const change of guide.changes) changes.append(node('p', '', `${change.courseName} · ${change.title}: ${change.field === 'new' ? 'Newly observed' : change.field === 'instructions' ? 'Instructions changed' : `${change.field}: ${change.before ?? 'Not supplied'} → ${change.after ?? 'Not supplied'}`}`));
+  main.append(changes);
+  const coverage = card('Source coverage');
+  for (const course of guide.courses) {
+    coverage.append(node('h3', '', course.name));
+    for (const source of course.coverage) coverage.append(node('small', '', `${source.source}: ${source.status}${source.message ? ` — ${source.message}` : ''}`));
+  }
+  coverage.append(node('p', 'footer-note', 'Listings do not establish full page, file, module or message contents. Your exported guide lists remaining gaps.'));
+  main.append(coverage);
 }
 
 function renderPreview() {

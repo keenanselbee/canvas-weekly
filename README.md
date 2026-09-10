@@ -16,7 +16,9 @@ The Electron desktop shell is implemented with This week, Courses and Settings,
 an explicitly labeled sample guide, native output folder selection, and persisted
 System/Light/Dark appearance. Canvas browser sign-in, optional encrypted API token
 connection, course selection and a restricted API collector are implemented but
-not live-account validated yet. Guide generation and ChatGPT connection follow.
+not live-account validated yet. Factual Markdown guides, in-app reading, same-week
+updates, revisions, separate student notes and change reporting are implemented.
+ChatGPT interpretation and full linked-source details are the next milestones.
 
 In Settings, sign in to Canvas in the separate window, close it, then click Check
 connection. Course and Inbox navigation are disabled in the login window; it is
@@ -25,6 +27,13 @@ an institution-issued API token can be entered under Canvas connection options.
 Tokens are encrypted with Windows-backed Electron safeStorage. No API token is
 required if the permitted browser session method works. No account has been
 accessed by the automated tests.
+
+After connecting, choose courses and use Update guide on This week. Open guide
+opens the generated Markdown file in its associated Windows app. Existing manual
+edits to generated guides block replacement; keep notes in Student Notes.md.
+The latest saved guide is available in the app after restart without reconnecting.
+Run `npm run test:refresh` for a synthetic desktop collection/export/update test;
+it uses isolated test storage and temporary output, never your Canvas account.
 
 Requires Node.js 22.12 or later for development. Run `npm ci`, then `npm start`.
 Run `npm test` for settings validation and `npm run test:desktop` for Electron UI

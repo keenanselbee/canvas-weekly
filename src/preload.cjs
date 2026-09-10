@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('canvasWeekly', {
   disconnectCanvas: () => invoke('canvas:disconnect'),
   setCanvasOrigin: origin => invoke('settings:canvas', origin),
   selectCourses: ids => invoke('courses:select', ids),
+  updateGuide: () => invoke('guide:update'),
+  cancelRefresh: () => invoke('guide:cancel'),
+  openGuide: () => invoke('guide:open'),
   onStateChanged: callback => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('state:changed', listener);
