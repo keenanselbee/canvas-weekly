@@ -10,6 +10,8 @@ export const defaults = {
   timeZone: 'America/Vancouver',
   selectedCourseIds: [],
   lastGuideAccount: null,
+  codexExecutable: null,
+  aiEnabled: false,
 };
 
 export function validateSettings(value) {
@@ -23,6 +25,8 @@ export function validateSettings(value) {
     throw new Error('Enter the Canvas HTTPS address without a page path.');
   }
   new Intl.DateTimeFormat('en', { timeZone: value.timeZone }).format();
+  if (value.aiEnabled !== undefined && typeof value.aiEnabled !== 'boolean') throw new Error('Invalid AI preference.');
+  if (value.codexExecutable != null && (typeof value.codexExecutable !== 'string' || !path.isAbsolute(value.codexExecutable))) throw new Error('Choose an installed Codex executable.');
   if (!Array.isArray(value.selectedCourseIds) || !value.selectedCourseIds.every(id => /^\d+$/.test(id))) {
     throw new Error('Invalid course selection.');
   }

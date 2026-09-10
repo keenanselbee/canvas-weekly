@@ -127,7 +127,17 @@ const md = value => String(value ?? '').replace(/[\\`*_{}\[\]<>|#]/g, '\\$&').re
 
 export function renderMarkdown(guide) {
   const lines = ['# Weekly Plan', '', `**${guide.week.start} to ${guide.week.end}**`, '', `${guide.mode} · Updated ${formatDate(guide.generatedAt, guide.timeZone)} (${guide.timeZone})`, '',
-    'Generated sections are refreshed by Canvas Weekly. Keep your own notes in Student Notes.md.', '', '## This week and overdue', ''];
+    'Generated sections are refreshed by Canvas Weekly. Keep your own notes in Student Notes.md.', ''];
+  if (guide.priorities?.length) {
+    lines.push('## Suggested focus', '', 'AI suggestions based on collected evidence; these do not change course requirements.', '');
+    for (const priority of guide.priorities) {
+      const source = guide.items.find(item => item.id === priority.sourceId);
+      lines.push(`- **${md(priority.action)}** — ${md(priority.reason)}${source ? ` [${md(source.title)}](<${source.sourceUrl}>)` : ''}`);
+    }
+    lines.push('');
+  }
+  if (guide.planningNote) lines.push(`AI suggestions unavailable: ${md(guide.planningNote)}`, '');
+  lines.push('## This week and overdue', '');
   const itemLines = item => [
     `### ${md(item.title)}`, '', `**${md(item.courseName)}** · ${md(item.type)} · ${item.stale ? 'Last known information — needs recheck' : 'Observed in Canvas'}`, '',
     `- Due: ${formatDate(item.dueAt, guide.timeZone)}`,

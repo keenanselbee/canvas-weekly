@@ -6,6 +6,7 @@ import { SettingsStore, validateSettings } from './settings.js';
 import { CanvasConnection } from './canvas-session.js';
 import { GuideStore } from './guide-store.js';
 import { reconcile, buildGuide } from './guide.js';
+import { CodexClient, planningEvidence } from './codex-client.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const uiUrl = pathToFileURL(path.join(directory, 'ui/index.html')).href;
@@ -19,6 +20,7 @@ let courses = [];
 let guide = null;
 let run = { busy: false, message: '' };
 let controller;
+let codex;
 
 function snapshot() {
   return {
@@ -29,7 +31,7 @@ function snapshot() {
     courses,
     guide,
     run,
-    ai: { connected: false },
+    ai: codex?.state || { connected: false },
   };
 }
 
@@ -52,6 +54,12 @@ else {
   app.on('second-instance', () => { if (window) { window.show(); window.focus(); } });
   app.whenReady().then(async () => {
     await store.load();
+    const createCodex = () => {
+      const client = new CodexClient({ executable: store.value.codexExecutable || 'codex', directory: path.join(app.getPath('userData'), 'planner') });
+      client.on('state', publish);
+      return client;
+    };
+    codex = createCodex();
     if (store.value.lastGuideAccount) guide = await guides.load(store.value.lastGuideAccount.origin, store.value.lastGuideAccount.userId);
     const loadCourses = async () => {
       courses = await canvas.client().read('courses', {}, true);
@@ -126,6 +134,11 @@ else {
         const records = await canvas.client({ signal: controller.signal, onProgress: message => { run = { busy: true, message }; publish(); } }).collect(store.value.selectedCourseIds);
         if (!records.some(record => record.coverage.some(source => ['assignments', 'quizzes'].includes(source.source) && source.status === 'ok'))) throw new Error('No assessment information could be refreshed. Your previous guide has been preserved.');
         const next = buildGuide(reconcile(records, previous, { origin: store.value.canvasBaseUrl, now: new Date().toISOString(), timeZone: store.value.timeZone }));
+        if (store.value.aiEnabled) {
+          run = { busy: true, message: 'Preparing study suggestions with ChatGPT…' }; publish();
+          try { next.priorities = await codex.plan(planningEvidence(next), controller.signal); next.mode = 'Factual guide with AI study suggestions'; }
+          catch (error) { controller.signal.throwIfAborted(); next.planningNote = error.message; }
+        }
         controller.signal.throwIfAborted();
         run = { busy: true, message: 'Saving your weekly guide…' }; publish();
         guide = await guides.export(next, snapshot().outputDirectory, userId, controller.signal);
@@ -141,6 +154,19 @@ else {
       if (!guide?.outputPath) throw new Error('Create a guide first.');
       const error = await shell.openPath(guide.outputPath);
       if (error) throw new Error(error);
+    });
+    handle('ai:login', async () => { requireIdle(); await shell.openExternal(await codex.login()); return snapshot(); });
+    handle('ai:check', async () => { requireIdle(); await codex.start(); await codex.readAccount(); return snapshot(); });
+    handle('ai:logout', async () => { requireIdle(); await codex.logout(); await store.update({ aiEnabled: false }); return snapshot(); });
+    handle('settings:ai', async enabled => { requireIdle(); await store.update({ aiEnabled: enabled }); return snapshot(); });
+    handle('settings:codex', async () => {
+      requireIdle();
+      const result = await dialog.showOpenDialog(window, { title: 'Choose installed Codex', properties: ['openFile'], filters: [{ name: 'Codex executable', extensions: ['exe'] }] });
+      if (!result.canceled) {
+        await store.update({ codexExecutable: result.filePaths[0] });
+        codex.close(); codex = createCodex();
+      }
+      return snapshot();
     });
     handle('settings:theme', async theme => {
       await store.update({ theme });
@@ -165,4 +191,5 @@ else {
     await window.loadURL(uiUrl);
   }).catch(error => { dialog.showErrorBox('Canvas Weekly could not start', error.message); app.quit(); });
   app.on('window-all-closed', () => app.quit());
+  app.on('before-quit', () => { controller?.abort(); codex?.close(); });
 }

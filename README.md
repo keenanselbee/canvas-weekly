@@ -18,7 +18,8 @@ System/Light/Dark appearance. Canvas browser sign-in, optional encrypted API tok
 connection, course selection and a restricted API collector are implemented but
 not live-account validated yet. Factual Markdown guides, in-app reading, same-week
 updates, revisions, separate student notes and change reporting are implemented.
-ChatGPT interpretation and full linked-source details are the next milestones.
+Optional ChatGPT sign-in and study suggestions use the installed official Codex
+runtime. Full linked-source details and Word export are the next milestones.
 
 In Settings, sign in to Canvas in the separate window, close it, then click Check
 connection. Course and Inbox navigation are disabled in the login window; it is
@@ -34,6 +35,14 @@ edits to generated guides block replacement; keep notes in Student Notes.md.
 The latest saved guide is available in the app after restart without reconnecting.
 Run `npm run test:refresh` for a synthetic desktop collection/export/update test;
 it uses isolated test storage and temporary output, never your Canvas account.
+
+For AI suggestions, open Settings, connect ChatGPT through the official browser
+flow, then enable Study suggestions. If Codex cannot be found, choose the installed
+codex.exe under ChatGPT connection options. The app keeps its Codex credentials
+separate from your existing setup and does not inherit API keys as a paid fallback.
+AI receives bounded selected course text, with no Canvas credentials. Failed
+planning falls back to a factual guide. Real runtime initialization is verified;
+real ChatGPT login and a live planning turn still require account validation.
 
 Requires Node.js 22.12 or later for development. Run `npm ci`, then `npm start`.
 Run `npm test` for settings validation and `npm run test:desktop` for Electron UI

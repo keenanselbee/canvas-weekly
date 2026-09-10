@@ -20,6 +20,11 @@ contextBridge.exposeInMainWorld('canvasWeekly', {
   updateGuide: () => invoke('guide:update'),
   cancelRefresh: () => invoke('guide:cancel'),
   openGuide: () => invoke('guide:open'),
+  connectChatGPT: () => invoke('ai:login'),
+  checkChatGPT: () => invoke('ai:check'),
+  disconnectChatGPT: () => invoke('ai:logout'),
+  setAIEnabled: enabled => invoke('settings:ai', enabled),
+  chooseCodex: () => invoke('settings:codex'),
   onStateChanged: callback => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('state:changed', listener);

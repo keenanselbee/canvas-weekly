@@ -14,8 +14,8 @@ Milestone ledger
 | M0 | Product, UX, architecture and delivery plan; existing output initializer | Documents agree with the user's boundaries; Desktop/override verified | Complete: 8eb1b63 |
 | M1 | Native desktop shell, navigation, appearance and saved settings | App launches; system/light/dark work; folder picker; light/dark visual QA | Complete: 49a892d |
 | M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Implemented; live account validation pending |
-| M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Implemented; synthetic end-to-end verified |
-| M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Pending |
+| M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Complete: ddd9975; synthetic end-to-end verified |
+| M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Implemented; real runtime handshake verified, account login pending |
 | M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Pending |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Pending |
 
@@ -78,3 +78,8 @@ Work log
   Markdown export/revisions, preserved notes, manual-edit protection and account
   isolation. Twelve unit tests and a synthetic full desktop refresh pass. DST
   test uses Los Angeles explicitly rather than assuming Vancouver's DST rules.
+- 2026-09-10: M4 added official app-server login, account state, executable picker,
+  isolated credentials, bounded evidence and source-validated suggestions. Real
+  installed Codex handshake/account read succeeds without using existing account
+  credentials. Fifteen unit tests and both desktop workflows pass. A real model
+  planning turn still needs the user's separate ChatGPT sign-in.

@@ -26,10 +26,12 @@ function announce(message) {
 }
 function update(next) {
   const runChanged = state && (state.run?.busy !== next.run?.busy || state.run?.message !== next.run?.message);
+  const connectionChanged = state && (JSON.stringify(state.canvas) !== JSON.stringify(next.canvas) || JSON.stringify(state.ai) !== JSON.stringify(next.ai));
   state = next;
   document.documentElement.dataset.theme = state.appearance.dark ? 'dark' : 'light';
   document.querySelector('#connection-status').textContent = state.canvas.connected ? 'Canvas connected' : state.canvas.connecting ? 'Signing in to Canvas' : 'Canvas not connected';
   if (runChanged) { if (state.run.message) announce(state.run.message); render(); }
+  else if (connectionChanged) render();
 }
 function header(title, subtitle, action) {
   const header = node('header', 'page-header');
@@ -87,6 +89,16 @@ function renderGuide() {
   const guide = state.guide;
   const format = value => value ? new Intl.DateTimeFormat(undefined, { timeZone: guide.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value)) : 'No date supplied';
   main.append(node('p', 'footer-note', `${guide.mode} · Updated ${format(guide.generatedAt)} · ${guide.timeZone}`));
+  if (guide.priorities?.length) {
+    const suggestions = card('Suggested focus');
+    suggestions.append(node('p', 'muted', 'AI study suggestions based on your collected course information.'));
+    for (const priority of guide.priorities) {
+      const source = guide.items.find(item => item.id === priority.sourceId);
+      suggestions.append(node('h3', '', priority.action), node('p', '', priority.reason), node('small', '', source ? `${source.courseName} · ${source.title}` : 'Source unavailable'));
+    }
+    main.append(suggestions);
+  }
+  if (guide.planningNote) main.append(node('p', 'muted', `AI suggestions unavailable: ${guide.planningNote}`));
   for (const [title, items] of [['This week and overdue', guide.inWeek], ['Looking ahead', guide.upcoming], ['Undated work', guide.undated]]) {
     const section = card(title);
     if (!items.length) section.append(node('p', 'muted', 'No outstanding items identified in the collected information.'));
@@ -186,7 +198,17 @@ function renderSettings() {
     update(await api.connectCanvasToken(value)); announce('Canvas connected. Choose your courses.'); go('courses');
   }));
   advanced.append(node('p', 'muted', 'Use an API token only if your institution provides one. It is encrypted on this Windows computer.'), addressRow, tokenRow);
-  connections.append(advanced, row('ChatGPT', 'Optional. Add AI interpretation to your factual course guide.'));
+  connections.append(advanced);
+  const aiActions = node('div', 'actions');
+  if (state.ai.connected) aiActions.append(button('Disconnect', async () => { update(await api.disconnectChatGPT()); render(); }));
+  else aiActions.append(button(state.ai.connecting ? 'Sign-in open' : 'Connect ChatGPT', async () => { update(await api.connectChatGPT()); render(); }), button('Check sign-in', async () => { update(await api.checkChatGPT()); render(); }));
+  connections.append(row('ChatGPT', state.ai.connected ? 'Connected through Codex. Your account usage limits apply.' : state.ai.error || 'Sign in through the official ChatGPT page to add study suggestions.', aiActions));
+  const aiToggle = node('input'); aiToggle.type = 'checkbox'; aiToggle.checked = Boolean(state.settings.aiEnabled); aiToggle.setAttribute('aria-label', 'Use ChatGPT suggestions');
+  aiToggle.addEventListener('change', () => perform(async () => { update(await api.setAIEnabled(aiToggle.checked)); }));
+  connections.append(row('Study suggestions', 'When enabled, selected course text is sent to ChatGPT. Factual guides work without it.', aiToggle));
+  const aiOptions = node('details', 'connection-options'); aiOptions.append(node('summary', '', 'ChatGPT connection options'));
+  aiOptions.append(node('p', 'muted', state.settings.codexExecutable || 'Uses an installed Codex runtime. If it cannot be found, choose codex.exe.'), button('Choose Codex executable', async () => { update(await api.chooseCodex()); render(); }));
+  connections.append(aiOptions);
   const output = card('Weekly files');
   output.append(row('Output folder', state.outputDirectory, button('Change folder', async () => { update(await api.chooseOutput()); render(); })), row('Open your files', 'Weekly guides and your notes stay in the folder you choose.', button('Open folder', () => api.openOutput())));
   const appearance = card('Appearance');
