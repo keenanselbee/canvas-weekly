@@ -27,6 +27,7 @@ function announce(message) {
 function update(next) {
   state = next;
   document.documentElement.dataset.theme = state.appearance.dark ? 'dark' : 'light';
+  document.querySelector('#connection-status').textContent = state.canvas.connected ? 'Canvas connected' : state.canvas.connecting ? 'Signing in to Canvas' : 'Canvas not connected';
 }
 function header(title, subtitle, action) {
   const header = node('header', 'page-header');
@@ -98,6 +99,21 @@ function renderPreview() {
 
 function renderCourses() {
   header('Courses', 'Choose what belongs in your weekly guide');
+  if (state.canvas.connected) {
+    const list = card('Your courses');
+    const selected = new Set(state.settings.selectedCourseIds);
+    for (const course of state.courses) {
+      const checkbox = node('input');
+      checkbox.type = 'checkbox'; checkbox.value = String(course.id); checkbox.checked = selected.has(String(course.id));
+      checkbox.setAttribute('aria-label', course.name || 'Unnamed course');
+      checkbox.addEventListener('change', () => checkbox.checked ? selected.add(checkbox.value) : selected.delete(checkbox.value));
+      list.append(row(course.name || 'Unnamed course', course.term?.name || course.course_code || 'Term not supplied', checkbox));
+    }
+    if (!state.courses.length) list.append(node('p', 'muted', 'No active student courses were returned by Canvas.'));
+    list.append(button('Save course selection', async () => { update(await api.selectCourses([...selected])); announce('Course selection saved.'); }, 'primary'));
+    main.append(list);
+    return;
+  }
   const empty = card();
   empty.classList.add('empty');
   empty.append(node('h2', '', 'Your courses will appear here'), node('p', '', 'Connect Canvas to find your courses, including optional co-op or application work.'), button('Connection settings', () => go('settings'), 'primary'));
@@ -107,7 +123,27 @@ function renderCourses() {
 function renderSettings() {
   header('Settings', 'Make Canvas Weekly work for you');
   const connections = card('Connections');
-  connections.append(row('Canvas', 'Not connected. Your institution: ' + state.settings.canvasBaseUrl), row('ChatGPT', 'Optional. Add AI interpretation to your factual course guide.'));
+  const canvasActions = node('div', 'actions');
+  if (state.canvas.connected) {
+    canvasActions.append(button('Choose courses', () => go('courses')), button('Disconnect', async () => { update(await api.disconnectCanvas()); render(); }));
+  } else {
+    canvasActions.append(button('Sign in to Canvas', async () => { update(await api.openCanvasLogin()); render(); }, 'primary'), button('Check connection', async () => { announce('Checking Canvas connection…'); update(await api.verifyCanvas()); announce('Canvas connected. Choose your courses.'); go('courses'); }));
+  }
+  connections.append(row('Canvas', state.canvas.connected ? `Connected as ${state.canvas.name}` : 'Sign in in the Canvas window, then close it and check the connection.', canvasActions));
+  const advanced = node('details', 'connection-options');
+  advanced.append(node('summary', '', 'Canvas connection options'));
+  const origin = node('input'); origin.type = 'url'; origin.value = state.settings.canvasBaseUrl; origin.setAttribute('aria-label', 'Canvas address');
+  const addressRow = node('div', 'actions');
+  addressRow.append(origin, button('Save address', async () => { update(await api.setCanvasOrigin(origin.value)); render(); }));
+  const token = node('input'); token.type = 'password'; token.autocomplete = 'off'; token.placeholder = 'Institution-issued API token'; token.setAttribute('aria-label', 'Canvas API token');
+  const tokenRow = node('div', 'actions');
+  tokenRow.append(token, button('Connect with token', async () => {
+    const value = token.value; token.value = '';
+    announce('Checking Canvas connection…');
+    update(await api.connectCanvasToken(value)); announce('Canvas connected. Choose your courses.'); go('courses');
+  }));
+  advanced.append(node('p', 'muted', 'Use an API token only if your institution provides one. It is encrypted on this Windows computer.'), addressRow, tokenRow);
+  connections.append(advanced, row('ChatGPT', 'Optional. Add AI interpretation to your factual course guide.'));
   const output = card('Weekly files');
   output.append(row('Output folder', state.outputDirectory, button('Change folder', async () => { update(await api.chooseOutput()); render(); })), row('Open your files', 'Weekly guides and your notes stay in the folder you choose.', button('Open folder', () => api.openOutput())));
   const appearance = card('Appearance');

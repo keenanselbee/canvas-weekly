@@ -11,6 +11,12 @@ contextBridge.exposeInMainWorld('canvasWeekly', {
   setTheme: theme => invoke('settings:theme', theme),
   chooseOutput: () => invoke('settings:output'),
   openOutput: () => invoke('output:open'),
+  openCanvasLogin: () => invoke('canvas:login'),
+  verifyCanvas: () => invoke('canvas:verify'),
+  connectCanvasToken: token => invoke('canvas:token', token),
+  disconnectCanvas: () => invoke('canvas:disconnect'),
+  setCanvasOrigin: origin => invoke('settings:canvas', origin),
+  selectCourses: ids => invoke('courses:select', ids),
   onStateChanged: callback => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('state:changed', listener);

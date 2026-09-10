@@ -14,8 +14,17 @@ Implementation specifications: [Windows UX](docs/ux-design.md),
 
 The Electron desktop shell is implemented with This week, Courses and Settings,
 an explicitly labeled sample guide, native output folder selection, and persisted
-System/Light/Dark appearance. Live Canvas collection and ChatGPT connection are
-the next milestones. No account has been accessed or validated by this setup.
+System/Light/Dark appearance. Canvas browser sign-in, optional encrypted API token
+connection, course selection and a restricted API collector are implemented but
+not live-account validated yet. Guide generation and ChatGPT connection follow.
+
+In Settings, sign in to Canvas in the separate window, close it, then click Check
+connection. Course and Inbox navigation are disabled in the login window; it is
+only for authentication. If your institution does not allow session API reads,
+an institution-issued API token can be entered under Canvas connection options.
+Tokens are encrypted with Windows-backed Electron safeStorage. No API token is
+required if the permitted browser session method works. No account has been
+accessed by the automated tests.
 
 Requires Node.js 22.12 or later for development. Run `npm ci`, then `npm start`.
 Run `npm test` for settings validation and `npm run test:desktop` for Electron UI
