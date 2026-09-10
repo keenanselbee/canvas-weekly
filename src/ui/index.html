@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Canvas Weekly</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-icon" aria-hidden="true">▦</span><div>Canvas Weekly<small>Your week, in view</small></div></div>
+    <nav aria-label="Main navigation">
+      <button data-page="week" class="nav-item selected"><span aria-hidden="true">▤</span>This week</button>
+      <button data-page="courses" class="nav-item"><span aria-hidden="true">▥</span>Courses</button>
+      <button data-page="settings" class="nav-item"><span aria-hidden="true">⚙</span>Settings</button>
+    </nav>
+    <div class="sidebar-bottom"><span class="status-dot"></span><span id="connection-status">Canvas not connected</span><small>Course information, thoughtfully organized.</small></div>
+  </aside>
+  <main id="main"></main>
+  <div id="notice" role="status" aria-live="polite" hidden></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

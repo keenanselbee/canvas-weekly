@@ -11,8 +11,8 @@ Milestone ledger
 
 | Milestone | Deliverable | Acceptance | State |
 | --- | --- | --- | --- |
-| M0 | Product, UX, architecture and delivery plan; existing output initializer | Documents agree with the user's boundaries; Desktop/override verified | In review |
-| M1 | Native desktop shell, navigation, appearance and saved settings | App launches; system/light/dark work; folder picker; light/dark visual QA | Pending |
+| M0 | Product, UX, architecture and delivery plan; existing output initializer | Documents agree with the user's boundaries; Desktop/override verified | Complete: 8eb1b63 |
+| M1 | Native desktop shell, navigation, appearance and saved settings | App launches; system/light/dark work; folder picker; light/dark visual QA | Complete; committing |
 | M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Pending |
 | M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Pending |
 | M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Pending |
@@ -62,3 +62,7 @@ Work log
 - 2026-09-10: Existing output initializer resolves Desktop/Canvas Weekly and accepts
   an absolute override. Added Windows UX, architecture, milestones and acceptance.
   Chose Electron with a minimal renderer and separate collector/planner boundaries.
+- 2026-09-10: M1 added a sandboxed native-window app, theme persistence and system
+  updates, output folder dialog, navigation and labeled sample preview. Two unit
+  tests and Electron navigation/theme/isolation/minimum-size checks pass. Inspected
+  light/dark screenshots. Fixed a test race by waiting for settings save completion.

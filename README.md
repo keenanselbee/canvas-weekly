@@ -12,9 +12,17 @@ Implementation specifications: [Windows UX](docs/ux-design.md),
 
 ## Current implementation
 
-Output folder initialization and configuration are implemented. Live collection,
-browser login, course storage, change detection, and document generation are not
-implemented yet. No Canvas account has been accessed or validated by this setup.
+The Electron desktop shell is implemented with This week, Courses and Settings,
+an explicitly labeled sample guide, native output folder selection, and persisted
+System/Light/Dark appearance. Live Canvas collection and ChatGPT connection are
+the next milestones. No account has been accessed or validated by this setup.
+
+Requires Node.js 22.12 or later for development. Run `npm ci`, then `npm start`.
+Run `npm test` for settings validation and `npm run test:desktop` for Electron UI
+checks and light/dark screenshots under `.codex-temp/visual`. Development settings
+live under ignored `.local/app`; UI tests use separate `.local/test-app` storage.
+The desktop app saves its own settings; the JSON config below belongs to the
+standalone PowerShell initializer.
 
 From this repository, run:
 

@@ -1,1 +1,6 @@
 Canvas Weekly.code-workspace
+node_modules/
+.local/
+.codex-temp/
+dist/
+test-results/
