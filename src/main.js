@@ -7,6 +7,7 @@ import { CanvasConnection } from './canvas-session.js';
 import { GuideStore } from './guide-store.js';
 import { reconcile, buildGuide } from './guide.js';
 import { CodexClient, planningEvidence } from './codex-client.js';
+import { referenceUrl } from './content.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const uiUrl = pathToFileURL(path.join(directory, 'ui/index.html')).href;
@@ -160,6 +161,12 @@ else {
       const error = await shell.openPath(guide.outputPath);
       if (error) throw new Error(error);
     });
+    handle('guide:source', async id => {
+      const source = guide && [...guide.items, ...guide.courses.flatMap(course => course.evidence || [])].find(item => item.id === id);
+      const url = source && referenceUrl(source.sourceUrl, guide.origin);
+      if (!url) throw new Error('Choose a source in the current guide.');
+      await shell.openExternal(url);
+    });
     handle('ai:login', async () => { requireIdle(); await shell.openExternal(await codex.login()); return snapshot(); });
     handle('ai:check', async () => { requireIdle(); await codex.start(); await codex.readAccount(); return snapshot(); });
     handle('ai:logout', async () => { requireIdle(); await codex.logout(); await store.update({ aiEnabled: false }); return snapshot(); });
@@ -195,6 +202,13 @@ else {
     });
     await window.loadURL(uiUrl);
     if (!testMode) { window.show(); window.focus(); }
+    if (!testMode) {
+      try {
+        await fs.access(path.join(app.getPath('userData'), 'planner/codex-home/auth.json'));
+        await codex.start();
+      } catch { /* Factual guides stay available if the saved AI connection cannot be restored. */ }
+      publish();
+    }
     if (!testMode && await canvas.hasSavedSession()) {
       try {
         await canvas.verify(); await loadCourses();

@@ -2,6 +2,7 @@ const api = window.canvasWeekly;
 let state;
 let page = 'week';
 let preview = false;
+let noticeTimer;
 const main = document.querySelector('main');
 
 function node(tag, className, text) {
@@ -17,21 +18,24 @@ function button(label, callback, className = '') {
 }
 async function perform(callback) {
   try { await callback(); }
-  catch (error) { announce(error.message); }
+  catch (error) { announce(error.message, true); }
 }
-function announce(message) {
+function announce(message, persistent = false) {
+  clearTimeout(noticeTimer);
   const notice = document.querySelector('#notice');
-  notice.textContent = message;
+  notice.replaceChildren(node('span', '', message), button('Dismiss', () => { notice.hidden = true; }, 'link'));
   notice.hidden = false;
+  if (!persistent) noticeTimer = setTimeout(() => { notice.hidden = true; }, 4500);
 }
 function update(next) {
-  if (next.canvas.error && next.canvas.error !== state?.canvas.error) announce(next.canvas.error);
+  if (next.canvas.error && next.canvas.error !== state?.canvas.error) announce(next.canvas.error, true);
   const runChanged = state && (state.run?.busy !== next.run?.busy || state.run?.message !== next.run?.message);
   const connectionChanged = state && (JSON.stringify(state.canvas) !== JSON.stringify(next.canvas) || JSON.stringify(state.ai) !== JSON.stringify(next.ai));
   state = next;
   document.documentElement.dataset.theme = state.appearance.dark ? 'dark' : 'light';
   document.querySelector('#connection-status').textContent = state.canvas.connected ? 'Canvas connected' : state.canvas.connecting ? 'Signing in to Canvas' : 'Canvas not connected';
-  if (runChanged) { if (state.run.message) announce(state.run.message); render(); }
+  document.querySelector('#ai-status').textContent = state.ai.connected ? `ChatGPT via Codex connected${state.settings.aiEnabled ? '' : ' · Suggestions off'}` : state.ai.connecting ? 'ChatGPT sign-in in progress' : 'ChatGPT not connected';
+  if (runChanged) { if (state.run.message) announce(state.run.message, state.run.busy); render(); }
   else if (connectionChanged) render();
 }
 function header(title, subtitle, action) {
@@ -94,7 +98,7 @@ function renderGuide() {
     const suggestions = card('Suggested focus');
     suggestions.append(node('p', 'muted', 'AI study suggestions based on your collected course information.'));
     for (const priority of guide.priorities) {
-      const source = guide.items.find(item => item.id === priority.sourceId);
+      const source = [...guide.items, ...guide.courses.flatMap(course => course.evidence || [])].find(item => item.id === priority.sourceId);
       suggestions.append(node('h3', '', priority.action), node('p', '', priority.reason), node('small', '', source ? `${source.courseName} · ${source.title}` : 'Source unavailable'));
     }
     main.append(suggestions);
@@ -109,6 +113,7 @@ function renderGuide() {
       content.append(node('h3', '', item.title), node('p', '', `${item.courseName}${item.stale ? ' · Last known information — recheck Canvas' : ''}`));
       const detail = node('details');
       detail.append(node('summary', '', 'Instructions and details'), node('p', '', item.instructions || 'No instructions supplied.'), node('p', '', `Submission: ${item.status}. Available until: ${format(item.closesAt)}.`));
+      detail.append(button('Open source', () => api.openSource(item.id), 'link'));
       content.append(detail);
       task.append(node('span', 'task-marker'), content, node('time', '', format(item.dueAt)));
       section.append(task);
@@ -116,15 +121,31 @@ function renderGuide() {
     main.append(section);
   }
   const changes = card('What changed');
-  if (!guide.changes.length) changes.append(node('p', 'muted', 'No changes detected in collected assignment metadata.'));
-  for (const change of guide.changes) changes.append(node('p', '', `${change.courseName} · ${change.title}: ${change.field === 'new' ? 'Newly observed' : change.field === 'instructions' ? 'Instructions changed' : `${change.field}: ${change.before ?? 'Not supplied'} → ${change.after ?? 'Not supplied'}`}`));
+  if (!guide.changes.length) changes.append(node('p', 'muted', 'No changes detected in collected information.'));
+  for (const change of guide.changes) changes.append(node('p', '', `${change.courseName} · ${change.title}: ${change.field === 'new' ? 'Newly observed' : ['instructions', 'course-information'].includes(change.field) ? 'Source content changed' : `${change.field}: ${change.before ?? 'Not supplied'} → ${change.after ?? 'Not supplied'}`}`));
   main.append(changes);
+  const information = card('Course information');
+  information.append(node('p', 'muted', 'Messages and announcements may qualify assignment dates. Review both when an instructor announces a change.'));
+  for (const course of guide.courses) {
+    const group = node('details');
+    group.append(node('summary', '', course.name));
+    for (const source of course.evidence || []) {
+      const detail = node('details');
+      detail.append(node('summary', '', `${source.title} · ${source.kind}${source.stale ? ' · Needs recheck' : ''}`));
+      if (source.author || source.postedAt) detail.append(node('p', 'muted', `${source.author || ''} ${source.postedAt ? format(source.postedAt) : ''}`));
+      if (source.startsAt) detail.append(node('p', '', `${format(source.startsAt)}${source.location ? ' · ' + source.location : ''}`));
+      detail.append(node('p', 'source-body', source.body || 'Content not supplied.'), button('Open source', () => api.openSource(source.id), 'link'));
+      group.append(detail);
+    }
+    information.append(group);
+  }
+  main.append(information);
   const coverage = card('Source coverage');
   for (const course of guide.courses) {
     coverage.append(node('h3', '', course.name));
     for (const source of course.coverage) coverage.append(node('small', '', `${source.source}: ${source.status}${source.message ? ` — ${source.message}` : ''}`));
   }
-  coverage.append(node('p', 'footer-note', 'Listings do not establish full page, file, module or message contents. Your exported guide lists remaining gaps.'));
+  coverage.append(node('p', 'footer-note', 'Linked files, message attachments and external tools may contain additional requirements. Your exported guide lists references and collection gaps.'));
   main.append(coverage);
 }
 
@@ -203,7 +224,7 @@ function renderSettings() {
   const aiActions = node('div', 'actions');
   if (state.ai.connected) aiActions.append(button('Disconnect', async () => { update(await api.disconnectChatGPT()); render(); }));
   else aiActions.append(button(state.ai.connecting ? 'Sign-in open' : 'Connect ChatGPT', async () => { update(await api.connectChatGPT()); render(); }), button('Check sign-in', async () => { update(await api.checkChatGPT()); render(); }));
-  connections.append(row('ChatGPT', state.ai.connected ? 'Connected through Codex. Your account usage limits apply.' : state.ai.error || 'Sign in through the official ChatGPT page to add study suggestions.', aiActions));
+  connections.append(row('ChatGPT via Codex', state.ai.connected ? 'Connected. Your account usage limits apply.' : state.ai.error || 'Sign in through the official ChatGPT page to add study suggestions.', aiActions));
   const aiToggle = node('input'); aiToggle.type = 'checkbox'; aiToggle.checked = Boolean(state.settings.aiEnabled); aiToggle.setAttribute('aria-label', 'Use ChatGPT suggestions');
   aiToggle.addEventListener('change', () => perform(async () => { update(await api.setAIEnabled(aiToggle.checked)); }));
   connections.append(row('Study suggestions', 'When enabled, selected course text is sent to ChatGPT. Factual guides work without it.', aiToggle));

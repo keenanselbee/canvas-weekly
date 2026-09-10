@@ -137,3 +137,6 @@ References
 - [Electron security](https://www.electronjs.org/docs/latest/tutorial/security)
 - [Codex app server](https://learn.chatgpt.com/docs/app-server)
 - [Canvas conversations](https://developerdocs.instructure.com/services/canvas/resources/conversations)
+- [Canvas page listing and body inclusion](https://github.com/instructure/canvas-lms/blob/master/app/controllers/wiki_pages_api_controller.rb)
+- [Canvas module items](https://developerdocs.instructure.com/services/canvas/resources/modules)
+- [External course site adapter design](external-course-sources.md)

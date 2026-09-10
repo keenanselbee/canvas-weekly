@@ -154,7 +154,7 @@ export class CodexClient extends EventEmitter {
         approvalPolicy: 'never', sandboxPolicy: { type: 'readOnly', networkAccess: false }, outputSchema: schema });
       turnId = started.turn.id;
       const result = JSON.parse(await completion);
-      const allowed = new Set(evidence.items.map(item => item.id));
+      const allowed = new Set([...evidence.items, ...(evidence.sources || [])].map(item => item.id));
       if (!Array.isArray(result.priorities) || result.priorities.length > 6 || result.priorities.some(item => !allowed.has(item.sourceId) || typeof item.action !== 'string' || typeof item.reason !== 'string' || item.action.length > 1500 || item.reason.length > 1500)) throw new Error('ChatGPT returned suggestions without valid course references.');
       return result.priorities;
     } finally {
@@ -169,5 +169,8 @@ export function planningEvidence(guide) {
   return { week: guide.week, timeZone: guide.timeZone, items: [...guide.inWeek, ...guide.upcoming, ...guide.undated].slice(0, 100).map(item => ({
     id: item.id, course: item.courseName, title: item.title, dueAt: item.dueAt, closesAt: item.closesAt, status: item.status, stale: item.stale,
     instructions: item.instructions.slice(0, 3000), points: item.points,
-  })) };
+  })), sources: (guide.courses || []).flatMap(course => (course.evidence || []).map(source => ({
+    id: source.id, course: source.courseName, title: source.title, kind: source.kind, body: source.body.slice(0, 3000), stale: source.stale,
+    startsAt: source.startsAt, postedAt: source.postedAt,
+  }))).sort((a, b) => String(b.postedAt || b.startsAt || '').localeCompare(String(a.postedAt || a.startsAt || ''))).slice(0, 100) };
 }

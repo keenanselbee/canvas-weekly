@@ -20,6 +20,7 @@ try {
       else if (url.pathname === '/api/v1/courses') data = [{ id: 1, name: 'Example course', course_code: 'DEMO 101' }];
       else if (url.pathname === '/api/v1/courses/1') data = { id: 1, name: 'Example course', course_code: 'DEMO 101', syllabus_body: '<p>Read the notes first.</p>' };
       else if (url.pathname.endsWith('/assignments')) data = [{ id: 10, name: 'Example assignment', due_at: deadline, description: '<p>Complete the practice.</p>', submission: { workflow_state: 'unsubmitted' } }];
+      else if (url.pathname.endsWith('/pages')) data = [{ page_id: 2, url: 'course-site', title: 'Course website', body: '<p>Read the external syllabus.</p><p>Password: example-password</p>' }];
       return new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
     };
   }, output);
@@ -30,11 +31,19 @@ try {
     await window.canvasWeekly.chooseOutput();
   });
   await page.reload();
+  await page.getByRole('button', { name: 'Courses', exact: true }).click();
+  await page.getByRole('button', { name: 'Save course selection', exact: true }).click();
+  await page.getByText('Course selection saved.', { exact: true }).waitFor();
+  await page.locator('#notice').waitFor({ state: 'hidden', timeout: 6500 });
+  await page.getByRole('button', { name: 'This week', exact: true }).click();
   await page.getByRole('button', { name: 'Update guide', exact: true }).click();
   await page.getByRole('heading', { name: 'Example assignment' }).waitFor();
   const first = await page.evaluate(() => window.canvasWeekly.getState());
   assert.equal(first.guide.items.length, 1);
   assert.ok((await fs.readFile(first.guide.outputPath, 'utf8')).includes('Complete the practice.'));
+  assert.ok((await fs.readFile(first.guide.outputPath, 'utf8')).includes('Read the external syllabus.'));
+  assert.ok(!(await fs.readFile(first.guide.outputPath, 'utf8')).includes('example-password'));
+  await assert.rejects(page.evaluate(() => window.canvasWeekly.openSource('https://unknown.example/')), /Choose a source/);
   const notes = path.join(path.dirname(first.guide.outputPath), 'Student Notes.md');
   await fs.writeFile(notes, 'Keep these student notes.');
   await page.getByRole('button', { name: 'Update guide', exact: true }).click();

@@ -13,10 +13,10 @@ Milestone ledger
 | --- | --- | --- | --- |
 | M0 | Product, UX, architecture and delivery plan; existing output initializer | Documents agree with the user's boundaries; Desktop/override verified | Complete: 8eb1b63 |
 | M1 | Native desktop shell, navigation, appearance and saved settings | App launches; system/light/dark work; folder picker; light/dark visual QA | Complete: 49a892d |
-| M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Implemented; live account validation pending |
+| M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Live session API collection verified for four courses, with reported source gaps |
 | M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Complete: ddd9975; synthetic end-to-end verified |
 | M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Implemented; real runtime handshake verified, account login pending |
-| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Pending |
+| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Canvas evidence expanded; external-site adapters and Word output pending |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Pending |
 
 Scheduling, multi-provider support, public distribution and hosted service are
@@ -89,3 +89,14 @@ Work log
   changes clear course selections. The screenshot's dashboard widget failure
   does not establish API failure; live API access remains unverified. Desktop
   checks cover visible expiry errors and account-switch isolation.
+- 2026-09-10: The user's live refresh saved Desktop/Canvas Weekly/2026-09-07/
+  Weekly Plan.md: four courses, 65 assessment records, 16 upcoming and 33 undated
+  outstanding items, no outstanding dated items in the current week. Six source
+  categories returned 403/404 across those courses and are recorded as gaps.
+  This was factual mode (AI suggestions disabled). ChatGPT login is user-reported;
+  a real model planning turn still requires verification.
+- 2026-09-10: Expanded course evidence with page-list bodies, module item lists,
+  course message details preserving unread state, calendar events and rubrics.
+  Added HTML parsing, credential-line redaction, source links, stale retention
+  and course-content diffs. Confirmation notices expire and can be dismissed;
+  the sidebar names ChatGPT via Codex and indicates when suggestions are off.

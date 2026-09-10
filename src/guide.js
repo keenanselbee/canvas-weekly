@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
-import { blockedAssessmentUrl } from './canvas-client.js';
+import { plainText, sourceUrl } from './content.js';
+import { courseEvidence } from './course-evidence.js';
+export { plainText, sourceUrl } from './content.js';
 
 export function localDate(value, timeZone) {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(value));
@@ -16,27 +18,8 @@ export function weekOf(value, timeZone) {
   const start = shiftDate(today, -(day + 6) % 7);
   return { start, end: shiftDate(start, 6), today };
 }
-export function plainText(value = '') {
-  return String(value ?? '').replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
-    .replace(/<\/(p|div|li|h[1-6]|tr)>|<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '')
-    .replace(/&#(x[0-9a-f]+|\d+);/gi, (match, code) => {
-      const point = code[0].toLowerCase() === 'x' ? parseInt(code.slice(1), 16) : Number(code);
-      return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : match;
-    }).replace(/&(amp|lt|gt|quot|apos|nbsp);/g, (_match, name) => ({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' })[name])
-    .replace(/[ \t]+/g, ' ').replace(/\n\s*\n/g, '\n\n').trim();
-}
 const dateOrNull = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
 const numberOrNull = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
-
-export function sourceUrl(value, origin, fallback) {
-  try {
-    const url = new URL(value || fallback, origin);
-    if (url.protocol !== 'https:' || url.username || url.password || blockedAssessmentUrl(url.href)) return new URL(fallback, origin).href;
-    // Public source references must never include token-bearing download parameters.
-    for (const key of [...url.searchParams.keys()]) if (/token|secret|signature|verifier|key|auth/i.test(key)) url.searchParams.delete(key);
-    return url.href;
-  } catch { return new URL(fallback, origin).href; }
-}
 
 function normalizeItems(record, origin, now) {
   const courseName = record.sources.course?.course_code || record.sources.course?.name || `Course ${record.id}`;
@@ -79,12 +62,18 @@ export function reconcile(records, previous, { origin, now, timeZone }) {
   for (const record of records) {
     const priorCourse = previous?.courses.find(course => course.id === record.id);
     const details = record.sources.course;
+    const evidence = courseEvidence(record, priorCourse, origin, now);
+    for (const source of evidence.evidence) {
+      if (source.stale) continue;
+      const prior = priorCourse?.evidence?.find(old => old.id === source.id);
+      if (!prior || ['body', 'title', 'startsAt', 'endsAt'].some(field => prior[field] !== source[field])) changes.push({ itemId: source.id, title: source.title, courseName: source.courseName, field: prior ? 'course-information' : 'new', sourceUrl: source.sourceUrl });
+    }
     courses.push({ id: record.id, name: details?.name || priorCourse?.name || `Course ${record.id}`,
       code: details?.course_code || priorCourse?.code || `Course ${record.id}`,
       syllabus: details ? plainText(details.syllabus_body) : priorCourse?.syllabus || '',
       sourceUrl: `${origin}/courses/${record.id}`, coverage: record.coverage,
-      announcements: (record.sources.announcements || priorCourse?.announcements || []).map(item => ({ id: String(item.id), title: item.title, body: plainText(item.message ?? item.body), sourceUrl: sourceUrl(item.html_url || item.sourceUrl, origin, `/courses/${record.id}/announcements`), postedAt: item.posted_at || item.postedAt })),
-      references: (record.sources.files || []).map(item => ({ title: item.display_name || item.filename, sourceUrl: `${origin}/courses/${record.id}/files/${item.id}`, status: 'File contents not yet collected' })),
+      announcements: evidence.evidence.filter(item => item.kind === 'announcement'),
+      ...evidence,
     });
     const current = normalizeItems(record, origin, now);
     const priorItems = previous?.items.filter(item => item.courseId === record.id) || [];
@@ -131,7 +120,7 @@ export function renderMarkdown(guide) {
   if (guide.priorities?.length) {
     lines.push('## Suggested focus', '', 'AI suggestions based on collected evidence; these do not change course requirements.', '');
     for (const priority of guide.priorities) {
-      const source = guide.items.find(item => item.id === priority.sourceId);
+      const source = [...guide.items, ...guide.courses.flatMap(course => course.evidence || [])].find(item => item.id === priority.sourceId);
       lines.push(`- **${md(priority.action)}** — ${md(priority.reason)}${source ? ` [${md(source.title)}](<${source.sourceUrl}>)` : ''}`);
     }
     lines.push('');
@@ -150,9 +139,9 @@ export function renderMarkdown(guide) {
   if (!guide.inWeek.length) lines.push('No outstanding dated items were identified for this week in the collected information.', '');
   for (const item of guide.inWeek) lines.push(...itemLines(item));
   lines.push('## Changes since last refresh', '');
-  if (!guide.changes.length) lines.push('No changes detected in the collected assignment metadata.', '');
+  if (!guide.changes.length) lines.push('No changes detected in the collected information.', '');
   for (const change of guide.changes) {
-    const value = change.field === 'new' ? 'Newly observed' : change.field === 'instructions' ? 'Instructions changed — review the source' : `${change.field}: ${md(change.before ?? 'Not supplied')} → ${md(change.after ?? 'Not supplied')}`;
+    const value = change.field === 'new' ? 'Newly observed' : ['instructions', 'course-information'].includes(change.field) ? 'Source content changed — review the source' : `${change.field}: ${md(change.before ?? 'Not supplied')} → ${md(change.after ?? 'Not supplied')}`;
     lines.push(`- **${md(change.courseName)} — ${md(change.title)}:** ${value}. [Source](<${change.sourceUrl}>)`);
   }
   lines.push('', '## Looking ahead', '');
@@ -163,15 +152,21 @@ export function renderMarkdown(guide) {
   for (const item of guide.undated) lines.push(...itemLines(item));
   lines.push('## Course information and coverage', '');
   for (const course of guide.courses) {
-    lines.push(`### ${md(course.name)}`, '', `[Course source](<${course.sourceUrl}>)`, '', course.syllabus ? md(course.syllabus) : 'Syllabus text not collected.', '');
+    lines.push(`### ${md(course.name)}`, '', `[Course source](<${course.sourceUrl}>)`, '');
     for (const coverage of course.coverage) lines.push(`- ${md(coverage.source)}: ${coverage.status}${coverage.message ? ` — ${md(coverage.message)}` : ''}`);
-    lines.push('', 'Announcements:', '');
-    for (const announcement of course.announcements) lines.push(`- **${md(announcement.title)}:** ${md(announcement.body)} [Source](<${announcement.sourceUrl}>)`);
-    lines.push('', 'File references (contents not yet collected):', '');
-    for (const reference of course.references) lines.push(`- [${md(reference.title)}](<${reference.sourceUrl}>)`);
+    for (const source of course.evidence || []) {
+      lines.push('', `#### ${md(source.title)}`, '', `${md(source.kind)}${source.stale ? ' — Last known information; recheck source' : ''}${source.author ? ` · ${md(source.author)}` : ''}`, '');
+      if (source.postedAt) lines.push(`Posted: ${formatDate(source.postedAt, guide.timeZone)}`, '');
+      if (source.startsAt) lines.push(`Starts: ${formatDate(source.startsAt, guide.timeZone)}; ends: ${formatDate(source.endsAt, guide.timeZone)}${source.location ? `; location: ${md(source.location)}` : ''}`, '');
+      for (const paragraph of source.body.split(/\n+/)) if (paragraph.trim()) lines.push(md(paragraph), '');
+      if (!source.body) lines.push('Content was not supplied by Canvas.', '');
+      lines.push(`[Source](<${source.sourceUrl}>)`, '');
+    }
+    lines.push('', 'Linked and file references:', '');
+    for (const reference of course.references) lines.push(`- [${md(reference.title)}](<${reference.sourceUrl}>) — ${md(reference.status)}${reference.stale ? '; last known reference' : ''}`);
     lines.push('');
   }
-  lines.push('## Needs confirmation', '', 'Module/page/file listings and Inbox conversation summaries do not establish their full contents. Linked documents and message details may contain additional requirements. This factual guide does not infer requirements from uncollected sources.', '', 'Canvas remains the source of record. Viewing this guide does not complete coursework.', '');
+  lines.push('## Needs confirmation', '', 'Compare course messages and announcements with assignment dates: an instructor may have announced an exception before updating Canvas. Message text is preserved as evidence and never silently replaces a structured deadline. Linked documents, message attachments, external tools and unavailable page bodies may contain additional requirements. Review source coverage for partial or failed reads.', '', 'Canvas remains the source of record. Viewing this guide does not complete coursework.', '');
   return lines.join('\n');
 }
 

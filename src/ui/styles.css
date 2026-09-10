@@ -67,7 +67,11 @@ p { margin:0 0 14px; }
 .empty { padding:42px 24px; text-align:center; }
 .empty p { max-width:450px; margin:0 auto 20px; color:var(--muted); }
 .footer-note { font-size:12px; color:var(--muted); margin-top:22px; }
-#notice { position:fixed; bottom:24px; left:50%; transform:translateX(-35%); max-width:620px; padding:14px 20px; background:var(--surface); border:1px solid var(--border); border-radius:7px; box-shadow:0 4px 20px #0002; }
+#notice { position:fixed; bottom:24px; left:50%; transform:translateX(-35%); max-width:min(620px, 70vw); padding:14px 20px; background:var(--surface); border:1px solid var(--border); border-radius:7px; box-shadow:0 4px 20px #0002; overflow-wrap:anywhere; }
+#notice button { margin-left:12px; }
+.source-body { white-space:pre-wrap; overflow-wrap:anywhere; margin-top:12px; }
+.card details { margin:12px 0; }
+.card details details { margin-left:14px; }
 @media(max-width:950px) { .sidebar { width:185px; } main { padding:26px; } .columns { grid-template-columns:1fr; } .brand { font-size:15px; gap:8px; } }
 @media(forced-colors:active) { button.primary,.badge,.nav-item.selected { border:1px solid ButtonText; } .task-marker,.status-dot { background:CanvasText; } }
 @media(prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; } }

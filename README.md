@@ -15,11 +15,15 @@ Implementation specifications: [Windows UX](docs/ux-design.md),
 The Electron desktop shell is implemented with This week, Courses and Settings,
 an explicitly labeled sample guide, native output folder selection, and persisted
 System/Light/Dark appearance. Canvas browser sign-in, optional encrypted API token
-connection, course selection and a restricted API collector are implemented but
-not live-account validated yet. Factual Markdown guides, in-app reading, same-week
+connection, course selection and a restricted API collector are implemented.
+A live four-course collection has saved 65 assessment records with explicit
+source gaps. Factual Markdown guides, in-app reading, same-week
 updates, revisions, separate student notes and change reporting are implemented.
 Optional ChatGPT sign-in and study suggestions use the installed official Codex
-runtime. Full linked-source details and Word export are the next milestones.
+runtime. Page bodies, module item descriptions, calendar events and course message
+details now feed both the factual guide and optional AI evidence. External website
+connections, linked file contents and Word export remain in progress; see
+[external course sources](docs/external-course-sources.md).
 
 In Settings, sign in to Canvas in the separate window. A successful account check
 returns to Canvas Weekly automatically. If it stays open, close it and click Check
@@ -30,8 +34,8 @@ are disabled in the login window; it is
 only for authentication. If your institution does not allow session API reads,
 an institution-issued API token can be entered under Canvas connection options.
 Tokens are encrypted with Windows-backed Electron safeStorage. No API token is
-required if the permitted browser session method works. No account has been
-accessed by the automated tests.
+required if the permitted browser session method works. Automated tests use only
+synthetic accounts; the user's separate live run confirmed session API access.
 
 On restart the app checks any saved Canvas authorization. Login cookies retain
 the institution's expiry rules, so another sign-in may be required. The app does
@@ -79,8 +83,7 @@ Verify the academic timezone against Canvas before publishing real deadlines.
 
 ## Collection boundary
 
-These are requirements for the future collector, not a claim that a browser
-security boundary has already been implemented.
+These boundaries apply to the implemented collector and all future adapters.
 
 - Never take, start, resume, preview, retry, answer, save, or submit an assessment.
 - Collect quiz landing-page instructions and metadata only. Do not fetch quiz

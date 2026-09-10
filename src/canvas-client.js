@@ -10,9 +10,8 @@ const operations = {
   assignments: args => [`/api/v1/courses/${id(args.courseId)}/assignments`, { 'include[]': 'submission', override_assignment_dates: 'true' }],
   quizzes: args => [`/api/v1/courses/${id(args.courseId)}/quizzes`, {}],
   modules: args => [`/api/v1/courses/${id(args.courseId)}/modules`, {}],
-  moduleItems: args => [`/api/v1/courses/${id(args.courseId)}/modules/${id(args.moduleId)}/items`, {}],
-  pages: args => [`/api/v1/courses/${id(args.courseId)}/pages`, {}],
-  page: args => [`/api/v1/courses/${id(args.courseId)}/pages/${id(args.pageId)}`, {}],
+  moduleItems: args => [`/api/v1/courses/${id(args.courseId)}/modules/${id(args.moduleId)}/items`, { 'include[]': 'content_details' }],
+  pages: args => [`/api/v1/courses/${id(args.courseId)}/pages`, { 'include[]': 'body' }],
   files: args => [`/api/v1/courses/${id(args.courseId)}/files`, {}],
   groups: args => [`/api/v1/courses/${id(args.courseId)}/assignment_groups`, {}],
   announcements: args => ['/api/v1/announcements', { 'context_codes[]': `course_${id(args.courseId)}`, start_date: '1970-01-01', active_only: 'true' }],
@@ -49,6 +48,7 @@ export function blockedAssessmentUrl(value) {
     const url = new URL(value);
     const route = decodeURIComponent(url.pathname).toLowerCase();
     return /\/(take|resume|submit|submissions|quiz_submissions|questions|quiz_questions|external_tools|external_tool_retrieve|assessment_questions|moderate)(\/|$)/.test(route)
+      || /\/modules\/items\//.test(route)
       || /\/(quizzes|assignments)\/\d+\/(edit|preview|history|retake|start)(\/|$)/.test(route);
   } catch { return true; }
 }
@@ -66,6 +66,7 @@ export class CanvasClient {
     let next = initial;
     const results = [];
     const visited = new Set();
+    let totalBytes = 0;
     while (next) {
       this.signal?.throwIfAborted();
       if (visited.has(next.href) || visited.size >= 500) throw new Error('Canvas pagination did not finish. Existing data has been preserved.');
@@ -99,7 +100,8 @@ export class CanvasClient {
         const { done, value } = await reader.read();
         if (done) break;
         length += value.length;
-        if (length > 8 * 1024 * 1024) { await reader.cancel(); throw new Error('Canvas response exceeded the supported size.'); }
+        totalBytes += value.length;
+        if (length > 8 * 1024 * 1024 || totalBytes > 16 * 1024 * 1024) { await reader.cancel(); throw new Error('Canvas response exceeded the supported size.'); }
         chunks.push(value);
       }
       let data;
@@ -108,6 +110,7 @@ export class CanvasClient {
       if (!list) return data;
       if (!Array.isArray(data)) throw new Error('Canvas returned an unexpected list format.');
       results.push(...data);
+      if (results.length > 10000) throw new Error('Canvas listing exceeded the supported size.');
       const link = response.headers.get('link') || '';
       const match = link.match(/<([^>]+)>\s*;\s*rel="next"/);
       next = match ? validateNextPage(match[1], initial) : null;
@@ -128,6 +131,30 @@ export class CanvasClient {
           this.signal?.throwIfAborted();
           record.coverage.push({ source: operation, status: 'error', message: error.message, checkedAt: new Date().toISOString() });
         }
+      }
+      for (const [listing, operation, key] of [['modules', 'moduleItems', 'moduleId'], ['conversations', 'conversation', 'conversationId']]) {
+        const candidates = record.sources[listing];
+        if (!candidates) continue;
+        record.sources[operation] = [];
+        const selected = [...candidates].sort((a, b) => String(b.last_message_at || '').localeCompare(String(a.last_message_at || ''))).slice(0, 100);
+        if (candidates.length > selected.length) record.coverage.push({ source: `${operation}:limit`, status: 'partial', message: `Read ${selected.length} of ${candidates.length} detail records.`, checkedAt: new Date().toISOString() });
+        for (const entry of selected) {
+          this.signal?.throwIfAborted();
+          const source = `${operation}:${entry.id}`;
+          this.onProgress(`Reading ${operation} ${entry.id} for course ${courseId}`);
+          try {
+            const data = await this.read(operation, { courseId, [key]: entry.id }, operation === 'moduleItems');
+            record.sources[operation].push({ id: String(entry.id), data });
+            record.coverage.push({ source, status: 'ok', checkedAt: new Date().toISOString() });
+          } catch (error) {
+            this.signal?.throwIfAborted();
+            record.coverage.push({ source, status: 'error', message: error.message, checkedAt: new Date().toISOString() });
+          }
+        }
+      }
+      if (record.sources.pages) {
+        const unavailable = record.sources.pages.filter(page => typeof page.body !== 'string').length;
+        record.coverage.push({ source: 'pageBodies', status: unavailable ? 'partial' : 'ok', message: unavailable ? `${unavailable} page bodies unavailable (locked, unsupported, or omitted by Canvas).` : undefined, checkedAt: new Date().toISOString() });
       }
       courses.push(record);
     }

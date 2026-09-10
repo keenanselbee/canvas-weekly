@@ -55,3 +55,21 @@ test('cancelled collection stops without returning a successful snapshot', async
   const client = new CanvasClient({ origin: 'https://canvas.example', signal: controller.signal, fetcher: () => { throw new Error('Must not fetch'); } });
   await assert.rejects(client.collect(['1']), { name: 'AbortError' });
 });
+
+test('expanded collection reads page bodies and message details without read-state writes', async () => {
+  const visited = [];
+  const client = new CanvasClient({ origin: 'https://canvas.example', fetcher: async (address, init) => {
+    assert.equal(init.method, 'GET');
+    const url = new URL(address); visited.push(url);
+    if (url.pathname.endsWith('/pages')) { assert.equal(url.searchParams.get('include[]'), 'body'); return json([{ page_id: 2, title: 'Locked page' }]); }
+    if (url.pathname.endsWith('/modules')) return json([{ id: 3 }]);
+    if (url.pathname.endsWith('/modules/3/items')) return json([{ id: 4, type: 'Quiz', title: 'Quiz metadata' }]);
+    if (url.pathname === '/api/v1/conversations') return json([{ id: 5 }]);
+    if (url.pathname === '/api/v1/conversations/5') { assert.equal(url.searchParams.get('auto_mark_as_read'), 'false'); return json({ id: 5, messages: [{ id: 6, body: 'Deadline moved' }] }); }
+    return json(url.pathname === '/api/v1/courses/1' ? { id: 1 } : []);
+  } });
+  const [result] = await client.collect(['1']);
+  assert.equal(result.sources.conversation[0].data.messages[0].body, 'Deadline moved');
+  assert.equal(result.coverage.find(source => source.source === 'pageBodies').status, 'partial');
+  assert.equal(visited.some(url => url.pathname.includes('/take') || url.pathname.includes('/questions')), false);
+});
