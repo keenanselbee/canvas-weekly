@@ -1,0 +1,7 @@
+{
+  "outputDirectory": null,
+  "canvasBaseUrl": "https://canvas.ubc.ca",
+  "weekStartsOn": "Monday",
+  "timeZone": "America/Vancouver",
+  "lookAheadDays": 21
+}
