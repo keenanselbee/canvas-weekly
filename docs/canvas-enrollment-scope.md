@@ -72,8 +72,10 @@ selected course, and every returned node must identify that course explicitly.
 
 The self-user branch depends on a current verified identity, not merely a valid
 ID. A switched administrator account could read another user's enrollments;
-matching response IDs alone cannot detect that. The existing session watcher
-and profile verification remain necessary, with their documented limitations.
+matching response payload IDs alone cannot detect that. The session watcher,
+profile verification and the transport's response global-ID check provide
+independent guards, with their documented institutional limitations. The global
+ID is captured from the self-profile response and never inferred from a local ID.
 GraphQLNodeLoader checks read_full_profile/read before its explicit self-user
 fallback. Those account-policy dependencies are not bypassed by moving to this
 query. The nested course selection loads only the association and legacy ID.

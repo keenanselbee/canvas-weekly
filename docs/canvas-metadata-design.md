@@ -171,6 +171,46 @@ decoded headers, changed-cookie retrieval, no POST with missing/malformed cookie
 token-mode separation and sanitized audit output. No real Canvas session was read.
 The upstream basis is linked in the [permission review](canvas-metadata-permissions-review.md).
 
+Response account identity
+-------------------------
+
+Canvas's set_user_id_header emits X-Canvas-User-Id from current_user.global_id and
+X-Canvas-Real-User-Id when a real user is present. The connection now captures
+the global ID from the same successful self-profile response as the local profile
+ID. It does not compute a global ID from the local ID: Canvas shards can make
+them different. The profile and global ID stay in memory and the immutable run
+binding includes both. Ordinary clients created after verification also check
+successful REST responses against the captured global ID. A subsequent
+verification changing either ID invalidates
+the old lifetime. The global ID is not added to settings, guide files or UI state.
+[Controller headers](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/controllers/application_controller.rb).
+
+canvasResponseIdentity rejects missing, malformed or ambiguous current-user
+headers and any real-user header identifying a different user. Matching real and
+current IDs are accepted; no account is being substituted in that case. The
+isolated metadata transport requires the verified globalUserId at construction,
+checks every HTTP 200 response before reading its body and rejects a mismatch.
+Once rejected, that transport instance cannot issue another request; the caller
+must verify the connection again and create a new instance. The existing
+enrollment/metadata validators still check the local IDs in the returned data.
+Audit records omit the identity headers and their values.
+
+This closes acceptance of a switched administrator's response merely because its
+payload contains the requested student's ID. It does not undo a server request,
+prove enrollment permissions, or certify a modified server's identity reporting.
+Institutions or proxies that omit these headers fail closed; no fallback infers
+identity from the requested GraphQL variables. The cookie watcher remains useful
+for cancelling before transmission and during a pending response.
+
+Two identity unit cases and a transport case cover malformed, missing, conflicting,
+impersonated and distinct local/global IDs, body rejection and instance invalidation.
+Eleven Electron connection scenarios pass, including failed identity verification
+and a global-ID change with an unchanged local ID. The localhost HTTPS fixture
+rejects absent, changed and impersonated response headers; the synthetic desktop
+refresh passes with both profile IDs preserved in the binding. No live Canvas
+identity header was read for this validation. Production metadata collection
+remains paused even though ordinary profile verification now uses this check.
+
 Browser-session change detection
 --------------------------------
 
@@ -256,8 +296,9 @@ Integration work still required
    Supply a verified connection/enrollment binding and connect the tested cookie helper;
    CanvasConnection now invalidates local clients on account, course-scope and
    credential transitions, and guide runs retain an immutable local binding.
-   Enrollment-role evidence and remote cookie/identity-change detection remain
-   required before this can admit metadata requests. The
+   Enrollment-role evidence and integration of the reviewed transport remain
+   required before this can admit metadata requests. Cookie changes and returned
+   global account identities now have independent guards as described above. The
    [enrollment-scope review](canvas-enrollment-scope.md) explains why the filtered
    course list is insufficient and provides a schema-validated field-query candidate.
    The fixture

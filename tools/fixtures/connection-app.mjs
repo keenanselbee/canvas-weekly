@@ -21,14 +21,15 @@ globalThis.connectionFixtureResults = app.whenReady().then(async () => {
       state.requests++;
       const gate = state.queued.shift();
       if (gate) { gate.enter(); return gate.response; }
-      return new Response(JSON.stringify({ id: state.userId, name: 'Synthetic student' }), { headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ id: state.userId, name: 'Synthetic student' }), { headers: { 'content-type': 'application/json',
+        ...(state.identityHeaders ?? { 'x-canvas-user-id': String(state.userId) }) } });
     };
     state.hold = () => {
       let enter, release;
       const entered = new Promise(resolve => { enter = resolve; });
       const response = new Promise(resolve => { release = resolve; });
       state.queued.push({ enter, response });
-      return { entered, release: (id = 99, status = 200) => release(new Response(JSON.stringify({ id, name: 'Delayed student' }), { status, headers: { 'content-type': 'application/json' } })) };
+      return { entered, release: (id = 99, status = 200) => release(new Response(JSON.stringify({ id, name: 'Delayed student' }), { status, headers: { 'content-type': 'application/json', 'x-canvas-user-id': String(id) } })) };
     };
     return state;
   };
@@ -117,10 +118,31 @@ globalThis.connectionFixtureResults = app.whenReady().then(async () => {
   });
   await check('invalid and rounded profile IDs never establish an account', async () => {
     for (const userId of ['0', '01', 'private-invalid-id', 9007199254740992]) {
-      const state = setup(); state.userId = userId;
+      const state = setup(); state.userId = userId; state.identityHeaders = { 'x-canvas-user-id': '99' };
       await assert.rejects(state.connection.verify(), /valid account profile/);
       assert.equal(state.connection.profile, null);
     }
+  });
+  await check('profile verification rejects missing or impersonated identity headers', async () => {
+    for (const identityHeaders of [{}, { 'x-canvas-user-id': '99', 'x-canvas-real-user-id': '100' }]) {
+      const state = setup(); state.identityHeaders = identityHeaders;
+      await assert.rejects(state.connection.verify(), /confirm the account identity/);
+      assert.equal(state.connection.profile, null);
+    }
+  });
+  await check('global identity changes invalidate bindings even when the local user ID stays the same', async () => {
+    const state = setup(); state.identityHeaders = { 'x-canvas-user-id': '10000000000099' };
+    await state.connection.verify();
+    const binding = state.connection.capture();
+    assert.equal(binding.userId, '99');
+    assert.equal(binding.globalUserId, '10000000000099');
+    const client = state.connection.client();
+    state.identityHeaders = { 'x-canvas-user-id': '20000000000099' };
+    await assert.rejects(client.read('courses', {}, true), /confirm the account identity/);
+    await state.connection.verify();
+    assert.equal(binding.signal.aborted, true);
+    assert.throws(binding.assertCurrent, { name: 'AbortError' });
+    assert.equal(state.connection.capture().globalUserId, '20000000000099');
   });
   await check('session verification waits for pending local credential cleanup', async () => {
     const state = setup();

@@ -30,7 +30,9 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
   request.on('end', () => {
     received.push({ method: request.method, route: request.url, headers: request.headers, body: Buffer.concat(chunks).toString() });
     if (mode === 'redirect') { response.writeHead(307, { location: '/quizzes/1/take' }); response.end(); return; }
-    response.writeHead(200, { 'content-type': 'application/json' });
+    response.writeHead(200, { 'content-type': 'application/json',
+      ...(mode === 'missing-identity' ? {} : { 'x-canvas-user-id': mode === 'other-identity' ? '90100' : '90099' }),
+      ...(mode === 'impersonated-identity' ? { 'x-canvas-real-user-id': '90100' } : {}) });
     if (mode === 'large') { response.end('"' + 'x'.repeat(2 * 1024 * 1024) + '"'); return; }
     if (mode === 'stream') { response.write('{"data":'); streaming?.(); return; }
     if (mode === 'graphql-error') { response.end('{"data":{"course":null},"errors":[{"message":"private-fixture-error"}]}'); return; }
@@ -164,6 +166,14 @@ try {
   const beforeForeign = received.length;
   await assert.rejects(application.evaluate(async () => globalThis.metadataFixture.enrollments()), /unavailable or incomplete/);
   assert.equal(received.length, beforeForeign + 1, 'Invalid user must stop before the next enrollment page');
+  for (const identityMode of ['missing-identity', 'other-identity', 'impersonated-identity']) {
+    mode = identityMode;
+    await application.evaluate(() => globalThis.metadataFixture.reset('session'));
+    const beforeIdentity = received.length;
+    await assert.rejects(application.evaluate(async () => globalThis.metadataFixture.read()), /Reconnect Canvas/);
+    await assert.rejects(application.evaluate(async () => globalThis.metadataFixture.read()), /Reconnect Canvas/);
+    assert.equal(received.length, beforeIdentity + 1, 'A rejected account identity invalidates this transport');
+  }
   const logFiles = await fs.readdir(path.join(directory, 'canvas-audit'));
   const log = await fs.readFile(path.join(directory, 'canvas-audit', logFiles[0]), 'utf8');
   assert.doesNotMatch(log, /fixture-(csrf|bearer|cookie)|private-fixture|Synthetic preparation|"query"|studentId/);

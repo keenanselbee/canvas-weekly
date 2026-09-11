@@ -383,3 +383,20 @@ Work log
   fixture pass, including two-page enrollment reads and early rejection of a
   foreign user. Production admission and account-wide permission classification
   remain pending; no real Canvas request, AI request or guide rewrite occurred.
+- 2026-09-10: Added authenticated response identity checks. Self-profile
+  verification captures Canvas's global user header alongside its local profile
+  ID; changing either invalidates the run binding. Isolated metadata/enrollment
+  reads require the verified global ID, reject absent/changed/impersonated headers
+  before body acceptance and prevent reuse of a rejected transport. No identity
+  header is persisted in audit, settings or guides. All 102 unit tests, eleven
+  Electron connection scenarios, the localhost HTTPS fixture and synthetic
+  desktop refresh pass. Reviewed the account-list index context, default
+  serializer/getters and pagination as the next membership preflight candidate.
+  Institutional header/extension behavior remains unverified and production
+  collection remains paused. No real Canvas request or AI request was made.
+- 2026-09-11: Rebuilt the Windows installer after the response identity changes.
+  Packaged validation passes for source inventory, installer payload agreement,
+  absence of private state, document reader workers, fresh-profile Desktop
+  defaults, bundled Codex initialization, themes and restart persistence.
+  This does not verify installation/uninstallation on a clean Windows machine
+  or the institution's live response headers.

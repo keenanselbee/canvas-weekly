@@ -22,7 +22,7 @@ globalThis.metadataFixtureReady = app.whenReady().then(async () => {
   state.reset = kind => {
     state.connection?.abort();
     state.connection = new AbortController();
-    state.transport = new CanvasMetadataTransport({ origin, courseId: '1', studentId: '99', connectionSignal: state.connection.signal,
+    state.transport = new CanvasMetadataTransport({ origin, courseId: '1', studentId: '99', globalUserId: '90099', connectionSignal: state.connection.signal,
       authentication: () => kind === 'session' ? canvasSessionAuthentication({ origin, cookies: isolated.cookies, signal: state.connection.signal })
         : { kind, value: 'fixture-bearer-only' },
       audit: event => audit.write(event), fetcher: async (url, init) => {

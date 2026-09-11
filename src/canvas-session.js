@@ -6,6 +6,7 @@ import { atomicJson } from './settings.js';
 import { CanvasAudit } from './canvas-audit.js';
 import { CanvasNetwork } from './canvas-network.js';
 import { watchCanvasSession } from './canvas-session-watch.js';
+import { canvasResponseIdentity } from './canvas-identity.js';
 
 export class CanvasConnection {
   constructor({ directory, settings, onChange, onConnected = () => {} }) {
@@ -45,18 +46,19 @@ export class CanvasConnection {
     const { signal } = this.lifetime;
     const origin = this.settings.value.canvasBaseUrl;
     const userId = this.profile.id;
+    const globalUserId = this.profile.globalId;
     const token = this.token;
     const courseIds = Object.freeze([...this.settings.value.selectedCourseIds].sort());
     const assertCurrent = () => {
       signal.throwIfAborted();
-      if (origin !== this.settings.value.canvasBaseUrl || userId !== this.profile?.id || token !== this.token
+      if (origin !== this.settings.value.canvasBaseUrl || userId !== this.profile?.id || globalUserId !== this.profile?.globalId || token !== this.token
         || (includeCourses && JSON.stringify(courseIds) !== JSON.stringify([...this.settings.value.selectedCourseIds].sort()))) {
         throw new DOMException('Canvas account or course selection changed. Start the refresh again.', 'AbortError');
       }
     };
     // Local identity/lifetime binding only; this does not prove enrollment roles
     // or detect an account change in the remote session cookie store.
-    return Object.freeze({ origin, userId, courseIds, signal, assertCurrent });
+    return Object.freeze({ origin, userId, globalUserId, courseIds, signal, assertCurrent });
   }
   async restore() {
     const { signal } = this.lifetime;
@@ -84,6 +86,7 @@ export class CanvasConnection {
   client(options = {}) {
     const origin = this.settings.value.canvasBaseUrl;
     const token = this.token;
+    const globalUserId = this.profile?.globalId;
     const signal = AbortSignal.any([this.lifetime.signal, ...(options.signal ? [options.signal] : [])]);
     return new CanvasClient({ ...options, origin, token, signal,
       fetcher: async (url, init) => {
@@ -91,6 +94,13 @@ export class CanvasConnection {
         if (origin !== this.settings.value.canvasBaseUrl || token !== this.token) throw new DOMException('Canvas connection changed.', 'AbortError');
         const response = await this.network.fetch(url, init);
         if (signal.aborted) { await response.body?.cancel(); signal.throwIfAborted(); }
+        if (response.status === 200 && (options.captureIdentity || globalUserId)) {
+          try {
+            const identity = canvasResponseIdentity(response.headers, options.captureIdentity ? undefined : globalUserId);
+            options.captureIdentity?.(identity);
+          }
+          catch (error) { await response.body?.cancel(); throw error; }
+        }
         return response;
       }, audit: event => this.audit.write(event) });
   }
@@ -98,6 +108,7 @@ export class CanvasConnection {
     const lifetime = this.lifetime;
     if (this.verification?.lifetime === lifetime) return this.verification.promise;
     const previousId = this.profile?.id;
+    const previousGlobalId = this.profile?.globalId;
     const promise = (async () => {
       this.profile = null;
       this.connectionError = null;
@@ -106,14 +117,16 @@ export class CanvasConnection {
         // still clearing cookies. Token checks do not depend on that cookie jar.
         if (!this.token) await this.credentialWrites;
         lifetime.signal.throwIfAborted();
-        const profile = await this.client().read('profile');
+        let identity;
+        const profile = await this.client({ captureIdentity: value => { identity = value; } }).read('profile');
         lifetime.signal.throwIfAborted();
         const userId = String(profile?.id || '');
         if (!/^[1-9]\d{0,31}$/.test(userId) || (typeof profile.id === 'number' && !Number.isSafeInteger(profile.id))) throw new Error('Canvas did not return a valid account profile.');
+        if (!identity) throw new Error('Canvas did not confirm the account identity. Reconnect Canvas before continuing.');
         await this.session.cookies.flushStore();
         lifetime.signal.throwIfAborted();
-        if (previousId && previousId !== userId) this.invalidate();
-        this.profile = { id: userId, name: String(profile.name || 'Canvas account') };
+        if ((previousId && previousId !== userId) || (previousGlobalId && previousGlobalId !== identity.globalUserId)) this.invalidate();
+        this.profile = { id: userId, globalId: identity.globalUserId, name: String(profile.name || 'Canvas account') };
         return this.status;
       } catch (error) {
         lifetime.signal.throwIfAborted();

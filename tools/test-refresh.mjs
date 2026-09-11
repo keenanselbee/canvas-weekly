@@ -28,7 +28,7 @@ try {
       if (url.pathname.endsWith('/users/self/profile')) data = { id: 999, name: 'Example Student' };
       else if (url.pathname === '/api/v1/courses') data = [{ id: 1, name: 'Example course', course_code: 'DEMO 101' }];
       else throw new Error('The paused Canvas collector must not request course contents');
-      return new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '999' } });
     };
   }, output);
   await application.evaluate(async ({ session }) => {
@@ -309,7 +309,7 @@ try {
   await application.evaluate(({ session }) => {
     session.fromPartition('persist:canvas').fetch = async address => new Response(JSON.stringify(
       new URL(address).pathname.endsWith('/profile') ? { id: 1000, name: 'Different student' } : [{ id: 1, name: 'Shared course' }]
-    ), { headers: { 'content-type': 'application/json' } });
+    ), { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '1000' } });
   });
   const switched = await page.evaluate(() => window.canvasWeekly.verifyCanvas());
   assert.equal(switched.canvas.error, null);

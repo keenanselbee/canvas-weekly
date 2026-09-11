@@ -184,6 +184,40 @@ from an error. Institutional shard/role behavior remains a limitation.
 [Account controller](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/controllers/accounts_controller.rb),
 [Account membership scope](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/user.rb).
 
+Account-list follow-up: with the fixed /api/v1/accounts index route and no context
+ID parameters, get_context does not select a course or populate
+@context_enrollment. Its setup_live_events_context call assembles request/user
+metadata. reject_student_view_student checks fake_student? and rejects that mode;
+the normal index retains the inherited require_user hook. Thus an unauthenticated
+empty list must not be accepted by the future client even though the index has
+an internal nil-user fallback.
+
+The default account_json selects account identity/configuration attributes,
+storage-quota getters, timezone and optional SIS identifiers gated by account
+permissions. It does not select course/module/assessment objects. The quota
+getters read configured or inherited values, sometimes through Rails cache;
+TimeZoneHelper converts the stored/default zone in memory. Api::V1::Json passes
+the named attributes/methods to as_json with include_permissions false. Optional
+services, registration and counts remain excluded. account_json also invokes
+registered extension callbacks, an explicit institutional compatibility boundary;
+the stock serializer's read_only argument is not passed by index and is not a
+documented request flag. Do not invent a query parameter to activate it.
+ShardedBookmarkedCollection wraps/merges per-shard read relations. The candidate
+needs a fixed GET contract and complete authenticated-empty-response validation;
+it is not registered with the app's network gate yet.
+[Account serializer](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/api/v1/account.rb),
+[JSON helper](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/api/v1/json.rb),
+[Timezone getter](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/time_zone_helper.rb),
+[Sharded pagination](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/sharded_bookmarked_collection.rb).
+
+Response identity follow-up: the controller emits current_user.global_id in
+X-Canvas-User-Id and the real user's global ID during impersonation. Profile
+verification now captures that ID alongside the local profile ID. The isolated
+transport requires the verified global ID and rejects missing/mismatched or
+impersonated response identity before accepting a body. See the implemented
+[response identity boundary](canvas-metadata-design.md). This complements the
+cookie watcher without asserting that the returned ID proves enrollment rights.
+
 The override helpers reviewed in this pass select existing adhoc, group, tag,
 observer, section and course overrides and apply dates to a readonly clone.
 preload_for_nonactive_enrollment assigns an in-memory flag from enrollment

@@ -8,7 +8,7 @@ import { metadataRequest } from '../src/canvas-metadata.js';
 import { enrollmentScopeRequest } from '../src/canvas-enrollment-scope.js';
 
 const request = () => metadataRequest('assignments', '1', '99');
-const response = () => new Response('{"data":{"course":null}}', { headers: { 'content-type': 'application/json' } });
+const response = () => new Response('{"data":{"course":null}}', { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
 function fixture(options = {}) {
   const connection = new AbortController();
   const events = [];
@@ -17,7 +17,7 @@ function fixture(options = {}) {
   let id = 0;
   const details = (init, overrides = {}) => ({ id: ++id, url: 'https://canvas.example/api/graphql', method: init.method, webContentsId: 0,
     resourceType: 'other', uploadData: [{ bytes: Buffer.from(init.body) }], ...overrides });
-  transport = new CanvasMetadataTransport({ origin: 'https://canvas.example', courseId: '1', studentId: '99', connectionSignal: connection.signal,
+  transport = new CanvasMetadataTransport({ origin: 'https://canvas.example', courseId: '1', studentId: '99', globalUserId: '90099', connectionSignal: connection.signal,
     authentication: async () => ({ kind: 'session', value: 'fixture-csrf-secret' }),
     audit: async event => events.push(event),
     fetcher: async (url, init) => {
@@ -53,6 +53,28 @@ test('isolated enrollment transport uses exact admission and distinct content-fr
   assert.deepEqual(setup.events.map(event => event.operation), ['metadataenrollments', 'metadataenrollments', 'metadataenrollments']);
   assert.equal(setup.events[0].paginated, true);
   assert.doesNotMatch(JSON.stringify(setup.events), /private-cursor|StudentEnrollment|courseId|studentId|query/);
+});
+
+test('metadata identity mismatches reject the body and prevent reuse of the transport', async () => {
+  for (const identityHeaders of [{}, { 'x-canvas-user-id': '99' }, { 'x-canvas-user-id': '90099, 90100' },
+    { 'x-canvas-user-id': '90099', 'x-canvas-real-user-id': '90100' }]) {
+    let setup, cancelled = false, calls = 0;
+    setup = fixture({ fetcher: async (_url, init) => {
+      calls++;
+      assert.ok(setup.transport.allows(setup.details(init)));
+      return { status: 200, headers: new Headers({ 'content-type': 'application/json', ...identityHeaders }),
+        body: { getReader() { assert.fail('Identity must be checked before accepting any response data'); }, async cancel() { cancelled = true; } } };
+    } });
+    await assert.rejects(setup.transport.request(request()), /Reconnect Canvas/);
+    assert.equal(cancelled, true);
+    await assert.rejects(setup.transport.request(request()), /Reconnect Canvas/);
+    assert.equal(calls, 1);
+    assert.deepEqual(setup.events.map(event => event.event), ['request', 'response', 'read-error']);
+    assert.doesNotMatch(JSON.stringify(setup.events), /90099|90100|x-canvas/);
+  }
+  for (const globalUserId of [undefined, '0', 99, '099', 'private-invalid-identity']) {
+    assert.throws(() => fixture({ globalUserId }), /verified global Canvas account identity/);
+  }
 });
 
 test('admission binds actual bytes once and rejects browser borrowing, files, blobs and route changes', async () => {
@@ -111,9 +133,9 @@ test('redirects, login/scope errors, non-JSON and invalid body encodings stop wi
     () => new Response('', { status: 302, headers: { location: '/quizzes/1/take' } }),
     () => new Response('private-content', { status: 401 }), () => new Response('private-content', { status: 403 }),
     () => new Response('private-content', { status: 429 }),
-    () => new Response('<form>private-content</form>', { headers: { 'content-type': 'text/html' } }),
-    () => new Response('private-content', { headers: { 'content-type': 'application/json' } }),
-    () => new Response(Buffer.from([0xff]), { headers: { 'content-type': 'application/json' } }),
+    () => new Response('<form>private-content</form>', { headers: { 'content-type': 'text/html', 'x-canvas-user-id': '90099' } }),
+    () => new Response('private-content', { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } }),
+    () => new Response(Buffer.from([0xff]), { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } }),
   ]) {
     let calls = 0;
     let setup;
@@ -132,10 +154,10 @@ test('received byte limits reject oversized, misleading and cumulative responses
     setup = fixture({ fetcher: async (_url, init) => {
       calls++;
       assert.ok(setup.transport.allows(setup.details(init)));
-      if (mode === 'declared') return new Response('[]', { headers: { 'content-type': 'application/json', 'content-length': String(2 * 1024 * 1024 + 1) } });
-      if (mode === 'total') return new Response('"' + 'x'.repeat(2 * 1024 * 1024 - 2) + '"', { headers: { 'content-type': 'application/json' } });
+      if (mode === 'declared') return new Response('[]', { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099', 'content-length': String(2 * 1024 * 1024 + 1) } });
+      if (mode === 'total') return new Response('"' + 'x'.repeat(2 * 1024 * 1024 - 2) + '"', { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
       return new Response(new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(2 * 1024 * 1024 + 1)); }, cancel() { cancelled = true; } }),
-        { headers: { 'content-type': 'application/json', 'content-length': '1' } });
+        { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099', 'content-length': '1' } });
     } });
     if (mode === 'total') for (let i = 0; i < 8; i++) await setup.transport.request(request());
     await assert.rejects(setup.transport.request(request()), /limit/);
@@ -169,7 +191,7 @@ test('connection cancellation, request cancellation and concurrent reads cannot 
   const cancel = new AbortController();
   streaming = fixture({ fetcher: async (_url, init) => {
     assert.ok(streaming.transport.allows(streaming.details(init)));
-    return new Response(new ReadableStream({ pull() { streamStarted(); } }), { headers: { 'content-type': 'application/json' } });
+    return new Response(new ReadableStream({ pull() { streamStarted(); } }), { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
   } });
   const reading = streaming.transport.request(request(), cancel.signal);
   await streamWait;

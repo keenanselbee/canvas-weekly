@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { metadataRequest, permittedMetadataBody } from './canvas-metadata.js';
 import { permittedEnrollmentScopeBody } from './canvas-enrollment-scope.js';
+import { canvasResponseIdentity } from './canvas-identity.js';
 
 const pageLimit = 2 * 1024 * 1024;
 const collectionLimit = 16 * 1024 * 1024;
@@ -33,6 +34,8 @@ export class CanvasMetadataTransport {
   #origin;
   #courseId;
   #studentId;
+  #globalUserId;
+  #identityRejected = false;
   #connectionSignal;
   #authentication;
   #fetcher;
@@ -42,14 +45,16 @@ export class CanvasMetadataTransport {
   #bytes = 0;
   #requests = 0;
 
-  constructor({ origin, courseId, studentId, connectionSignal, authentication, fetcher, audit }) {
+  constructor({ origin, courseId, studentId, globalUserId, connectionSignal, authentication, fetcher, audit }) {
     const url = new URL(origin);
     if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new Error('Invalid Canvas metadata origin.');
     metadataRequest('assignments', courseId, studentId);
+    if (typeof globalUserId !== 'string' || !/^[1-9]\d{0,31}$/.test(globalUserId)) throw new Error('A verified global Canvas account identity is required.');
     if (!(connectionSignal instanceof AbortSignal) || typeof authentication !== 'function' || typeof fetcher !== 'function' || typeof audit !== 'function') throw new Error('A bound connection, authentication, transport and audit are required.');
     this.#origin = url.origin;
     this.#courseId = courseId;
     this.#studentId = studentId;
+    this.#globalUserId = globalUserId;
     this.#connectionSignal = connectionSignal;
     this.#authentication = authentication;
     this.#fetcher = fetcher;
@@ -60,7 +65,7 @@ export class CanvasMetadataTransport {
   // one main-process request with exactly these upload bytes; no files or blobs.
   allows(details) {
     const pending = this.#pending;
-    if (!pending || pending.admitted !== null || pending.signal.aborted
+    if (!pending || this.#identityRejected || pending.admitted !== null || pending.signal.aborted
       || details.url !== this.#origin + '/api/graphql' || details.method !== 'POST'
       || (details.webContentsId !== undefined && details.webContentsId !== 0) || details.webContents || details.frame
       || !Number.isSafeInteger(details.id) || details.id < 0
@@ -83,6 +88,7 @@ export class CanvasMetadataTransport {
     if (!(permittedMetadataBody(body, this.#courseId, this.#studentId) || permittedEnrollmentScopeBody(body, this.#courseId, this.#studentId))
       || Buffer.byteLength(body) > 8192) throw new Error('This Canvas metadata request is not permitted.');
     const envelope = JSON.parse(body);
+    if (this.#identityRejected) throw new Error('Reconnect Canvas before reading metadata.');
     if (this.#busy) throw new Error('A Canvas metadata read is already running.');
     if (this.#requests >= 200 || this.#bytes >= collectionLimit) throw new Error('Canvas metadata exceeded the collection limit.');
     const timeout = new AbortController();
@@ -131,6 +137,8 @@ export class CanvasMetadataTransport {
       if (response.status === 403) throw new Error('This Canvas connection cannot read metadata. No broader permissions were requested.');
       if (response.status >= 300 && response.status < 400) throw new Error('Canvas redirected the metadata read. The redirect was not followed.');
       if (response.status !== 200) throw new Error('Canvas could not provide metadata. Try again later.');
+      try { canvasResponseIdentity(response.headers, this.#globalUserId); }
+      catch { this.#identityRejected = true; throw new Error('Reconnect Canvas before reading metadata.'); }
       const contentType = response.headers.get('content-type') || '';
       if (!/^application\/(json|graphql-response\+json)(?:\s*;\s*charset\s*=\s*"?utf-8"?)?$/i.test(contentType)) throw new Error('Canvas returned an unsupported metadata response.');
       const declared = response.headers.get('content-length');
