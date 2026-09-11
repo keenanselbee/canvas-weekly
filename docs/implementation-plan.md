@@ -467,3 +467,11 @@ Work log
   Installer SHA256: b880f2dd4960ecaffe7900001ced2245996637b382bf44b69dfb4d8c26ad162c.
   No installer walkthrough, institutional validation or real AI request ran.
   Production collection remains paused and personal guides remain untouched.
+- 2026-09-11: Closed the selected permission-dispatch and self-user account-policy
+  routing review against the pinned source. Confirmed that explicit permission
+  checks do not execute unrelated action predicates, while permission caches can
+  still persist. Traced the always-calculated observer check and account-chain
+  queries. Recorded the non-production special-account bootstrap write branch.
+  Replaced the generic remaining-permissions task with explicit model-load,
+  admission-decision, institutional-validation and full-content work. This pass
+  changes review documents only; no real Canvas request, settings or guide changed.

@@ -401,18 +401,94 @@ join to enrollment_states rather than recalculating those states in that helper.
 [Permission registry](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/config/initializers/permissions_registry.rb),
 [Observer helpers](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/observer_enrollment.rb).
 
-The functions above narrow the review; they do not close the whole call graph.
-Finish section/observer/account permission dependencies and selected permission-
-registry callbacks. Complete inherited model-load concern and selected getter
-review; the direct declarations and registered analyzers above are now inventoried.
-Complete the verified account/enrollment binding
-and institutional session authentication. Actual Electron request-body admission
-has since passed the isolated fixture described in the transport design.
+Permission dispatch and self-user follow-up (2026-09-11): reviewed the pinned
+AdheresToPolicy implementation, not just the names of permission checks.
+grants_right? passes one right to check_right?; grants_any_right? short-circuits
+its supplied list. check_right? selects policy.conditions[sought_right] and stops
+at the first passing condition. Condition.applies? executes its parent condition
+and supplied predicate. It does not invoke the actions named by can. Policy.can
+registers conditions in memory. Thus a read check does not evaluate unrelated
+rename, MFA-reset, submission-comment or account-calendar conditions.
+
+The configured override_proc only tests impersonation and membership in the
+non-masquerading permission set, returning a denial object when applicable.
+Permission Cache.fetch/write can write Rails.cache and a process-local hash;
+successful related rights can also be cached locally. The stock initializer
+sets cache_related_permissions=false, preventing that related-right cache from
+being written to Rails.cache. This does not disable caching of the requested
+right and is not a claim of zero server persistence.
+
+GraphQLNodeLoader's User branch checks read_full_profile before read and before
+its explicit self comparison. The fixed enrollment query therefore reaches
+User.check_accounts_right?(:read_roster), even for the authenticated student.
+check_accounts walks existing account associations, pseudonyms and merged-user
+associations across the applicable shards. Its new-user/fake-student fallback
+uses User.account (pseudonym.account or Account.default). Account's read_roster
+policy uses cached_account_users_for and the previously reviewed AccountUser
+permission helper; the registry entry has no account_allows callback. A failed
+full-profile check then reaches User's first read condition, user == self, which
+passes for this fixed identity. The later shared-course/roster branch is not
+needed for that identity. This is why self binding is necessary but cannot be
+used to skip the earlier account-policy review.
+
+AssignmentsConnectionInterface also calculates its admin and observer checks
+before OR-ing their results with is_current_user. The observer helper must not
+be described as skipped: it selects observer associations and student rows,
+joins existing enrollment_states when restricted access is excluded, and groups
+by associated user. It does not call enrollment_state or evaluate progression.
+Assignments::ScopedToUser and ScopeFilter.can? invoke explicit permission checks
+and compose ActiveRecord relations; they do not execute assignment actions.
+
+Course.account_users_for uses associated_accounts(include_crosslisted_courses:
+false) and the root account chain. The former reads CourseAccountAssociation
+rows using SELECT and adds existing account/root_account objects in memory;
+the latter uses a recursive SELECT over parents. Account.account_users_for reads
+active AccountUser rows, or reconstructs site-admin cache entries as in-memory,
+readonly AccountUser objects. clear_association_cache clears loaded associations;
+it does not remove account membership. The stock federated-parent chain helper
+returns its argument unchanged. Institutional overrides remain a separate limit.
+
+Special-account caveat: Account.site_admin and Account.default delegate to
+get_special_account with force_create=false. That helper can save a new account
+and set its ID when the special account is absent in a non-production Rails
+environment. In production, without force_create, it reads configured/cached
+accounts instead. Do not use an uninitialized development Canvas instance as
+proof that all account lookup paths are inert, or claim the same behavior for
+every deployment. This branch concerns server account bootstrap, not evidence
+that any student's existing Canvas account was changed by the earlier run.
+
+[Policy dispatch](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/gems/adheres_to_policy/lib/adheres_to_policy/instance_methods.rb#L249),
+[Condition execution](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/gems/adheres_to_policy/lib/adheres_to_policy/condition.rb#L51),
+[Policy configuration](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/config/initializers/adheres_to_policy.rb),
+[Self-user lookup](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/graphql_node_loader.rb),
+[User account-policy lookup](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/user.rb#L1405),
+[Account membership lookup](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/account.rb#L1618),
+[Special-account lookup](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/account.rb#L2122),
+[Assignment self/admin/observer checks](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/interfaces/assignments_connection_interface.rb).
+
+This closes the selected permission-dispatch, self-user account-policy routing
+and observer-helper review. It does not close the whole request. The remaining
+admission work is now:
+
+1. Finish the reachable model-load and getter inventory, including User,
+   AccountUser, Pseudonym and UserAccountAssociation reached by the self preflight;
+   the earlier nine-model direct-declaration inventory did not cover these.
+   Check included concerns and framework initializers, not only callback names.
+2. Reconcile the exact three queries and account GET with that completed
+   inventory and controller/authentication findings in one admission decision.
+   Removed assignment-date and Planner section paths are excluded, not cleared
+   for reuse. Record production-environment and institutional-extension limits.
+3. Validate institutional authentication/schema and student results only after
+   that decision. Connection, fresh enrollment binding and actual Electron
+   request admission are now wired and tested locally behind the production hold;
+   they no longer remain implementation tasks, but live validation is unproven.
+4. Restore reviewed instruction/material/message sources separately. A metadata
+   decision cannot authorize their former body/download endpoints.
 
 The [enrollment-scope follow-up](canvas-enrollment-scope.md) records the filtered-
 course-list and completed-role limitations, compares the self-enrollment REST
-serializer, and supplies a schema-validated minimal query for the next preflight
-implementation. It does not authorize that query or certify account-wide roles.
+serializer, and documents the implemented minimal preflight. Its result is used
+with fresh account-membership evidence, not as a substitute for that evidence.
 
 The pinned upstream source and passing schema checks cannot establish UBC's
 deployed behavior. Record that limitation in the restoration decision, including

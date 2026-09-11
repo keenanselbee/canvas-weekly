@@ -56,10 +56,11 @@ The [permission review](canvas-metadata-permissions-review.md) now traces course
 permission preloading, override cloning/caches, visibility selection and the
 controller's operation-name hooks. It identifies scoped-token incompatibility
 and session CSRF requirements. Shared SQL branches and registered analyzers are
-now inventoried. Permission dependencies, inherited model hooks/getters and
-authenticated connection binding still require review
-before the production gate is changed. This is not certification of the entire
-request or institutional compatibility.
+now inventoried. Selected permission dispatch, self-user account-policy routing
+and observer helpers are reviewed. The remaining model-load/getter inventory,
+consolidated admission decision and institutional validation are enumerated in
+that review. Connection binding is wired behind the hold and tested locally.
+This is not certification of the entire request or institutional compatibility.
 
 Contract and safeguards
 -----------------------
