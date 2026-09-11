@@ -413,3 +413,10 @@ Work log
   Electron localhost HTTPS fixture pass. Reviewed the bookmarked page wrapper,
   shard merge and page execution helpers. Production admission remains disabled
   pending the remaining server dependencies; no live Canvas or AI request ran.
+- 2026-09-11: Closed the selected Folio/WillPaginate paging-adapter review against
+  the exact locked package versions, including Canvas's transaction-local count
+  timeout and both initial-page formats. Recorded the separate temporary-
+  enrollment evidence gap: the selected GraphQL fields cannot establish its
+  absence, and section override resolution reaches the state getter. Keep
+  production collection paused until that path and serializer extensions are
+  resolved. This pass changed review documents only; no live account request ran.

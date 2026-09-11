@@ -244,11 +244,32 @@ rows in order, and marks whether any shard has more data. Its selected merge has
 no custom merge callback and equal-depth leaf collections. CompositeCollection
 stores rows/bookmarks in arrays. None of these reviewed methods saves account,
 enrollment, assessment or module state. The underlying Folio/ActiveRecord paging
-adapter and serializer extensions remain explicit review dependencies; source
+adapter and serializer extensions were separate review dependencies; source
 inspection of these helpers is not evidence about UBC's deployed version.
 [Account page wrapper](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/gems/bookmarked_collection/lib/bookmarked_collection/wrap_proxy.rb),
 [Shard merge](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/gems/bookmarked_collection/lib/bookmarked_collection/merge_proxy.rb),
 [Page execution](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/gems/paginated_collection/lib/paginated_collection/proxy.rb).
+
+The paging adapter follow-up uses the pinned Gemfile.lock versions:
+folio-pagination 0.0.12 and will_paginate 4.0.1. Their published source packages
+are cached locally for inspection, not installed or executed. Folio's page proxy
+builds an ActiveRecord relation using limit/page; WillPaginate supplies offset,
+limit and in-memory page attributes, then materializes the selected rows.
+Folio replaces WillPaginate's result collection with an ordinal page. Counts,
+page bounds and next/last-page calculation do not save model records. Canvas's
+folio initializer adds count queries inside transactions with SET LOCAL
+statement_timeout; that timeout is transaction-local, not an account setting.
+The fixed account request has no grouping, and the bookmark wrapper supplies its
+count explicitly. On an empty first page the ordinal result uses page 1, total
+pages 1 and no next page; bookmark results use first and no next bookmark. Both
+formats match the isolated preflight's accepted initial-page Link values.
+This closes the selected paging-adapter review for the pinned stack. It does
+not close account serializer extensions or the separate enrollment/permission
+dependencies, and does not certify the institution's deployment.
+[Pinned dependency lock](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/Gemfile.lock),
+[Canvas paging override](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/config/initializers/folio.rb),
+[Folio 0.0.12 source package](https://rubygems.org/downloads/folio-pagination-0.0.12.gem),
+[WillPaginate 4.0.1 source package](https://rubygems.org/downloads/will_paginate-4.0.1.gem).
 
 Response identity follow-up: the controller emits current_user.global_id in
 X-Canvas-User-Id and the real user's global ID during impersonation. Profile

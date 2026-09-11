@@ -128,6 +128,25 @@ change at UBC has been established. Do not generalize these methods into a claim
 that all enrollment reads are harmless or all enrollment reads change accounts.
 [Enrollment-state model](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/enrollment_state.rb).
 
+Temporary-enrollment admission gap (2026-09-11): the selected GraphQL enrollment
+type does not expose temporary_enrollment_source_user_id or pairing ID. Its raw
+workflow state and StudentEnrollment type do not directly establish absence of
+temporary enrollment. Course.enroll_user assigns the temporary source/pairing
+options when the feature is enabled without a type restriction at that point;
+no admission rule should assume that a student label alone excludes this path.
+The normal REST enrollment serializer exposes these fields conditionally, but
+also computes temporary_enrollment_display_state and retains its broader
+serialization dependencies, so it is not an automatic replacement.
+AssignmentOverrideApplicator.section_overrides calls section_visibilities_for
+with only deleted workflows excluded. The temporary-state getter therefore
+remains relevant even when the current user's desired output is only deadlines.
+Resolve this through reviewed evidence or a read path that does not reach that
+getter before enabling the metadata collector. No temporary enrollment or
+account change has been observed in the user's account.
+[Enrollment field schema](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/types/enrollment_type.rb),
+[Course enrollment and visibility](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/course.rb),
+[Section override selection](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/assignment_override_applicator.rb).
+
 Enrollment.has_permission_to? delegates to RoleOverride.enabled_for? and caches
 the result in memory. Course.cached_account_users_for reads account memberships
 through a Rails cache; account_membership_allows then invokes AccountUser's
