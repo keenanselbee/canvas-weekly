@@ -210,6 +210,31 @@ it is not registered with the app's network gate yet.
 [Timezone getter](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/time_zone_helper.rb),
 [Sharded pagination](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/sharded_bookmarked_collection.rb).
 
+The account preflight only needs to distinguish no account membership from any
+membership. Its proposed fixed request is GET /api/v1/accounts?per_page=1, with
+no page cursor, context parameters or optional includes. A nonempty first page
+stops admission immediately; there is no reason to enumerate more administrator
+accounts. Only a successful, identity-checked, completely decoded empty first
+page with no next-page indication can supply negative membership evidence.
+Malformed data, pagination contradictions, redirects, authentication errors and
+permission errors remain unavailable evidence, never an empty membership result.
+Do not follow a server-supplied pagination URL or treat this evidence alone as
+permission to collect course information. This simplifies the planned client
+without skipping the review of the server's nonempty response path.
+
+The pinned Api.paginate helper applies ordering/pagination and constructs Link
+headers from collection page metadata. per_page_for clamps the requested size
+to 1..100; the proposed size of one is supported. paginate_collection! delegates
+to the collection's paginate method, including BookmarkedCollection/Folio paths
+whose implementation still needs review. The BookmarkedCollection initializer
+only supplies its Unicode collation-key callback. Group.default_storage_quota,
+the remaining group-quota fallback in account serialization, reads Setting.get
+and converts its value to an integer. These findings narrow the remaining
+dependency work; they do not admit the route into production.
+[Pagination helper](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/api.rb),
+[Pagination initializer](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/config/initializers/bookmarked_collection.rb),
+[Group quota fallback](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/group.rb).
+
 Response identity follow-up: the controller emits current_user.global_id in
 X-Canvas-User-Id and the real user's global ID during impersonation. Profile
 verification now captures that ID alongside the local profile ID. The isolated

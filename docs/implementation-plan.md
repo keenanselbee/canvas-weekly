@@ -394,6 +394,11 @@ Work log
   serializer/getters and pagination as the next membership preflight candidate.
   Institutional header/extension behavior remains unverified and production
   collection remains paused. No real Canvas request or AI request was made.
+- 2026-09-11: Narrowed the planned account-membership check to an authenticated
+  empty first-page check with per_page=1. Any nonempty result stops admission;
+  administrator accounts do not need enumeration. Reviewed Api pagination and
+  the remaining group-quota fallback. BookmarkedCollection/Folio execution and
+  serializer extension dependencies remain open before network admission.
 - 2026-09-11: Rebuilt the Windows installer after the response identity changes.
   Packaged validation passes for source inventory, installer payload agreement,
   absence of private state, document reader workers, fresh-profile Desktop
