@@ -475,3 +475,11 @@ Work log
   Replaced the generic remaining-permissions task with explicit model-load,
   admission-decision, institutional-validation and full-content work. This pass
   changes review documents only; no real Canvas request, settings or guide changed.
+- 2026-09-11: Completed the four additional self-preflight model reviews, including
+  selected getters, included concerns, root-account lookup, list/broadcast macros
+  and model initialization helpers. Inspected the exact Authlogic revision from
+  Canvas's lockfile; its model hooks run during validation/password/save paths,
+  while session authentication can still persist bookkeeping. Recorded the
+  dependency archive hash and retained its 44 Ruby sources in ignored review
+  storage. No dependency was installed or executed, and no live Canvas or AI
+  request ran. The consolidated admission decision remains the next step.

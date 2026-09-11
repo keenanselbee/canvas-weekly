@@ -470,10 +470,12 @@ This closes the selected permission-dispatch, self-user account-policy routing
 and observer-helper review. It does not close the whole request. The remaining
 admission work is now:
 
-1. Finish the reachable model-load and getter inventory, including User,
-   AccountUser, Pseudonym and UserAccountAssociation reached by the self preflight;
-   the earlier nine-model direct-declaration inventory did not cover these.
-   Check included concerns and framework initializers, not only callback names.
+1. The additional User, AccountUser, Pseudonym and UserAccountAssociation review
+   is complete in [preflight model review](canvas-preflight-model-review.md),
+   including included concerns, model macros, the pinned Authlogic revision and
+   selected ActiveRecord initializer behavior. Carry that bounded conclusion
+   into the final fixed-query getter inventory; it does not authorize other
+   model methods, body fields or authentication effects.
 2. Reconcile the exact three queries and account GET with that completed
    inventory and controller/authentication findings in one admission decision.
    Removed assignment-date and Planner section paths are excluded, not cleared
