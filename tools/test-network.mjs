@@ -24,7 +24,7 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
   if (route === '/login') {
     response.writeHead(200, { 'content-type': 'text/html' });
     response.end('<!doctype html><title>Local login fixture</title><p>Synthetic login</p>');
-  } else if (route === '/api/v1/courses/1/quizzes') {
+  } else if (route === '/api/v1/courses/1/files') {
     response.writeHead(302, { location: '/api/v1/courses/1/modules' }); response.end();
   } else {
     response.writeHead(200, { 'content-type': 'application/json' });
@@ -53,6 +53,10 @@ try {
     for (const [route, method] of [
       ['/api/v1/users/self/profile?per_page=100', 'GET'],
       ['/api/v1/courses/1/modules', 'GET'],
+      ['/api/v1/courses/1/pages?include[]=body', 'GET'],
+      ['/api/v1/courses/1/assignments?include[]=submission&override_assignment_dates=true', 'GET'],
+      ['/api/v1/courses/1/quizzes', 'GET'],
+      ['/api/v1/courses/1/files', 'GET'],
       ['/api/v1/conversations/7', 'GET'],
       ['/files/2/download', 'GET'],
       ['/api/v1/files/2/public_url', 'GET'],
@@ -65,7 +69,22 @@ try {
   }, origin);
   assert.ok(denied.every(Boolean));
   assert.equal(received.length, 1, 'Denied requests must never reach the HTTPS server');
-  await assert.rejects(application.evaluate(async () => globalThis.networkFixture.connection.client().read('quizzes', { courseId: 1 }, true)), /redirect/i);
+  const withdrawn = await application.evaluate(async (_electron, origin) => {
+    const { connection } = globalThis.networkFixture;
+    const denied = [];
+    for (const operation of ['assignments', 'quizzes', 'pages']) {
+      try { await connection.client().read(operation, { courseId: 1 }, true); denied.push(false); }
+      catch { denied.push(true); }
+    }
+    for (const route of ['/api/v1/courses/1/pages?include[]=body', '/api/v1/courses/1/quizzes', '/api/v1/courses/1/assignments?include[]=submission&override_assignment_dates=true', '/api/v1/courses/1/files']) {
+      try { await connection.network.fetch(origin + route, { method: 'GET', redirect: 'manual' }); denied.push(false); }
+      catch { denied.push(true); }
+    }
+    return denied;
+  }, origin);
+  assert.ok(withdrawn.every(Boolean));
+  assert.equal(received.length, 1, 'Neither the client nor pending-request gate may admit withdrawn reads');
+  await assert.rejects(application.evaluate(async () => globalThis.networkFixture.connection.client().read('files', { courseId: 1 }, true)), /redirect/i);
   assert.equal(received.some(request => request.route.includes('/modules')), false);
   await application.evaluate(async (_electron, origin) => {
     const { connection, window } = globalThis.networkFixture;
@@ -89,7 +108,7 @@ try {
   });
   await assert.rejects(page.evaluate(async () => fetch('/login')));
   assert.deepEqual(received.map(request => request.route), [
-    '/api/v1/users/self/profile', '/api/v1/courses/1/quizzes', '/login', '/api/v1/users/self/profile',
+    '/api/v1/users/self/profile', '/api/v1/courses/1/files', '/login', '/api/v1/users/self/profile',
   ]);
   console.log('Network checks passed: real Electron interception, approved reads, denied writes/module/message/file-content reads, manual redirects, and login/collector separation on local HTTPS.');
 } finally {

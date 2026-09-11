@@ -3,6 +3,7 @@ import { plainText, sourceUrl } from './content.js';
 import { courseEvidence } from './course-evidence.js';
 import { localDate, shiftDate, weekOf } from './dates.js';
 import { buildStudyPlan, guideSources } from './study-plan.js';
+import { COLLECTION_ISSUE } from './canvas-client.js';
 export { plainText, sourceUrl } from './content.js';
 export { localDate, shiftDate, weekOf } from './dates.js';
 const dateOrNull = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
@@ -104,7 +105,7 @@ export function formatDate(value, timeZone) {
 const md = value => String(value ?? '').replace(/[\\`*_{}\[\]<>|#]/g, '\\$&').replace(/\r?\n/g, ' ');
 
 export function renderMarkdown(guide) {
-  const lines = ['# Weekly Plan', '', `**${guide.week.start} to ${guide.week.end}**`, '', `${guide.mode} · Updated ${formatDate(guide.generatedAt, guide.timeZone)} (${guide.timeZone})`, '',
+  const lines = ['# Weekly Plan', '', `**${guide.week.start} to ${guide.week.end}**`, '', `${guide.mode} · Updated ${formatDate(guide.generatedAt, guide.timeZone)} (${guide.timeZone})`, '', COLLECTION_ISSUE, '',
     'Generated sections are refreshed by Canvas Weekly. Check off preparation tasks in the app; keep your own notes in Student Notes.md.', ''];
   const plan = guide.studyPlan || buildStudyPlan(guide);
   const sources = new Map(guideSources(guide).map(source => [source.id, source]));

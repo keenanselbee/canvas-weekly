@@ -17,16 +17,25 @@ artifact paths, installation behavior and remaining release checks.
 
 ## Current implementation
 
+**Canvas refresh is temporarily paused for a safety repair.** A deeper upstream
+review found that page-body responses can mark module items read, while permission
+checks can create progression records. Update guide is disabled and its IPC action
+fails before any network access. Saved guides, local checkmarks and Open guide
+remain available. Do not treat the last saved scan as current. See the
+[read-boundary review](docs/canvas-read-boundary.md) for the finding and replacement
+collector acceptance criteria. This is an unresolved release requirement.
+
 The Electron desktop shell is implemented with This week, Courses and Settings,
 an explicitly labeled sample guide, native output folder selection, and persisted
 System/Light/Dark appearance. Canvas browser sign-in, optional encrypted API token
-connection, course selection and a restricted API collector are implemented.
+connection and course selection are implemented. The earlier REST collector is
+withdrawn pending a reviewed replacement.
 A live four-course collection has saved 65 assessment records with explicit
 source gaps. Markdown, standalone HTML and Word guides, in-app reading, same-week
 updates, revisions, separate student notes and change reporting are implemented.
 Optional ChatGPT sign-in and study suggestions use the pinned official Codex CLI
-runtime included as a dependency. Page bodies, calendar events and course message
-details now feed both the factual guide and optional AI evidence. Public and
+runtime included as a dependency. Saved page bodies, calendar events and course
+message details can feed the factual guide and optional AI evidence. Public and
 password-protected HTTP Basic course websites can now be connected under Courses.
 Linked PDF and DOCX text is collected within connected course websites, with
 explicit extraction limitations. Browser-login websites and Canvas-hosted file
@@ -36,7 +45,8 @@ so they remain blocked; see [file access review](docs/canvas-file-access.md) and
 
 Safety audit follow-up: module and module-item reads are now disabled because
 Canvas can create or update student progression during these GET requests.
-Existing module evidence is retained as stale; new scans report the gap.
+The previous collector retained old module evidence as stale. All guide scans are
+now paused after the broader authorization/serialization review.
 The earlier live run cannot be certified unchanged: no before/after account
 baseline or complete request ledger was recorded. See the
 [safety audit](docs/safety-audit.md) for evidence and remaining repairs.
@@ -63,7 +73,7 @@ On restart the app checks any saved Canvas authorization. Login cookies retain
 the institution's expiry rules, so another sign-in may be required. The app does
 not extend session lifetimes. Switching accounts clears course selection.
 
-After connecting, choose courses and use Update guide on This week. Open guide
+Course selection remains saved for when reviewed collection is restored. Open guide
 exports the saved study plan with current local checkmarks, then opens Weekly Plan.html
 in the default browser. A Start here overview highlights one unfinished starting
 point per course and warns when multiple items share a recorded deadline. The full

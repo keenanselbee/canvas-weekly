@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+export const COLLECTION_ISSUE = 'Canvas refresh is paused for a safety repair. Canvas page and permission reads can update module progress. Your saved guide and local checklists remain available; check current deadlines in Canvas yourself.';
+
 const id = value => {
   if (!/^\d+$/.test(String(value))) throw new Error('Invalid Canvas identifier.');
   return String(value);
@@ -9,10 +11,8 @@ const operations = {
   profile: () => ['/api/v1/users/self/profile', {}],
   courses: () => ['/api/v1/courses', { enrollment_type: 'student', enrollment_state: 'active', 'include[]': 'term' }],
   course: args => [`/api/v1/courses/${id(args.courseId)}`, { 'include[]': 'syllabus_body' }],
-  assignments: args => [`/api/v1/courses/${id(args.courseId)}/assignments`, { 'include[]': 'submission', override_assignment_dates: 'true' }],
-  quizzes: args => [`/api/v1/courses/${id(args.courseId)}/quizzes`, {}],
-  pages: args => [`/api/v1/courses/${id(args.courseId)}/pages`, { 'include[]': 'body' }],
-  files: args => [`/api/v1/courses/${id(args.courseId)}/files`, {}],
+  // The names-only serializer returns before file/module lock evaluation.
+  files: args => [`/api/v1/courses/${id(args.courseId)}/files`, { 'only[]': 'names' }],
   groups: args => [`/api/v1/courses/${id(args.courseId)}/assignment_groups`, {}],
   announcements: args => ['/api/v1/announcements', { 'context_codes[]': `course_${id(args.courseId)}`, start_date: '1970-01-01', active_only: 'true' }],
   conversations: args => ['/api/v1/conversations', { 'filter[]': `course_${id(args.courseId)}` }],
@@ -84,6 +84,9 @@ export function blockedCanvasFileRead(value) {
 }
 
 export class CanvasClient {
+  get collectionIssue() {
+    return COLLECTION_ISSUE;
+  }
   constructor({ origin, fetcher, token, signal, onProgress = () => {}, audit = async () => {} }) {
     this.origin = new URL(origin).origin;
     this.fetcher = fetcher;
@@ -159,55 +162,10 @@ export class CanvasClient {
     }
     return results;
   }
-  async collect(courseIds) {
-    const courses = [];
-    for (const courseId of courseIds) {
-      // Canvas evaluates and can persist student progression when listing modules.
-      // Do not replace this with a page visit or module-item read: those also have
-      // progress side effects. Keep any previously collected evidence as stale.
-      const record = { id: id(courseId), sources: {}, coverage: [{ source: 'modules', status: 'unsupported',
-        message: 'Module collection is disabled because Canvas can update learning progress when these records are read. Check module requirements yourself in Canvas.',
-        checkedAt: new Date().toISOString() }] };
-      for (const operation of ['course', 'assignments', 'quizzes', 'groups', 'pages', 'files', 'announcements', 'calendar', 'conversations']) {
-        this.signal?.throwIfAborted();
-        this.onProgress(`Reading ${operation} for course ${courseId}`);
-        try {
-          record.sources[operation] = await this.read(operation, { courseId }, operation !== 'course');
-          record.coverage.push({ source: operation, status: 'ok', checkedAt: new Date().toISOString() });
-        } catch (error) {
-          this.signal?.throwIfAborted();
-          record.coverage.push({ source: operation, status: 'error', message: error.message, checkedAt: new Date().toISOString() });
-        }
-      }
-      for (const [listing, operation, key] of [['conversations', 'conversation', 'conversationId']]) {
-        const candidates = record.sources[listing];
-        if (!candidates) continue;
-        record.sources[operation] = [];
-        const selected = [...candidates].sort((a, b) => String(b.last_message_at || '').localeCompare(String(a.last_message_at || ''))).slice(0, 100);
-        if (candidates.length > selected.length) record.coverage.push({ source: `${operation}:limit`, status: 'partial', message: `Read ${selected.length} of ${candidates.length} detail records.`, checkedAt: new Date().toISOString() });
-        for (const entry of selected) {
-          this.signal?.throwIfAborted();
-          const source = `${operation}:${entry.id}`;
-          this.onProgress(`Reading ${operation} ${entry.id} for course ${courseId}`);
-          try {
-            const data = await this.read(operation, { courseId, [key]: entry.id });
-            record.sources[operation].push({ id: String(entry.id), data });
-            record.coverage.push({ source, status: 'ok', checkedAt: new Date().toISOString() });
-          } catch (error) {
-            this.signal?.throwIfAborted();
-            record.coverage.push({ source, status: 'error', message: error.message, checkedAt: new Date().toISOString() });
-          }
-        }
-      }
-      if (record.sources.pages) {
-        const unavailable = record.sources.pages.filter(page => typeof page.body !== 'string').length;
-        record.coverage.push({ source: 'pageBodies', status: unavailable ? 'partial' : 'ok', message: unavailable ? `${unavailable} page bodies unavailable (locked, unsupported, or omitted by Canvas).` : undefined, checkedAt: new Date().toISOString() });
-      }
-      if (record.sources.files?.length) record.coverage.push({ source: 'fileContents', status: 'unsupported',
-        message: 'Canvas file names are collected, but contents are not downloaded: standard Canvas file views and downloads can update module progress. Check the listed files yourself. A separate storage access method still needs safety validation.',
-        checkedAt: new Date().toISOString() });
-      courses.push(record);
-    }
-    return courses;
+  async collect() {
+    this.signal?.throwIfAborted();
+    // No Canvas reads until the replacement collector's complete authorization
+    // and serialization paths have been reviewed, including indirect lock reads.
+    throw new Error(this.collectionIssue);
   }
 }

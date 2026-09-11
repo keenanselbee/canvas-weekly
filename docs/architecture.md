@@ -48,15 +48,24 @@ details. Do not access quiz questions, answers, attempt routes, or external tool
 launch endpoints. Enforce student self-submission scope. Allowing GET alone is
 insufficient: some reads mutate state.
 
+Live guide refresh is currently paused. The main IPC handler checks the client's
+collectionIssue before verification or storage changes, and CanvasClient.collect
+itself refuses all scans. The UI disables Update guide and explains the hold.
+Assignments, quizzes and pages are removed from the REST operation table; the
+network gate therefore rejects their formerly accepted URLs. Downstream rendering,
+reconciliation and export remain independently testable with supplied records.
+See canvas-read-boundary.md for the transitive permission/serialization audit and
+requirements to restore the full collector. This hold is not the final architecture.
+
 Module/module-item listing is disabled after the safety audit: Canvas can create
 and evaluate student progression on these reads. Preserve previous module evidence
 as stale and report missing coverage. See safety-audit.md for the evidence and
 remaining live authentication checks; no live-account invariance claim is supported.
 
 Standard Canvas file views/downloads are also excluded because they can update
-module progress. File metadata remains collected and linked with an explicit
-content gap. The login guard and separate website adapter reject Canvas file
-routes even on other hosts. Alternative direct storage access needs separate
+module progress. The retained file-name operation requires only[]=names and is
+not called by the paused scan. Saved file references remain available. The login
+guard and separate website adapter reject Canvas file routes even on other hosts. Alternative direct storage access needs separate
 authorization and destination review; see canvas-file-access.md.
 
 Browser authentication is a human-operated phase in an isolated profile with no

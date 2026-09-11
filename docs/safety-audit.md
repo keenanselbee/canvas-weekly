@@ -10,6 +10,20 @@ were issued for this audit.
 Findings and repair status
 -------------------------
 
+**Superseding high-severity finding:** the earlier endpoint review was incomplete.
+Page-body serialization can invoke an explicit module read action, and assignment,
+page and file lock checks can reach progression creation. Removed assignment,
+quiz and page reads from the operation table and paused the complete live guide
+refresh before any network request. The file-name query now requires only[]=names;
+its institutional behavior is not yet verified. Saved guides remain available,
+with a refresh-pause notice in newly exported documents. See
+[the pinned-source call-chain review](canvas-read-boundary.md). No authenticated
+request was made during this follow-up. This changes the previous assessment of
+which GETs were safe; it cannot establish what happened in the earlier live run.
+
+The historical findings below remain evidence, but their narrower repairs must
+not be read as certification of the withdrawn collector.
+
 1. High: GET module listings are not free of learning-progress side effects.
    The modules controller selects the current student and calls evaluate_for.
    This can create a ContextModuleProgression and evaluate/save its state using

@@ -13,10 +13,10 @@ Milestone ledger
 | --- | --- | --- | --- |
 | M0 | Product, UX, architecture and delivery plan; existing output initializer | Documents agree with the user's boundaries; Desktop/override verified | Complete: 8eb1b63 |
 | M1 | Native desktop shell, navigation, appearance and saved settings | App launches; system/light/dark work; folder picker; light/dark visual QA | Complete: 49a892d |
-| M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Safety repairs implemented and local HTTPS interception tested; tightened UBC login flow still needs account validation |
+| M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Live refresh paused after transitive permission/serializer review; replacement collection and tightened UBC login validation required |
 | M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Complete: ddd9975; synthetic end-to-end verified |
 | M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Live account restoration and validated synthetic planning verified with pinned CLI; full-course quality review pending |
-| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Canvas evidence, public/Basic websites, scoped PDF/DOCX text and Word export implemented; live site validation, browser-login sites, Canvas file downloads and Word page rendering pending |
+| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Saved Canvas evidence, public/Basic websites, scoped PDF/DOCX text and Word export implemented; live Canvas collection paused; live site validation, browser-login sites, Canvas file downloads and Word page rendering pending |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Unsigned x64 installer built; package inventory, matching installer payload, first-run themes and bundled Codex tested; installation walkthrough and live reconnect pending |
 
 Scheduling, multi-provider support, public distribution and hosted service are
@@ -222,3 +222,19 @@ Work log
   light/dark/narrow document and desktop screenshots. Real-course AI review remains
   pending the user's response because saved Study suggestions are off; no Canvas
   or live planning request was made. Word visual pagination remains unverified.
+
+- 2026-09-10: Follow-up file authorization review found missed transitive side
+  effects: page bodies explicitly mark module items read; lock serialization and
+  download permission can create module-progression records. Withdrew assignment,
+  quiz and page REST operations; file-name reads require only[]=names. Paused live
+  guide refresh before profile verification, with a persistent UI/export notice.
+  Offline guides and local checkmarks remain supported. The full automatic
+  collector is still required, with acceptance documented in canvas-read-boundary.md.
+  The desktop pipeline test now supplies in-memory records after first proving
+  the production hold prevents network access; it must not be reported as a live
+  or REST collection success. No production bypass flag was introduced.
+  Forty-nine unit tests, the real local HTTPS guard, desktop hold/offline pipeline,
+  standalone document and rebuilt-package checks pass. Light/dark pause screens
+  were visually reviewed. The existing Desktop guide was re-exported with the
+  safety notice and original collection timestamp; no production app process was
+  running during this check. Historical account changes remain unprovable.

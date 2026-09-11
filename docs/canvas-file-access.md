@@ -5,8 +5,23 @@ Reviewed 2026-09-10 against public upstream Canvas source. No authenticated Canv
 or file-storage requests were made. This does not identify UBC's deployed version
 or establish what happened in earlier account activity.
 
-Decision
---------
+Superseding finding
+-------------------
+
+The earlier review stopped at the file controller and missed indirect lock checks
+inside its serializer and download authorization. Standard metadata responses
+also call locked_for?, which can reach module-progression creation. The file-name
+operation now requires only[]=names, returning before those serializer checks in
+the pinned upstream source. No live request has validated the deployment, and no
+file operation runs while guide collection is paused. See
+[the complete read-boundary finding](canvas-read-boundary.md).
+
+The public_url candidate is still blocked: avoiding the download handler does not
+avoid the attachment download-permission policy and its lock checks. Do not enable
+it merely because storage URL signing itself appears side-effect-free.
+
+Previous decision (superseded where noted above)
+-----------------------------------------------
 
 Keep course file metadata and original links in the guide. Do not automatically
 follow the file object's download URL or open its preview. New scans with listed
@@ -19,8 +34,9 @@ send_stored_file, which calls context_module_action for the file-access user unl
 a preview parameter is present. Inline previews and render_attachment have other
 progress calls. Changing the HTTP method to GET does not make these paths inert.
 See the upstream [files controller](https://github.com/instructure/canvas-lms/blob/master/app/controllers/files_controller.rb),
-especially show, render_attachment and send_stored_file. The metadata listing is
-separate; it logs asset access but does not use that download handler.
+especially show, render_attachment and send_stored_file. The metadata listing does
+not use that download handler, but its default serializer has a separate
+permission/progression path identified above.
 
 Do not attempt to undo progress or toggle unread state after collection. There is
 no historical baseline proving whether anything changed, and compensating writes
@@ -65,8 +81,8 @@ the copy was checked against the current course. This remains planned, not deliv
 Current verification
 --------------------
 
-Unit tests distinguish file metadata from file content routes, retain source links
-and warnings in the guide/AI evidence, omit signed URLs, and reject attempts to use
+Unit tests require the names-only file parameter, distinguish it from file content
+routes, retain source links and warnings in the guide/AI evidence, omit signed URLs, and reject attempts to use
 file-host routes as website or identity-provider navigation. The local HTTPS
 Electron fixture checks that denied download/preview requests never reach its
 server. These checks exercise this app, not Canvas's server-side implementation.

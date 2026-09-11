@@ -27,7 +27,7 @@ export class CanvasConnection {
       callback({ cancel: !this.network.allows(details) });
     });
   }
-  get status() { return { connected: Boolean(this.profile), name: this.profile?.name || null, connecting: Boolean(this.loginWindow), error: this.connectionError }; }
+  get status() { return { connected: Boolean(this.profile), name: this.profile?.name || null, connecting: Boolean(this.loginWindow), error: this.connectionError, collectionIssue: this.client().collectionIssue }; }
   async restore() {
     try {
       const credential = JSON.parse(await fs.readFile(this.file, 'utf8'));

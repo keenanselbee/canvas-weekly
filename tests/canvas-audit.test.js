@@ -20,7 +20,7 @@ test('collector records durable request intent and response without tokens, curs
         'content-type': 'application/json', ...(calls++ === 0 ? { link: `<${url}>; rel="next"` } : {}),
       } });
     } });
-    await client.read('assignments', { courseId: 1 }, true);
+    await client.read('files', { courseId: 1 }, true);
     const raw = await read();
     const events = raw.trim().split('\n').map(line => JSON.parse(line));
     assert.deepEqual(events.map(entry => entry.event), ['request', 'response', 'request', 'response']);

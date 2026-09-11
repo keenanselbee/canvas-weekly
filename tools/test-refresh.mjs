@@ -14,17 +14,20 @@ try {
     shell.openPath = async value => { globalThis.syntheticOpenedPath = value; return ''; };
     const deadline = new Date().toISOString();
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [output] });
+    globalThis.syntheticRecords = [{ id: '1', coverage: ['course', 'assignments', 'pages'].map(source => ({ source, status: 'ok', checkedAt: deadline })), sources: {
+      course: { id: 1, name: 'Example course', course_code: 'DEMO 101', syllabus_body: '<p>Read the notes first.</p>' },
+      assignments: [{ id: 10, name: 'Example assignment', due_at: deadline, description: '<p>Complete the practice. Extra examples are optional.</p>', submission: { workflow_state: 'unsubmitted' } },
+        { id: 11, name: 'Practice exam 2020', due_at: null, description: '<p>Check the current syllabus for applicability.</p>' }],
+      pages: [{ page_id: 2, url: 'course-site', title: 'Course website', body: '<p>Read the external syllabus.</p><p>Password: example-password</p>' }],
+    } }];
     session.fromPartition('persist:canvas').fetch = async (address, options) => {
       globalThis.syntheticRequestCount++;
       if (options.method !== 'GET' || options.redirect !== 'manual') throw new Error('Unsafe request in desktop test');
       const url = new URL(address);
-      let data = [];
+      let data;
       if (url.pathname.endsWith('/users/self/profile')) data = { id: 999, name: 'Example Student' };
       else if (url.pathname === '/api/v1/courses') data = [{ id: 1, name: 'Example course', course_code: 'DEMO 101' }];
-      else if (url.pathname === '/api/v1/courses/1') data = { id: 1, name: 'Example course', course_code: 'DEMO 101', syllabus_body: '<p>Read the notes first.</p>' };
-      else if (url.pathname.endsWith('/assignments')) data = [{ id: 10, name: 'Example assignment', due_at: deadline, description: '<p>Complete the practice. Extra examples are optional.</p>', submission: { workflow_state: 'unsubmitted' } },
-        { id: 11, name: 'Practice exam 2020', due_at: null, description: '<p>Check the current syllabus for applicability.</p>' }];
-      else if (url.pathname.endsWith('/pages')) data = [{ page_id: 2, url: 'course-site', title: 'Course website', body: '<p>Read the external syllabus.</p><p>Password: example-password</p>' }];
+      else throw new Error('The paused Canvas collector must not request course contents');
       return new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
     };
   }, output);
@@ -50,6 +53,24 @@ try {
     await window.canvasWeekly.selectCourses(['1']);
     await window.canvasWeekly.chooseOutput();
   });
+  await page.reload();
+  await page.getByRole('heading', { name: 'Canvas refresh paused', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Update guide', exact: true }).isDisabled(), true);
+  const beforePause = await application.evaluate(() => globalThis.syntheticRequestCount);
+  const savedBeforePause = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
+  await assert.rejects(page.evaluate(() => window.canvasWeekly.updateGuide()), /refresh is paused/);
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforePause, 'The real refresh hold must run before even profile verification');
+  assert.deepEqual((await page.evaluate(() => window.canvasWeekly.getState())).guide, savedBeforePause);
+  // Exercise the downstream guide pipeline using in-memory records only. This
+  // test-process replacement is not a production flag or permission bypass.
+  await application.evaluate((_electron, moduleUrl) => {
+    const require = process.getBuiltinModule('module').createRequire(moduleUrl);
+    const { CanvasClient } = require('./canvas-client.js');
+    globalThis.originalCollectionIssue = Object.getOwnPropertyDescriptor(CanvasClient.prototype, 'collectionIssue');
+    globalThis.originalCollect = CanvasClient.prototype.collect;
+    Object.defineProperty(CanvasClient.prototype, 'collectionIssue', { configurable: true, get: () => null });
+    CanvasClient.prototype.collect = async function () { this.signal?.throwIfAborted(); return structuredClone(globalThis.syntheticRecords); };
+  }, new URL('../src/canvas-client.js', import.meta.url).href);
   await page.reload();
   await page.getByRole('button', { name: 'Courses', exact: true }).click();
   await page.getByRole('button', { name: 'Save course selection', exact: true }).click();
@@ -196,6 +217,24 @@ try {
   assert.match(await fs.readFile(first.guide.outputPath, 'utf8'), /Optional \(AI interpretation\)/);
   await page.evaluate(() => window.canvasWeekly.setAIEnabled(false));
   await page.evaluate(id => window.canvasWeekly.removeWebsite(id), websiteId);
+  await application.evaluate((_electron, moduleUrl) => {
+    const require = process.getBuiltinModule('module').createRequire(moduleUrl);
+    const { CanvasClient } = require('./canvas-client.js');
+    Object.defineProperty(CanvasClient.prototype, 'collectionIssue', globalThis.originalCollectionIssue);
+    CanvasClient.prototype.collect = globalThis.originalCollect;
+  }, new URL('../src/canvas-client.js', import.meta.url).href);
+  await page.reload();
+  await page.getByRole('heading', { name: 'Canvas refresh paused', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Update guide', exact: true }).isDisabled(), true);
+  const beforeOfflineOpen = await application.evaluate(() => globalThis.syntheticRequestCount);
+  await page.evaluate(() => window.canvasWeekly.openGuide());
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeOfflineOpen);
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(theme => window.canvasWeekly.setTheme(theme), theme);
+    await page.locator(`html[data-theme="${theme}"]`).waitFor();
+    await page.locator('main').evaluate(node => { node.scrollTop = 0; });
+    await page.screenshot({ path: `.codex-temp/visual/refresh-paused-${theme}.png` });
+  }
   await application.evaluate(({ session }) => {
     session.fromPartition('persist:canvas').fetch = async () => new Response('', { status: 401 });
   });
@@ -214,6 +253,6 @@ try {
   assert.deepEqual(switched.settings.selectedCourseIds, []);
   assert.equal(switched.guide, null);
   assert.deepEqual(switched.websites, []);
-  console.log('Desktop refresh passed: synthetic Canvas and website connections, encrypted website login, collected course pages, study plan, persistent local checkmarks, offline Open guide, preserved notes, login errors and account-switch isolation.');
+  console.log('Desktop checks passed: production refresh hold, synthetic profile/website connections, encrypted website login, in-memory course evidence (not Canvas collection), study plan, persistent local checkmarks, offline Open guide, preserved notes, login errors and account-switch isolation.');
   await page.evaluate(() => window.canvasWeekly.disconnectCanvas());
 } finally { await application.close(); }

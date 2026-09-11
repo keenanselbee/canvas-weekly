@@ -59,6 +59,9 @@ try {
   assert.equal(state.canvas.connected, false);
   assert.equal(state.ai.connected, false);
   assert.equal(state.guide, null);
+  assert.match(state.canvas.collectionIssue, /refresh is paused/);
+  await page.getByRole('heading', { name: 'Canvas refresh paused', exact: true }).waitFor();
+  await assert.rejects(page.evaluate(() => window.canvasWeekly.updateGuide()), /refresh is paused/);
   assert.equal(state.settings.lastGuideAccount, null);
   assert.equal(state.settings.outputDirectory, null);
   for (const [type, bytes] of [['pdf', pdf()], ['docx', await word('Supplementary reading is optional.')]]) {

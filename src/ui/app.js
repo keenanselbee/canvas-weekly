@@ -65,13 +65,18 @@ function renderWeek() {
   const actions = node('div', 'actions');
   if (!preview && state.canvas.connected) {
     const refresh = button(state.run.busy ? 'Updating…' : 'Update guide', async () => { update(await api.updateGuide()); render(); }, 'primary');
-    refresh.disabled = state.run.busy;
+    refresh.disabled = state.run.busy || Boolean(state.canvas.collectionIssue);
     actions.append(refresh);
     if (state.run.busy) actions.append(button('Cancel', () => api.cancelRefresh()));
   }
   if (!preview && state.guide) actions.append(button('Open guide', () => api.openGuide()));
   header('This week', preview ? 'September 14 – 20, 2026' : state.guide ? `${state.guide.week.start} to ${state.guide.week.end}` : 'A clear plan for the week ahead', actions);
   if (preview) { renderPreview(); return; }
+  if (state.canvas.collectionIssue) {
+    const safety = card('Canvas refresh paused');
+    safety.append(node('p', '', state.canvas.collectionIssue));
+    main.append(safety);
+  }
   if (state.guide) { renderGuide(); return; }
   const welcome = card();
   welcome.classList.add('welcome');
