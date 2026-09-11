@@ -56,7 +56,7 @@ test('same-week exports retain revisions and notes, reject manual edits and isol
     await fs.writeFile(notesFile, 'My own notes');
     await store.export({ ...guide, generatedAt: '2026-09-11T18:00:00Z' }, output, 'student1');
     assert.equal(await fs.readFile(notesFile, 'utf8'), 'My own notes');
-    assert.equal((await fs.readdir(path.join(output, guide.week.start, 'Revisions'))).length, 1);
+    assert.equal((await fs.readdir(path.join(output, guide.week.start, 'Revisions'))).length, 2);
     assert.equal((await store.load(options.origin, 'student1')).outputPath, first.outputPath);
     assert.equal(await store.load(options.origin, 'student2'), null);
     await assert.rejects(store.export(guide, output, 'student2'), /another Canvas account/);

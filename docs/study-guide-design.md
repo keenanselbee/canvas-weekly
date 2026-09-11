@@ -56,13 +56,22 @@ opens it through Windows. It does not fetch Canvas or call ChatGPT. Unchanged
 exports do not create redundant revisions. Manual edits still block replacement;
 use checkboxes in the app and Student Notes.md for editable personal notes.
 
+Open guide now selects the standalone Weekly Plan.html document in the browser.
+It includes section navigation, light/dark appearance, a compact navigation menu
+on narrow windows, and print styles. Preparation checkboxes are a disabled
+snapshot of app progress. The Markdown copy remains available alongside it.
+Source content is escaped; the document contains no executable scripts, remote
+images, fonts or other automatic network requests. External source navigation
+occurs only when the student clicks a link.
+
 
 Further acceptance work
 -----------------------
 
 1. Evaluate richer planning against the full real-course evidence and improve
    workload balance using student availability rather than an invented timetable.
-2. Readable standalone document presentation and verified Word output.
+2. Verified Word output and actual PDF pagination review. Standalone HTML and
+   print styles are implemented and visually checked with synthetic evidence.
 3. External course sites and linked documents with explicit collection coverage.
 4. Tightened UBC login verification, with no unverified claims about the earlier
    Canvas account state. A live Codex planning turn with synthetic evidence passed.

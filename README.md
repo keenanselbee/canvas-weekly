@@ -17,7 +17,7 @@ an explicitly labeled sample guide, native output folder selection, and persiste
 System/Light/Dark appearance. Canvas browser sign-in, optional encrypted API token
 connection, course selection and a restricted API collector are implemented.
 A live four-course collection has saved 65 assessment records with explicit
-source gaps. Factual Markdown guides, in-app reading, same-week
+source gaps. Markdown and standalone HTML guides, in-app reading, same-week
 updates, revisions, separate student notes and change reporting are implemented.
 Optional ChatGPT sign-in and study suggestions use the pinned official Codex CLI
 runtime included as a dependency. Page bodies, calendar events and course message
@@ -55,8 +55,10 @@ the institution's expiry rules, so another sign-in may be required. The app does
 not extend session lifetimes. Switching accounts clears course selection.
 
 After connecting, choose courses and use Update guide on This week. Open guide
-exports the saved study plan with current local checkmarks, then opens the Markdown
-file in its associated Windows app. Opening the guide does not contact Canvas or
+exports the saved study plan with current local checkmarks, then opens Weekly Plan.html
+in the default browser. The document follows browser light/dark preferences and
+includes section navigation and print styles. Weekly Plan.md remains alongside it.
+Opening the guide does not contact Canvas or
 ChatGPT. The plan suggests preparation days, separates recorded deadlines, and
 lists concrete information to double-check. Study checkmarks stay on this device;
 changed task requirements reopen them for review. See the
@@ -65,6 +67,10 @@ edits to generated guides block replacement; keep notes in Student Notes.md.
 The latest saved guide is available in the app after restart without reconnecting.
 Run `npm run test:refresh` for a synthetic desktop collection/export/update test;
 it uses isolated test storage and temporary output, never your Canvas account.
+Run `npm run test:document` for standalone document checks and light/dark/narrow/
+print screenshots. The HTML includes no scripts or remote resources; source links
+require a click. Print styles are checked; PDF pagination and Word export still
+need separate verification.
 
 For AI suggestions, open Settings, connect ChatGPT through the official browser
 flow, then enable Study suggestions. ChatGPT can refine up to twelve priorities
@@ -207,6 +213,7 @@ Proposed output:
 Canvas Weekly/
   2026-09-07/
     Weekly Plan.md
+    Weekly Plan.html
     Weekly Plan.docx
     Course Details.md
     Student Notes.md

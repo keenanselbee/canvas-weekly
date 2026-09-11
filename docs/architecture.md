@@ -108,10 +108,21 @@ Week identity is Monday's YYYY-MM-DD in the configured academic IANA timezone.
 Preserve exact UTC deadlines plus display timezone. Week rollover, DST boundaries,
 due overrides, null deadlines, overdue work and optional retries require tests.
 
-Render deterministic Markdown first and verified Word next. Revision existing
-generated files, detect unexpected manual changes, stage new output and replace
-atomically. Never overwrite Student Notes. Publish state after successful export;
-retain prior state on failed/cancelled runs. No sample data is exported as live.
+Render deterministic Markdown and a standalone HTML document from the same plan;
+verified Word output remains pending. Parse generated Markdown with markdown-it,
+with source HTML disabled, HTTPS-only source links, no images and no scripts.
+The HTML includes a CSP permitting only its hashed inline stylesheet. All fonts
+are local system fonts. Light/dark and print styles require no network access.
+
+Revision changed Markdown/HTML files with a shared revision ID. An ownership
+marker stores separate content hashes; existing unowned or manually edited files
+block replacement. Old Markdown-only folders acquire HTML on their next local
+export. Stage both documents, recheck existing contents, then replace individual
+files atomically and publish marker/state. Roll back replacements on ordinary
+errors; a process crash can still interrupt the multi-file update, in which case
+hash mismatches prevent silent replacement on the next attempt. Never overwrite
+Student Notes. Unchanged documents do not create revisions. No sample data is
+exported as live.
 
 
 Codex connection
@@ -161,6 +172,7 @@ References
 - [Electron security](https://www.electronjs.org/docs/latest/tutorial/security)
 - [Codex app server](https://learn.chatgpt.com/docs/app-server)
 - [Official Codex CLI](https://learn.chatgpt.com/docs/codex/cli)
+- [Markdown-it parser](https://github.com/markdown-it/markdown-it)
 - [Canvas conversations](https://developerdocs.instructure.com/services/canvas/resources/conversations)
 - [Canvas page listing and body inclusion](https://github.com/instructure/canvas-lms/blob/master/app/controllers/wiki_pages_api_controller.rb)
 - [Canvas module items](https://developerdocs.instructure.com/services/canvas/resources/modules)

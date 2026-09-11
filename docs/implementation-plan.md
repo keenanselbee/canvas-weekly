@@ -137,3 +137,17 @@ Work log
   Thirty-three unit tests and the synthetic desktop refresh pass, including AI
   step rendering, unchanged deadlines, local progress reopening after changes,
   and offline export. Inspected the AI plan in dark mode with collapsible quotes.
+- 2026-09-10: Open guide now opens a standalone HTML study guide with navigation,
+  local progress snapshots, system-aware appearance and print styles. Markdown
+  remains available. Added paired document ownership/revisions, legacy-folder
+  migration and rollback on ordinary file failures. Thirty-five unit tests and
+  synthetic desktop refresh pass; document checks and visual inspection cover
+  light, dark, narrow and print styling without automatic network requests.
+  Word export and actual PDF pagination review remain pending.
+- 2026-09-10: Re-exported the user's saved four-course snapshot locally to the
+  existing Desktop/Canvas Weekly week folder. Inspected the actual HTML plan and
+  verification section: 53 preparation/check tasks, 50 prompts, no horizontal
+  overflow or automatic HTTP requests. Preserved the original collection time
+  and factual mode. The large undated backlog includes possibly historical exam
+  resources; prioritization/applicability needs review before calling this a
+  finished personal study plan. No fresh Canvas scan or real-course AI call ran.

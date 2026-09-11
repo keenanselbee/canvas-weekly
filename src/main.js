@@ -179,7 +179,7 @@ else {
         try { guide = await guides.export(guide, path.dirname(path.dirname(guide.outputPath)), account.userId); }
         finally { run = { busy: false, message: '' }; publish(); }
       }
-      const error = await shell.openPath(guide.outputPath);
+      const error = await shell.openPath(guide.documentPath || guide.outputPath);
       if (error) throw new Error(error);
     });
     handle('guide:source', async id => {

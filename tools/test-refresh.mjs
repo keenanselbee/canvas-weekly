@@ -81,7 +81,7 @@ try {
   await page.evaluate(() => window.progressSaved);
   await page.evaluate(() => window.canvasWeekly.openGuide());
   assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeLocalChanges, 'Local progress and Open guide must not fetch Canvas');
-  assert.equal(await application.evaluate(() => globalThis.syntheticOpenedPath), first.guide.outputPath);
+  assert.equal(await application.evaluate(() => globalThis.syntheticOpenedPath), first.guide.documentPath);
   assert.match(await fs.readFile(first.guide.outputPath, 'utf8'), /- \[x\]/);
   assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.items[0].status, 'not-submitted');
   await page.reload();
