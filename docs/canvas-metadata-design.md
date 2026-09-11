@@ -338,6 +338,23 @@ This is integration of the data model, not admission of live metadata requests.
 Integration work still required
 -------------------------------
 
+canvas-student-collection.js now composes the isolated steps in a fixed order:
+account membership, complete self-enrollment pagination, supported role checks,
+then assignment/submission metadata. It requires a supplied transport bound to
+one verified course/account/connection; production does not import it. Account
+evidence must match both the local student and global response identity. Every
+enrollment must have raw StudentEnrollment type and the exact reserved built-in
+role name, with at least one active row. No conflicting row is discarded. A
+failed or cancelled preflight prevents metadata requests, and late cancellation
+discards the completed result. Only metadataRecord leaves the function; role
+evidence is not persisted, exported or reused for the next invocation.
+
+All 112 unit tests and the Electron localhost HTTPS fixture pass. The fixture
+checks request order with two enrollment pages, refuses a concluded teacher on
+page two, and completes metadata only for its synthetic student-only response.
+These are orchestration tests, not proof of live enrollment, authentication or
+institutional compatibility. The full production hold remains in force.
+
 1. Finish the permission/controller review for the revised selection. Confirm
    the direct stored-date getter and remaining authorization paths; the removed
    assignment override selection and Planner calendar route are not admitted.

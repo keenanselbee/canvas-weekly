@@ -50,6 +50,7 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
       const node = { _id: next ? '31' : '32', userId: '99', course: { _id: '1' },
         type: next ? 'StudentEnrollment' : 'TeacherEnrollment', state: next ? 'active' : 'completed',
         courseSectionId: '2', limitPrivilegesToCourseSection: false, role: { _id: next ? '3' : '4', name: next ? 'StudentEnrollment' : 'TeacherEnrollment' } };
+      if (mode === 'student-only') Object.assign(node, { type: 'StudentEnrollment', state: 'active', role: { _id: '3', name: 'StudentEnrollment' } });
       response.end(JSON.stringify({ data: { user: { _id: mode === 'foreign-enrollment' ? '100' : '99',
         enrollmentsConnection: { nodes: [node], pageInfo: { hasNextPage: next !== null, endCursor: next } } } } }));
       return;
@@ -213,6 +214,22 @@ try {
     await state.isolated.fetch(state.origin + '/api/v1/accounts?per_page=1');
   }));
   assert.equal(received.length, beforeUnadmitted, 'Account requests outside the pending main-process check are blocked');
+  for (const scenario of ['normal', 'student-only']) {
+    mode = scenario;
+    const start = received.length;
+    await application.evaluate(() => globalThis.metadataFixture.reset('session'));
+    if (scenario === 'normal') {
+      await assert.rejects(application.evaluate(() => globalThis.metadataFixture.collectStudent()), /supported student enrollment/);
+    } else {
+      const courseRecord = await application.evaluate(() => globalThis.metadataFixture.collectStudent());
+      assert.equal(courseRecord.sources.metadata.assignments.length, 2);
+      assert.doesNotMatch(JSON.stringify(courseRecord), /enrollments|StudentEnrollment|accountMembership/);
+    }
+    const operations = received.slice(start).map(request => request.method === 'GET' ? 'account' : JSON.parse(request.body).operationName);
+    const expected = ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope'];
+    if (scenario === 'student-only') expected.push('CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklySubmissionStates');
+    assert.deepEqual(operations, expected, 'Every enrollment page must pass before the first assignment request');
+  }
   const logFiles = await fs.readdir(path.join(directory, 'canvas-audit'));
   const log = await fs.readFile(path.join(directory, 'canvas-audit', logFiles[0]), 'utf8');
   assert.doesNotMatch(log, /fixture-(csrf|bearer|cookie)|private-fixture|Synthetic preparation|"query"|studentId/);
@@ -223,10 +240,10 @@ try {
   assert.equal(records.filter(event => event.event === 'request').length, received.length);
   assert.ok(records.some(event => event.event === 'read-error'));
   assert.ok(records.some(event => event.event === 'body-read'));
-  assert.equal(records.filter(event => event.operation === 'metadataenrollments' && event.event === 'request').length, 3);
+  assert.equal(records.filter(event => event.operation === 'metadataenrollments' && event.event === 'request').length, 7);
   assert.doesNotMatch(log, /enrollment-next|StudentEnrollment|TeacherEnrollment/);
-  assert.equal(records.filter(event => event.operation === 'accountscope' && event.event === 'request').length, 9);
-  assert.equal(records.filter(event => event.operation === 'accountscope' && event.event === 'body-read').length, 2);
+  assert.equal(records.filter(event => event.operation === 'accountscope' && event.event === 'request').length, 11);
+  assert.equal(records.filter(event => event.operation === 'accountscope' && event.event === 'body-read').length, 4);
   assert.doesNotMatch(log, /private-admin-account|accountMembership|90099|per_page/);
   console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, fixed account preflight, paginated metadata/enrollment parsing, foreign-user rejection, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
   console.log('Fixture profile: ' + directory);

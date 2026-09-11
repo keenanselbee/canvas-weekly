@@ -213,8 +213,11 @@ persisted, exported or sent to the planner by this module.
 Seven synthetic tests cover these conditions, including multiple sections, a
 completed teaching role, switched parent identities and foreign-course nodes on
 later pages. Responses shaped like the withdrawn course-rooted query are rejected.
-Production admission and permission classification remain unimplemented until
-the dependency review is resolved.
+Production admission remains unimplemented. The isolated student-collection
+orchestrator now checks the reserved student role/type combination and bound
+account-membership evidence after complete enrollment pagination; it does not
+establish institution-specific privileges or date-effective access. See the
+[metadata integration status](canvas-metadata-design.md).
 
 Isolated request and transport integration
 -----------------------------------------

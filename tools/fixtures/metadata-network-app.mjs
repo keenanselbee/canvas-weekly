@@ -4,6 +4,7 @@ import { CanvasAudit } from '../../src/canvas-audit.js';
 import { metadataRequest, collectMetadata } from '../../src/canvas-metadata.js';
 import { canvasSessionAuthentication } from '../../src/canvas-csrf.js';
 import { collectEnrollmentScope } from '../../src/canvas-enrollment-scope.js';
+import { collectStudentMetadata } from '../../src/canvas-student-collection.js';
 
 // Standalone local fixture. Never load the production app or its saved profile.
 app.setPath('userData', process.env.CANVAS_METADATA_TEST_DATA);
@@ -33,6 +34,8 @@ globalThis.metadataFixtureReady = app.whenReady().then(async () => {
   state.read = () => state.transport.request(metadataRequest('assignments', '1', '99'));
   state.accounts = () => state.transport.checkAccountMembership();
   state.collect = () => collectMetadata({ courseId: '1', studentId: '99', request: (value, signal) => state.transport.request(value, signal) });
+  state.collectStudent = () => collectStudentMetadata({ courseId: '1', studentId: '99', globalUserId: '90099',
+    transport: state.transport, signal: state.connection.signal });
   state.enrollments = () => collectEnrollmentScope({ courseId: '1', studentId: '99', signal: state.connection.signal,
     request: (value, signal) => state.transport.request(value, signal) });
   state.reset('session');

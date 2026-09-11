@@ -446,3 +446,12 @@ Work log
   localhost network fixture and synthetic desktop refresh pass, including both
   themes, retained field ages and the production hold. No real Canvas or AI
   request ran and no personal guide was rewritten. Admission review continues.
+- 2026-09-11: Reviewed the stored deadline scalar and SubmissionType's always-run
+  anonymous-grading initializer, including its self-user short circuit. Traced
+  selected Course permission checks to joined enrollment-state columns and the
+  stock student's unavailable elevated permissions. Added isolated orchestration
+  that completes bound account and enrollment preflights before metadata reads,
+  rejects unsupported/mixed roles on any page, discards cancelled results and
+  exports no role evidence. All 112 unit tests and the Electron localhost HTTPS
+  fixture pass. Production wiring and institution validation remain pending;
+  no live account request, AI request or personal guide change occurred.

@@ -6,6 +6,8 @@ Reviewed 2026-09-10 against upstream revision
 queries in canvas-metadata.js. It does not identify UBC's deployed revision,
 certify the earlier collection, or authorize additional GraphQL fields.
 No authenticated Canvas request was made. Production refresh remains paused.
+The override/date rows below describe the former selection; the revised stored
+deadline query no longer requests those resolvers. See the follow-up below.
 
 
 Selected call paths
@@ -328,6 +330,51 @@ Temporary sources are cached as concern--*.rb under .codex-temp/graphql-review.
 
 Remaining review before production admission
 -------------------------------------------
+
+Stored-deadline authorization follow-up (2026-09-11): SubmissionType inherits
+ApplicationObjectType's type authorization, which delegates to the already
+reviewed token/type check. BaseField adds no custom field behavior. The selected
+cached_due_date declaration has no resolver override; DateTimeType.coerce_result
+calls iso8601. No cached_due_date getter override was found in Submission. This
+closes the direct field/scalar review, not every inherited model dependency.
+
+SubmissionType.initialize always invokes anonymous_grading_scoped_context. That
+helper loads the assignment association and stores a permission promise in the
+GraphQL scoped context. It therefore matters even without requesting user names.
+For a submission belonging to current_user, can_read_submission_user_name?
+short-circuits the anonymize-students checks, reads anonymous_peer_reviews?, then
+returns before the view_all_grades course lookup. The fixed course connection
+intersects allowed user IDs with the one bound student ID before selecting rows.
+This reasoning requires the authenticated self binding; it is not a claim about
+other students' submission nodes or an impersonated response.
+
+The selected Course policy conditions use SQL joins/existence checks on existing
+enrollment_states. active_enrollment_allows and the bulk preloader both select
+date_based_state_in_db from that joined row; neither calls enrollment_state or
+state_based_on_date. The invitation-session branch's course_user_state reads
+existing enrollment/user attributes into Rails.cache. No enrollment acceptance
+or transition is invoked by that helper. Caches and authentication can still
+have server bookkeeping effects.
+
+For stock built-in StudentEnrollment roles, manage_grades and view_all_grades
+exclude StudentEnrollment from both available_to and true_for. RoleOverride
+locks those unavailable permissions before applying account-chain overrides.
+The assignment-management permissions also exclude the student base role. Role
+validation reserves the exact name StudentEnrollment for built-in roles; a
+custom display label or numeric role ID alone does not establish this contract.
+The isolated orchestration therefore requires both the raw StudentEnrollment
+type and exact reserved role name on every returned enrollment, an active row,
+and independently bound empty account-membership evidence. It rejects mixed and
+custom roles, including a non-student role on a later page. This uses the pinned
+stock data contract; it does not establish institution-specific role behavior or
+date-effective access from workflow state alone.
+
+[Submission type initialization](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/types/submission_type.rb),
+[Anonymous grading context](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/graphql_helpers/anonymous_grading.rb),
+[Submission name permission](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/submission.rb#L761),
+[Course policy and active enrollment lookup](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/course.rb#L2101),
+[Role validation](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/role.rb#L72),
+[Unavailable permission handling](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/role_override.rb#L338).
 
 The [Planner follow-up](canvas-planner-review.md) confirms another route to the
 temporary enrollment-state getter: the default Planner collection's calendar
