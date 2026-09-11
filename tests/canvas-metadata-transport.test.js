@@ -84,6 +84,12 @@ test('session and token requests use fixed headers and sanitized audit records',
     assert.equal(setup.events.length, 0);
     assert.equal(setup.sent.length, 0);
   }
+  for (const authentication of [() => { throw new Error('private-cookie-error'); }, async () => { throw new Error('private-cookie-error'); }]) {
+    const setup = fixture({ authentication });
+    await assert.rejects(setup.transport.request(request()), { message: 'Reconnect Canvas before reading metadata.' });
+    assert.equal(setup.events.length, 0);
+    assert.equal(setup.sent.length, 0);
+  }
 });
 
 test('redirects, login/scope errors, non-JSON and invalid body encodings stop without retry', async () => {

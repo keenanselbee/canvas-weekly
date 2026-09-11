@@ -60,11 +60,22 @@ Do not describe either authentication mode as having no persistent effects.
 Canvas's request-forgery protection accepts a valid X-CSRF-Token for session
 requests. It separately handles API requests classified as outside the app.
 The future collector must use the intended session token mechanism, not spoof
-request classification to bypass CSRF. Cookie naming, encoding, expiry and the
-institutional session behavior remain to be verified before use. The subsequent
-isolated transport fixture verifies Electron header/cookie handling, not live
-Canvas CSRF-cookie extraction; see [transport status](canvas-metadata-design.md).
+request classification to bypass CSRF. The stock cookie mechanism has since been
+reviewed and implemented in an isolated helper; institutional session behavior
+and verified connection binding remain prerequisites before use. See
+[transport status](canvas-metadata-design.md).
 [Request-forgery source](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/canvas/request_forgery_protection.rb).
+
+MaskingSecrets names the cookie _csrf_token and encodes a 32-byte mask plus a
+32-byte masked secret in strict Base64. It remasks the cookie when creating an
+authenticity token. Canvas's shared Axios configuration uses that cookie and
+X-CSRF-Token. The candidate reads the scoped Electron cookie without writing it,
+decodes URL escaping once and requires canonical encoding. It accepts only the
+stock secure root-path shape and checks persistent-cookie expiry; ambiguous or
+nonstandard cookies stop collection. Local fixtures validate the actual Electron
+cookie-to-header path, not successful authentication against UBC.
+[Masked-token implementation](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/gems/canvas_breach_mitigation/lib/canvas_breach_mitigation/masking_secrets.rb),
+[Canvas Axios configuration](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/ui/shared/axios/index.js).
 
 The transport acceptance checks must include:
 

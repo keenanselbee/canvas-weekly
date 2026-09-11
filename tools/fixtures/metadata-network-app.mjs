@@ -2,6 +2,7 @@ import { app, BrowserWindow, session } from 'electron';
 import { CanvasMetadataTransport } from '../../src/canvas-metadata-transport.js';
 import { CanvasAudit } from '../../src/canvas-audit.js';
 import { metadataRequest, collectMetadata } from '../../src/canvas-metadata.js';
+import { canvasSessionAuthentication } from '../../src/canvas-csrf.js';
 
 // Standalone local fixture. Never load the production app or its saved profile.
 app.setPath('userData', process.env.CANVAS_METADATA_TEST_DATA);
@@ -21,7 +22,8 @@ globalThis.metadataFixtureReady = app.whenReady().then(async () => {
     state.connection?.abort();
     state.connection = new AbortController();
     state.transport = new CanvasMetadataTransport({ origin, courseId: '1', studentId: '99', connectionSignal: state.connection.signal,
-      authentication: async () => ({ kind, value: kind === 'session' ? 'fixture-csrf-only' : 'fixture-bearer-only' }),
+      authentication: () => kind === 'session' ? canvasSessionAuthentication({ origin, cookies: isolated.cookies, signal: state.connection.signal })
+        : { kind, value: 'fixture-bearer-only' },
       audit: event => audit.write(event), fetcher: async (url, init) => {
         if (state.hold) { state.fetchEntered = true; await state.hold; }
         return isolated.fetch(url, init);
@@ -35,6 +37,7 @@ globalThis.metadataFixtureReady = app.whenReady().then(async () => {
     callback({ cancel: !fixturePage && !state.transport.allows(details) });
   });
   await isolated.cookies.set({ url: origin, name: 'fixture_session', value: 'fixture-cookie-only', httpOnly: true, secure: true, path: '/' });
+  await isolated.cookies.set({ url: origin, name: '_csrf_token', value: encodeURIComponent(Buffer.alloc(64, 251).toString('base64')), secure: true, path: '/' });
   await window.loadURL(origin + '/fixture');
   globalThis.metadataFixture = state;
 });

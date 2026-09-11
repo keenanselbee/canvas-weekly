@@ -104,7 +104,9 @@ export class CanvasMetadataTransport {
     const stopReader = () => { reader?.cancel().catch(() => {}); };
     combined.addEventListener('abort', stopReader, { once: true });
     try {
-      const auth = await untilAborted(this.#authentication(), combined);
+      let auth;
+      try { auth = await untilAborted(this.#authentication(), combined); }
+      catch { if (combined.aborted) throw cancelled(); throw new Error('Reconnect Canvas before reading metadata.'); }
       if (combined.aborted) throw cancelled();
       if (!auth || !['session', 'token'].includes(auth.kind) || typeof auth.value !== 'string'
         || !auth.value.length || auth.value.length > 4096 || /[^\x21-\x7e]/.test(auth.value)) throw new Error('Reconnect Canvas before reading metadata.');

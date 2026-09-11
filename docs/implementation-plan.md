@@ -292,3 +292,16 @@ Work log
   permission dependencies, inherited hooks/getters, identity and institutional
   behavior. This source-review milestone makes no authenticated requests and
   preserves the production refresh pause.
+- 2026-09-10: Implemented stock Canvas CSRF-cookie validation as an isolated
+  authentication helper. Scoped lookup, canonical masked-token decoding, expiry,
+  duplicate rejection and cancellation fail closed without logging credentials.
+  The metadata transport turns synchronous/asynchronous authentication failures
+  into a safe reconnect message. Five new unit tests bring the suite to 79 passing
+  tests. Actual Electron/local HTTPS checks cover cookie extraction, changed-cookie
+  retrieval, missing/malformed-cookie request denial and token/cookie separation.
+  Rebuilt the unsigned Windows installer and passed packaged source/payload,
+  isolated first-run, Codex initialization, reader-worker and theme/restart checks.
+  The helper is not connected to production Canvas; verified account/enrollment
+  binding and remaining source review still precede admission. No real Canvas,
+  external course-site or AI request was made, and the saved student guide remains
+  unchanged. Test profiles and pinned review sources remain in ignored .codex-temp.

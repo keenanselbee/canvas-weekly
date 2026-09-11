@@ -35,13 +35,14 @@ Assignment dates use OverrideAssignmentLoader, which preloads override records a
 calls overridden_for for the current user. Course submission scope intersects the
 requested student IDs with those allowed by course permissions, then selects
 existing Submission rows. Missing status data is not evidence of an unsubmitted
-assignment: the future reconciliation adapter must preserve unknown status.
+assignment: the reconciliation adapter preserves unknown status.
 
 The [permission review](canvas-metadata-permissions-review.md) now traces course
 permission preloading, override cloning/caches, visibility selection and the
 controller's operation-name hooks. It identifies scoped-token incompatibility
-and session CSRF requirements. Shared visibility/permission dependencies, model
-load callbacks, schema analyzers and authenticated transport still require review
+and session CSRF requirements. Shared SQL branches and registered analyzers are
+now inventoried. Permission dependencies, inherited model hooks/getters and
+authenticated connection binding still require review
 before the production gate is changed. This is not certification of the entire
 request or institutional compatibility.
 
@@ -101,8 +102,9 @@ only by the isolated fixture; the production CanvasNetwork still rejects POST.
 
 Session requests send X-CSRF-Token with session cookies; token requests use Bearer
 authorization with cookies omitted. Authentication values are supplied in memory
-and never added to audit records. The transport does not extract live Canvas CSRF
-cookies or verify institutional token permissions yet. It never broadens scopes,
+and never added to audit records. The isolated fixture now uses the session cookie
+helper below; production connection binding and institutional permissions remain
+unverified. The transport never broadens scopes,
 retries a failed request, follows redirects or falls back to the withdrawn REST
 collector. Chromium may reject a POST redirect before exposing its HTTP response;
 the app then reports a generic read failure rather than inventing a status.
@@ -130,6 +132,36 @@ upload interception, renderer borrowing, session/token separation, redirect deni
 received byte limits, GraphQL errors and connection cancellation. It uses an
 ephemeral test certificate and isolated profile, with no real account or Canvas
 host. These results do not complete the source permission review.
+
+Session cookie authentication candidate
+---------------------------------------
+
+canvasSessionAuthentication reads only the _csrf_token cookie from the supplied
+Electron cookie store, filtered to the fixed origin's /api/graphql URL. It returns
+an in-memory session credential for CanvasMetadataTransport. It does not verify
+the user's identity, establish an enrollment, create/reset cookies or admit a
+request. Production CanvasConnection does not call it yet.
+
+The helper accepts one secure, root-path, applicable-domain cookie with a session
+lifetime or a future expiration time. It rejects duplicates, missing/expired
+cookies, malformed origins, incorrect scope and noncanonical tokens. Stock Canvas
+uses a 64-byte masked value in strict Base64; URL escaping is decoded once while
+literal plus signs are preserved. Cancellation is checked before and after cookie
+lookup. The transport's cancellation deadline also covers a pending lookup.
+Failures produce a credential-free reconnect message and no API request; there is
+no fallback token, changed header classification or CSRF bypass.
+
+The helper rereads the cookie for every request rather than retaining an old
+masked value. This alone does not protect against account/credential changes
+between verification and transmission: production integration must bind and
+abort the complete collection on those changes. A nonstandard institutional
+cookie shape fails closed and requires compatibility review.
+
+Five unit tests cover scope, expiry, duplicates, encoding, cancellation and
+error redaction. The real Electron/local HTTPS fixture verifies cookie retrieval,
+decoded headers, changed-cookie retrieval, no POST with missing/malformed cookies,
+token-mode separation and sanitized audit output. No real Canvas session was read.
+The upstream basis is linked in the [permission review](canvas-metadata-permissions-review.md).
 
 Merging metadata into a saved guide
 ----------------------------------
@@ -173,7 +205,7 @@ Integration work still required
 
 1. Finish the permission/override/controller review described above.
 2. Integrate the isolated transport only after the remaining permission review.
-   Supply a verified connection/enrollment binding and actual session CSRF lookup;
+   Supply a verified connection/enrollment binding and connect the tested cookie helper;
    abort that binding on account, course-scope or credential changes. The fixture
    verifies transport headers and cookie separation, not real Canvas authentication.
    Scoped developer-key tokens cannot access the

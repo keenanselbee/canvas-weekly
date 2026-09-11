@@ -63,10 +63,28 @@ try {
   for (const request of received) {
     assert.equal(request.method, 'POST');
     assert.equal(request.route, '/api/graphql');
-    assert.equal(request.headers['x-csrf-token'], 'fixture-csrf-only');
+    assert.equal(request.headers['x-csrf-token'], Buffer.alloc(64, 251).toString('base64'));
     assert.match(request.headers.cookie, /fixture_session=fixture-cookie-only/);
+    assert.match(request.headers.cookie, /_csrf_token=/);
     assert.equal(request.headers.authorization, undefined);
   }
+  // Read the real Electron cookie store, without navigating to a login or
+  // mutating any server state. Invalid cookies must prevent any POST.
+  await application.evaluate(async () => {
+    const { isolated, origin } = globalThis.metadataFixture;
+    await isolated.cookies.remove(origin, '_csrf_token');
+  });
+  await assert.rejects(application.evaluate(async () => globalThis.metadataFixture.read()), /Reconnect Canvas/);
+  await application.evaluate(async () => {
+    const { isolated, origin } = globalThis.metadataFixture;
+    await isolated.cookies.set({ url: origin, name: '_csrf_token', value: 'malformed-private-cookie', secure: true, path: '/' });
+  });
+  await assert.rejects(application.evaluate(async () => globalThis.metadataFixture.read()), error => /Reconnect Canvas/.test(error.message) && !/private/.test(error.message));
+  assert.equal(received.length, 3, 'Missing or invalid CSRF must not reach the server');
+  await application.evaluate(async () => {
+    const { isolated, origin } = globalThis.metadataFixture;
+    await isolated.cookies.set({ url: origin, name: '_csrf_token', value: encodeURIComponent(Buffer.alloc(64, 251).toString('base64')), secure: true, path: '/' });
+  });
   await assert.rejects(application.evaluate(async () => {
     const { isolated, origin } = globalThis.metadataFixture;
     await isolated.fetch(origin + '/api/graphql', { method: 'POST', body: '{"query":"mutation { submit }"}' });
@@ -89,6 +107,12 @@ try {
   assert.equal(received.length, 3, 'Renderer borrowing must not reach the server');
   await application.evaluate(async () => { const state = globalThis.metadataFixture; state.release(); state.hold = null; await state.pending; });
   assert.equal(received.length, 4);
+  await application.evaluate(async () => {
+    const state = globalThis.metadataFixture;
+    await state.isolated.cookies.set({ url: state.origin, name: '_csrf_token', value: encodeURIComponent(Buffer.alloc(64, 247).toString('base64')), secure: true, path: '/' });
+    await state.read();
+  });
+  assert.equal(received.at(-1).headers['x-csrf-token'], Buffer.alloc(64, 247).toString('base64'), 'Each request must reread a remasked cookie');
   await application.evaluate(async () => { const state = globalThis.metadataFixture; state.reset('token'); await state.read(); });
   assert.equal(received.at(-1).headers.authorization, 'Bearer fixture-bearer-only');
   assert.equal(received.at(-1).headers.cookie, undefined);
@@ -115,11 +139,14 @@ try {
   const logFiles = await fs.readdir(path.join(directory, 'canvas-audit'));
   const log = await fs.readFile(path.join(directory, 'canvas-audit', logFiles[0]), 'utf8');
   assert.doesNotMatch(log, /fixture-(csrf|bearer|cookie)|private-fixture|Synthetic preparation|"query"|studentId/);
+  assert.equal(log.includes(Buffer.alloc(64, 251).toString('base64')), false);
+  assert.equal(log.includes(Buffer.alloc(64, 247).toString('base64')), false);
+  assert.doesNotMatch(log, /malformed-private-cookie/);
   const records = log.trim().split('\n').map(JSON.parse);
   assert.equal(records.filter(event => event.event === 'request').length, received.length);
   assert.ok(records.some(event => event.event === 'read-error'));
   assert.ok(records.some(event => event.event === 'body-read'));
-  console.log('Metadata network checks passed: real Electron POST/body admission, paginated parsing, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
+  console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, paginated parsing, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
   console.log('Fixture profile: ' + directory);
 } finally {
   if (application) await application.close();
