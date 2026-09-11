@@ -13,10 +13,10 @@ function normalizeItems(record, origin, now) {
   const metadata = record.sources.metadata;
   const courseName = metadata?.course.code || record.sources.course?.course_code || metadata?.course.name || record.sources.course?.name || `Course ${record.id}`;
   const entries = new Map();
-  const statuses = new Map((metadata?.submissions || []).map(item => [item.assignmentId, item.state]));
-  const assignments = metadata ? metadata.assignments.map(item => ({ id: item.id, name: item.name, due_at: item.dueAt,
-    lock_at: item.closesAt, unlock_at: item.opensAt, points_possible: item.points, submission_types: item.submissionTypes,
-    is_quiz_assignment: item.submissionTypes.includes('online_quiz'), submission: { workflow_state: statuses.get(item.id) } })) : record.sources.assignments || [];
+  const submissions = new Map((metadata?.submissions || []).map(item => [item.assignmentId, item]));
+  const assignments = metadata ? metadata.assignments.map(item => ({ id: item.id, name: item.name, due_at: submissions.get(item.id)?.cachedDueDate,
+    points_possible: item.points, submission_types: item.submissionTypes,
+    is_quiz_assignment: item.submissionTypes.includes('online_quiz'), submission: { workflow_state: submissions.get(item.id)?.state } })) : record.sources.assignments || [];
   for (const assignment of assignments) {
     if (!/^\d+$/.test(String(assignment.id))) continue;
     const submission = assignment.submission || {};
@@ -27,7 +27,10 @@ function normalizeItems(record, origin, now) {
       dueAt: dateOrNull(assignment.due_at), closesAt: dateOrNull(assignment.lock_at), opensAt: dateOrNull(assignment.unlock_at),
       points: numberOrNull(assignment.points_possible), instructions: plainText(assignment.description),
       instructionsObservedAt: typeof assignment.description === 'string' ? now : null, instructionsStale: false,
-      ...(metadata ? { metadataOnly: true } : {}),
+      dueDateObservedAt: metadata && !assignment.due_at ? null : now,
+      availabilityObservedAt: metadata ? null : now, availabilityStale: Boolean(metadata),
+      ...(metadata ? { metadataOnly: true, dueDateStale: !assignment.due_at,
+        dueDateState: !submissions.has(String(assignment.id)) ? 'missing' : assignment.due_at ? 'stored' : 'empty' } : {}),
       submissionTypes: Array.isArray(assignment.submission_types) ? assignment.submission_types.map(String) : [],
       status: ['submitted', 'graded', 'pending_review'].includes(submission.workflow_state) ? 'submitted' : submission.workflow_state === 'unsubmitted' ? 'not-submitted' : 'unknown',
       sourceUrl: sourceUrl(assignment.html_url, origin, `/courses/${record.id}/assignments/${assignment.id}`),
@@ -87,6 +90,10 @@ export function reconcile(records, previous, { origin, now, timeZone }) {
           // Fresh dates/status never certify an older instruction body or quiz
           // configuration. Carry the original observation time across repeats.
           item.id = prior.id;
+          Object.assign(item, { opensAt: prior.opensAt || null, closesAt: prior.closesAt || null,
+            availabilityObservedAt: Object.hasOwn(prior, 'availabilityObservedAt') ? prior.availabilityObservedAt : prior.observedAt || null });
+          if (item.dueDateStale) Object.assign(item, { dueAt: prior.dueAt || null,
+            dueDateObservedAt: Object.hasOwn(prior, 'dueDateObservedAt') ? prior.dueDateObservedAt : prior.observedAt || null });
           if (prior.instructions && !item.instructionsObservedAt) Object.assign(item, { instructions: prior.instructions, instructionsStale: true,
             instructionsObservedAt: Object.hasOwn(prior, 'instructionsObservedAt') ? prior.instructionsObservedAt : prior.observedAt || null });
           if (item.type === 'quiz' && prior.quizId && !item.quizDetailsObservedAt) Object.assign(item, { quizId: prior.quizId,
@@ -190,6 +197,8 @@ export function renderMarkdown(guide) {
     `### ${md(item.title)}`, '', `**${md(item.courseName)}** · ${md(item.type)} · ${item.stale ? 'Last known information — needs recheck' : item.metadataOnly ? 'Assignment metadata refreshed; instructions not rechecked' : 'Observed in Canvas'}`, '',
     `- Due: ${formatDate(item.dueAt, guide.timeZone)}`,
     `- Available until: ${formatDate(item.closesAt, guide.timeZone)}`,
+    ...(item.metadataOnly ? [`- Deadline source: ${item.dueDateStale ? 'Stored student deadline unavailable; any displayed due date is last-known and needs confirmation' : 'Canvas stored student deadline'}. Observed ${formatDate(item.dueDateObservedAt, guide.timeZone)}.`] : []),
+    ...(item.availabilityStale ? [`- Availability dates were not refreshed. Any displayed opening or closing dates are last-known, observed ${formatDate(item.availabilityObservedAt, guide.timeZone)}. Confirm the current window.`] : []),
     `- Submission status: ${md(item.status)}${item.status === 'unknown' ? ' — check Canvas' : ''}`,
     `- Points: ${item.points ?? 'Not supplied'} (not necessarily course weight)`,
     ...(item.quizId ? [`- Questions: ${item.questionCount ?? 'Not supplied'}; time limit: ${item.timeLimitMinutes == null || item.timeLimitMinutes === 0 ? 'None supplied' : `${item.timeLimitMinutes} minutes`}; allowed attempts: ${item.allowedAttempts === -1 ? 'Unlimited' : item.allowedAttempts ?? 'Not supplied'}`] : []),

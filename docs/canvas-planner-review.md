@@ -1,9 +1,9 @@
 Planner and stored deadline review
 =================================
 
-Status: source review only. Planner is not admitted to the production session.
-The existing isolated GraphQL implementation still selects assignment date
-resolvers; the replacement described below is planned, not implemented.
+Status: Planner is not admitted to the production session. The isolated GraphQL
+collector now uses the stored-deadline selection described below, with parser,
+reconciliation and synthetic tests. It no longer selects assignment date resolvers.
 Live collection remains paused.
 
 This review uses the complete Ruby source at upstream commit
@@ -70,11 +70,11 @@ column. A source search found no cached_due_date getter override in Submission;
 the full type authorization and inherited getter path still belongs in the
 admission review.
 
-The next candidate should remove dueAt, lockAt and unlockAt from assignment
-nodes, and request cachedDueDate on self-scoped submission nodes:
+The revised candidate removes dueAt, lockAt and unlockAt from assignment
+nodes, and requests cachedDueDate on self-scoped submission nodes:
 
 ```graphql
-query CanvasWeeklySubmissionDates($courseId: ID!, $studentId: ID!, $after: String) {
+query CanvasWeeklySubmissionStates($courseId: ID!, $studentId: ID!, $after: String) {
   course(id: $courseId) {
     _id
     submissionsConnection(first: 100, after: $after, studentIds: [$studentId], filter: {states: [unsubmitted, submitted, pending_review, graded, ungraded]}) {
@@ -85,12 +85,13 @@ query CanvasWeeklySubmissionDates($courseId: ID!, $studentId: ID!, $after: Strin
 }
 ```
 
-This proposed query passes GraphQL.js 16.11.0 validation against the pinned
+This runtime query passes GraphQL.js 16.11.0 validation against the pinned
 schema. Validation establishes field compatibility only. The runtime query,
-request allowlist, parser and reconciliation must change together before this
-becomes even an isolated executable candidate.
+exact request allowlist, parser and reconciliation changed together. All 108 unit
+tests and the real Electron localhost network fixture pass; production admission
+and institutional validation remain pending.
 
-Required data behavior for that change:
+Data contract and remaining admission work:
 
 - Join dates to the independently collected assignment list by assignment ID;
   reject duplicate or conflicting submission identities. A status row alone
@@ -108,10 +109,10 @@ Required data behavior for that change:
 - Keep complete pagination, response identity, account/enrollment evidence,
   cancellation and bounded transport checks. Removing date resolvers does not
   automatically clear the remaining course permission and visibility paths.
-- Add regression cases for changed/null/missing cached dates, unmatched status
+- Regression cases now cover changed/null/missing cached dates, unmatched status
   records, retained availability ages and uncertainty-driven study tasks.
 
-This change would improve deadline collection, but it cannot supply assignment
+This component improves deadline collection, but it cannot supply assignment
 instructions, readings, syllabus bodies or messages. Restoring those sources
 remains part of the full personal study-guide objective.
 

@@ -23,7 +23,7 @@ export function buildStudyPlan(guide, progress = {}) {
     const deadlineDay = dates[0] ? localDate(dates[0], guide.timeZone) : null;
     const latestStart = deadlineDay ? [shiftDate(deadlineDay, -2), guide.week.end].sort()[0] : guide.week.end;
     const availableDays = Math.max(1, Math.round((Date.parse(`${latestStart}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000) + 1);
-    const verify = closed || overdue || item.stale || item.instructionsStale || item.quizDetailsStale || item.status === 'unknown' || !item.dueAt;
+    const verify = closed || overdue || item.stale || item.instructionsStale || item.quizDetailsStale || item.dueDateStale || item.availabilityStale || item.status === 'unknown' || !item.dueAt;
     const unscheduled = !item.dueAt && !item.closesAt;
     const task = {
       id: `${item.id}:prepare`, sourceId: item.id, courseId: item.courseId, courseName: item.courseName,
@@ -31,7 +31,7 @@ export function buildStudyPlan(guide, progress = {}) {
       reason: closed ? 'The recorded availability window has ended. Check whether an exception applies before planning further work.'
         : overdue ? 'The recorded deadline has passed. Confirm submission status and any extension before planning further work.'
         : !item.dueAt ? 'No deadline was supplied. Confirm whether this item requires action and when.'
-        : item.stale || item.instructionsStale || item.quizDetailsStale || item.status === 'unknown' ? 'The available record needs verification before you rely on it.'
+        : item.stale || item.instructionsStale || item.quizDetailsStale || item.dueDateStale || item.availabilityStale || item.status === 'unknown' ? 'The available record needs verification before you rely on it.'
         : 'Start preparation before the recorded deadline; use the source for the actual requirements.',
       suggestedDate: unscheduled ? null : verify ? today : shiftDate(today, scheduledCount % availableDays),
       dueAt: item.dueAt, closesAt: item.closesAt, ai: false, needsVerification: verify,
@@ -43,6 +43,8 @@ export function buildStudyPlan(guide, progress = {}) {
     if (!unscheduled) scheduledCount++;
     const itemCheck = (title, detail) => (unscheduled ? task.checks : checks).push({ sourceId: item.id, title, detail });
     if (item.stale) itemCheck(`Recheck ${item.title}`, 'This is last-known information from an incomplete or failed collection.');
+    if (item.dueDateStale) itemCheck(`Recheck deadline: ${item.title}`, 'Canvas did not supply a stored student deadline. Any retained due date is last-known; confirm the current deadline before relying on it.');
+    if (item.availabilityStale) itemCheck(`Recheck availability: ${item.title}`, 'Opening and closing dates were not refreshed. Any retained dates are last-known; missing dates do not establish unrestricted access.');
     if (item.instructionsStale) itemCheck(`Recheck instructions: ${item.title}`, 'These instructions came from an earlier collection and were not rechecked. Compare them with the current source before relying on them.');
     if (item.quizDetailsStale) itemCheck(`Recheck quiz details: ${item.title}`, 'Question counts, time limits and attempt allowances are last-known information. Confirm the current landing-page details without starting or resuming a quiz.');
     if (!item.dueAt) itemCheck(`Confirm timing: ${item.title}`, 'A missing deadline does not mean this work is optional. Confirm applicability and timing.');
@@ -97,6 +99,7 @@ export function buildStudyPlan(guide, progress = {}) {
     // Preserve existing task hashes unless a newly distinguished source gap
     // changes what the student needs to verify. Repeated refresh times do not.
     if (source?.instructionsStale || source?.quizDetailsStale) fingerprint.push(Boolean(source.instructionsStale), Boolean(source.quizDetailsStale));
+    if (source?.dueDateStale || source?.availabilityStale) fingerprint.push(Boolean(source.dueDateStale), Boolean(source.availabilityStale));
     task.fingerprint = createHash('sha256').update(JSON.stringify(fingerprint)).digest('hex');
     const saved = progress[task.id];
     task.done = saved?.done === true && saved.fingerprint === task.fingerprint;

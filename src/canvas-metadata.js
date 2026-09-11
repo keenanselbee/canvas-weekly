@@ -6,7 +6,7 @@ const queries = Object.freeze({
     _id name courseCode
     assignmentsConnection(first: 100, after: $after, filter: {gradingPeriodId: null}) {
       pageInfo { hasNextPage endCursor }
-      nodes { _id courseId name state pointsPossible dueAt lockAt unlockAt submissionTypes }
+      nodes { _id courseId name state pointsPossible submissionTypes }
     }
   }
 }`,
@@ -15,7 +15,7 @@ const queries = Object.freeze({
     _id
     submissionsConnection(first: 100, after: $after, studentIds: [$studentId], filter: {states: [unsubmitted, submitted, pending_review, graded, ungraded]}) {
       pageInfo { hasNextPage endCursor }
-      nodes { _id assignmentId state }
+      nodes { _id assignmentId state cachedDueDate }
     }
   }
 }`,
@@ -79,14 +79,14 @@ export function parseMetadataPage(value, operation, courseId) {
     seen.add(node._id);
     if (operation === 'submissions') {
       if (!validId(node.assignmentId) || !['unsubmitted', 'submitted', 'pending_review', 'graded', 'ungraded'].includes(node.state)) throw new Error('Canvas returned invalid submission status metadata.');
-      return { id: node._id, assignmentId: node.assignmentId, state: node.state };
+      return { id: node._id, assignmentId: node.assignmentId, state: node.state, cachedDueDate: date(node.cachedDueDate) };
     }
     if (node.courseId !== courseId || node.state !== 'published'
       || !(node.pointsPossible === null || (typeof node.pointsPossible === 'number' && Number.isFinite(node.pointsPossible) && node.pointsPossible >= 0))
       || !Array.isArray(node.submissionTypes) || node.submissionTypes.length > 20
       || node.submissionTypes.some(type => typeof type !== 'string' || !/^[a-z_]{1,64}$/.test(type))) throw new Error('Canvas returned invalid assignment metadata.');
     return { id: node._id, courseId, name: text(node.name, true), state: node.state, points: node.pointsPossible,
-      dueAt: date(node.dueAt), closesAt: date(node.lockAt), opensAt: date(node.unlockAt), submissionTypes: [...node.submissionTypes] };
+      submissionTypes: [...node.submissionTypes] };
   });
   return { course: { id: courseId, ...(operation === 'assignments' ? { name: text(course.name), code: text(course.courseCode, true) } : {}) },
     nodes, next: connection.pageInfo.hasNextPage ? connection.pageInfo.endCursor : null };
@@ -146,12 +146,16 @@ export function metadataRecord(metadata) {
     || metadata.assignments.some(item => item.courseId !== metadata.course.id)) throw new Error('Invalid completed course metadata.');
   const assignments = new Set(metadata.assignments.map(item => item.id));
   const statuses = new Set(metadata.submissions.map(item => item.assignmentId));
+  const deadlines = new Map(metadata.submissions.map(item => [item.assignmentId, item.cachedDueDate]));
   if (assignments.size !== metadata.assignments.length || statuses.size !== metadata.submissions.length) throw new Error('Ambiguous completed course metadata.');
   const unknown = new Set(metadata.submissions.filter(item => item.state === 'ungraded').map(item => item.assignmentId));
   const missing = metadata.assignments.filter(item => !statuses.has(item.id) || unknown.has(item.id)).length;
   const unmatched = metadata.submissions.some(item => !assignments.has(item.assignmentId));
   return { id: metadata.course.id, sources: { metadata: structuredClone(metadata) }, coverage: [
     { source: 'assignment metadata', status: 'ok' },
+    { source: 'student deadlines', status: metadata.assignments.some(item => !deadlines.get(item.id)) ? 'partial' : 'ok',
+      message: 'Dates come from Canvas stored student deadlines. Missing or empty stored dates need confirmation; they do not establish that no deadline exists.' },
+    { source: 'availability dates', status: 'unsupported', message: 'Opening and closing dates were not refreshed. Any retained dates are last-known information.' },
     { source: 'submission states', status: missing || unmatched ? 'partial' : 'ok',
       ...(missing || unmatched ? { message: `${missing ? `Submission status needs confirmation for ${missing} listed item${missing === 1 ? '' : 's'}. ` : ''}${unmatched ? 'Some submission records could not be matched to listed work. ' : ''}Check uncertain status in Canvas.` } : {}) },
     { source: 'assignment instructions', status: 'unsupported', message: 'Instructions were not read by the metadata collector. Saved instructions are kept as last-known information.' },

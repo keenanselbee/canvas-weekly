@@ -58,8 +58,8 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
     const next = assignments && input.variables.after === null ? 'next' : null;
     const id = input.variables.after === null ? '10' : '11';
     const nodes = assignments ? [{ _id: id, courseId: '1', name: 'Synthetic preparation', state: 'published', pointsPossible: 5,
-      dueAt: '2026-09-18T23:59:00-07:00', lockAt: null, unlockAt: null, submissionTypes: ['online_upload'] }]
-      : [{ _id: '20', assignmentId: '10', state: 'submitted' }, { _id: '21', assignmentId: '11', state: 'unsubmitted' }];
+      submissionTypes: ['online_upload'] }]
+      : [{ _id: '20', assignmentId: '10', state: 'submitted', cachedDueDate: '2026-09-18T23:59:00-07:00' }, { _id: '21', assignmentId: '11', state: 'unsubmitted', cachedDueDate: null }];
     response.end(JSON.stringify({ data: { course: { _id: '1', name: 'Example course', courseCode: 'DEMO 1',
       [assignments ? 'assignmentsConnection' : 'submissionsConnection']: { nodes, pageInfo: { hasNextPage: next !== null, endCursor: next } } } } }));
   });
@@ -77,7 +77,7 @@ try {
   const result = await application.evaluate(async () => globalThis.metadataFixture.collect());
   assert.equal(result.assignments.length, 2);
   assert.equal(result.submissions[1].state, 'unsubmitted');
-  assert.equal(result.assignments[0].dueAt, '2026-09-19T06:59:00.000Z');
+  assert.equal(result.submissions[0].cachedDueDate, '2026-09-19T06:59:00.000Z');
   assert.equal(received.length, 3);
   for (const request of received) {
     assert.equal(request.method, 'POST');

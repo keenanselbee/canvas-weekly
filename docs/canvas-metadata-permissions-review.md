@@ -332,9 +332,10 @@ Remaining review before production admission
 The [Planner follow-up](canvas-planner-review.md) confirms another route to the
 temporary enrollment-state getter: the default Planner collection's calendar
 branch. It also identifies the direct Submission.cachedDueDate GraphQL field as
-an alternative to assignment override-date resolution. That selection is only
-schema-validated and planned; the current isolated runtime queries still need
-revision and the remaining permission checks are not cleared by this finding.
+an alternative to assignment override-date resolution. That selection is now
+schema-validated and implemented in the isolated collector; assignment override
+date fields were removed. The remaining permission checks are not cleared by
+this finding or by the synthetic tests.
 
 Account-membership follow-up (2026-09-10): AccountUser.permission_check delegates
 to enabled_for?, which caches RoleOverride.enabled_for?; permitted_for_account?

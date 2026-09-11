@@ -4,7 +4,7 @@ import { metadataRequest, permittedMetadataBody, parseMetadataPage, collectMetad
 import { CanvasNetwork } from '../src/canvas-network.js';
 
 const assignment = (id = '10') => ({ _id: id, courseId: '1', name: 'Reading questions', state: 'published', pointsPossible: 5,
-  dueAt: '2026-09-18T23:59:00-07:00', lockAt: null, unlockAt: null, submissionTypes: ['online_quiz'] });
+  submissionTypes: ['online_quiz'] });
 const response = (operation, nodes, next = null) => ({ data: { course: { _id: '1', name: 'Example course', courseCode: 'DEMO 1',
   [`${operation}Connection`]: { nodes, pageInfo: { hasNextPage: next !== null, endCursor: next } } } } });
 
@@ -39,17 +39,20 @@ test('metadata bodies bind exact fields, course and student without accepting ge
   await assert.rejects(gate.fetch('https://canvas.example/api/graphql', { method: 'POST', redirect: 'manual', body: JSON.stringify(submitted) }), /not permitted/);
 });
 
-test('metadata parsing keeps null override dates and copies only the selected fields', () => {
-  const input = response('assignments', [{ ...assignment(), description: 'Do not copy this unrequested body', accessCode: 'private-value' }]);
+test('metadata parsing uses stored student dates and discards assignment override dates', () => {
+  const input = response('assignments', [{ ...assignment(), dueAt: 'unrequested date', lockAt: 'unrequested date', description: 'private-body' }]);
   const page = parseMetadataPage(input, 'assignments', '1');
-  assert.equal(page.nodes[0].dueAt, '2026-09-19T06:59:00.000Z');
-  assert.equal(page.nodes[0].closesAt, null);
-  input.data.course.assignmentsConnection.nodes[0].dueAt = null;
-  assert.equal(parseMetadataPage(input, 'assignments', '1').nodes[0].dueAt, null);
-  assert.doesNotMatch(JSON.stringify(page), /private-value|unrequested body|description/);
+  assert.doesNotMatch(JSON.stringify(page), /dueAt|closesAt|opensAt|private-body|unrequested/);
+  const submission = { _id: '20', assignmentId: '10', state: 'unsubmitted', cachedDueDate: '2026-09-18T23:59:00-07:00' };
+  assert.equal(parseMetadataPage(response('submissions', [submission]), 'submissions', '1').nodes[0].cachedDueDate, '2026-09-19T06:59:00.000Z');
   for (const invalid of ['Tuesday', '2026-02-30T01:00:00Z', '2026-09-18T24:00:00Z', '2026-09-18T10:00:00', undefined]) {
-    assert.throws(() => parseMetadataPage(response('assignments', [{ ...assignment(), dueAt: invalid }]), 'assignments', '1'), /invalid metadata date/);
+    assert.throws(() => parseMetadataPage(response('submissions', [{ ...submission, cachedDueDate: invalid }]), 'submissions', '1'), /invalid metadata date/);
   }
+  assert.equal(parseMetadataPage(response('submissions', [{ ...submission, cachedDueDate: null }]), 'submissions', '1').nodes[0].cachedDueDate, null);
+  const request = metadataRequest('assignments', '1', '99');
+  assert.doesNotMatch(request.query, /dueAt|lockAt|unlockAt/);
+  assert.equal(permittedMetadataBody(JSON.stringify({ ...request, query: request.query.replace('pointsPossible', 'pointsPossible dueAt lockAt unlockAt') }), '1', '99'), false);
+  assert.match(metadataRequest('submissions', '1', '99').query, /cachedDueDate/);
 });
 
 test('HTTP-success-shaped GraphQL errors, null nodes and wrong course data fail closed', () => {
@@ -77,8 +80,8 @@ test('candidate collects assignment and self-status pages with independent curso
     if (value.operationName === 'CanvasWeeklyAssignments') return value.variables.after === null
       ? response('assignments', [assignment()], 'assignments-next') : response('assignments', [assignment('11')]);
     return value.variables.after === null
-      ? response('submissions', [{ _id: '20', assignmentId: '10', state: 'submitted' }], 'submissions-next')
-      : response('submissions', [{ _id: '21', assignmentId: '11', state: 'unsubmitted' }]);
+      ? response('submissions', [{ _id: '20', assignmentId: '10', state: 'submitted', cachedDueDate: null }], 'submissions-next')
+      : response('submissions', [{ _id: '21', assignmentId: '11', state: 'unsubmitted', cachedDueDate: null }]);
   } });
   assert.deepEqual(calls.map(call => call.variables.after), [null, 'assignments-next', null, 'submissions-next']);
   assert.equal(result.assignments.length, 2);
@@ -92,7 +95,7 @@ test('candidate rejects repeated cursors, identities and ambiguous status record
     await assert.rejects(collectMetadata({ courseId: '1', studentId: '99', request: async value => {
       calls++;
       if (scenario === 'status') return value.operationName === 'CanvasWeeklyAssignments' ? response('assignments', [assignment()])
-        : response('submissions', [{ _id: '20', assignmentId: '10', state: 'submitted' }, { _id: '21', assignmentId: '10', state: 'unsubmitted' }]);
+        : response('submissions', [{ _id: '20', assignmentId: '10', state: 'submitted', cachedDueDate: null }, { _id: '21', assignmentId: '10', state: 'unsubmitted', cachedDueDate: null }]);
       return response('assignments', [assignment(scenario === 'identity' ? '10' : String(calls))], scenario === 'cursor' ? 'same' : String(calls));
     } }), /pagination did not finish|repeated a record/);
     assert.ok(calls <= 2);

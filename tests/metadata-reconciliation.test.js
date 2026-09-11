@@ -20,17 +20,70 @@ function original() {
 function metadata() {
   return { course: { id: '1', name: 'New course name', code: 'CS 1' },
     assignments: [{ id: '10', courseId: '1', name: 'Preparation', state: 'published', points: 10,
-      dueAt: '2026-09-18T18:00:00.000Z', closesAt: null, opensAt: null, submissionTypes: ['online_quiz'] }],
-    submissions: [{ id: '100', assignmentId: '10', state: 'unsubmitted' }] };
+      submissionTypes: ['online_quiz'] }],
+    submissions: [{ id: '100', assignmentId: '10', state: 'unsubmitted', cachedDueDate: '2026-09-18T18:00:00.000Z' }] };
 }
 
-test('fresh metadata updates overrides without erasing or refreshing old instructions and syllabus', () => {
+test('empty and missing stored dates preserve last-known dates and their ages without certifying no deadline', () => {
+  const previous = reconcile([original()], null, first);
+  for (const state of ['empty', 'missing']) {
+    const source = metadata();
+    source.submissions = state === 'missing' ? [] : [{ ...source.submissions[0], cachedDueDate: null }];
+    const record = metadataRecord(source);
+    const once = reconcile([record], previous, refresh);
+    const twice = reconcile([record], once, again);
+    const item = twice.items[0];
+    assert.equal(item.dueDateState, state);
+    assert.equal(item.dueDateStale, true);
+    assert.equal(item.dueAt, previous.items[0].dueAt);
+    assert.equal(item.dueDateObservedAt, first.now);
+    assert.equal(item.availabilityObservedAt, first.now);
+    assert.equal(item.closesAt, previous.items[0].closesAt);
+    assert.deepEqual(twice.changes, []);
+    assert.equal(record.coverage.find(entry => entry.source === 'student deadlines').status, 'partial');
+    const guide = buildGuide(twice);
+    assert.ok(guide.studyPlan.checks.some(check => check.title.startsWith('Recheck deadline:')));
+    const evidence = planningEvidence(guide).items[0];
+    assert.equal(evidence.dueDateStale, true);
+    assert.equal(evidence.dueDateState, state);
+    assert.equal(evidence.availabilityStale, true);
+    assert.match(renderMarkdown(guide), /any displayed due date is last-known and needs confirmation/);
+    assert.match(renderHtml(guide), /Availability dates were not refreshed/);
+    const fresh = reconcile([metadataRecord(metadata())], twice, again).items[0];
+    assert.equal(fresh.dueDateStale, false);
+    assert.equal(fresh.dueDateState, 'stored');
+    assert.equal(fresh.dueDateObservedAt, again.now);
+    assert.equal(fresh.availabilityObservedAt, first.now);
+  }
+});
+
+test('new items with no stored deadline do not acquire fabricated dates or observation ages', () => {
+  const source = metadata(); source.submissions[0].cachedDueDate = null;
+  const once = reconcile([metadataRecord(source)], null, first);
+  const twice = reconcile([metadataRecord(source)], once, refresh);
+  const item = twice.items[0];
+  assert.equal(item.dueAt, null);
+  assert.equal(item.dueDateObservedAt, null);
+  assert.equal(item.availabilityObservedAt, null);
+  assert.equal(item.closesAt, null);
+  assert.equal(item.opensAt, null);
+  assert.equal(item.dueDateStale, true);
+  assert.equal(item.availabilityStale, true);
+  const task = buildGuide(twice).studyPlan.tasks.find(task => task.sourceId === item.id);
+  assert.equal(task.needsVerification, true);
+  assert.equal(task.unscheduled, true);
+  assert.ok(task.checks.some(check => check.title.startsWith('Recheck availability:')));
+});
+
+test('stored student deadlines update metadata without erasing or refreshing old instructions and syllabus', () => {
   const previous = reconcile([original()], null, first);
   const next = reconcile([metadataRecord(metadata())], previous, refresh);
   assert.equal(next.items.length, 1);
   const item = next.items[0];
   assert.equal(item.dueAt, '2026-09-18T18:00:00.000Z');
-  assert.equal(item.closesAt, null, 'A fresh explicit null override replaces the old closing date');
+  assert.equal(item.closesAt, previous.items[0].closesAt);
+  assert.equal(item.availabilityStale, true);
+  assert.equal(item.availabilityObservedAt, first.now);
   assert.equal(item.points, 10);
   assert.equal(item.stale, false);
   assert.equal(item.observedAt, refresh.now);
@@ -93,7 +146,7 @@ test('new metadata items expose coverage gaps and missing assignments remain las
   assert.equal(fresh.items[0].quizId, null);
   assert.equal(fresh.items[0].questionCount, undefined);
   assert.equal(fresh.courses[0].evidence.length, 0);
-  assert.equal(fresh.courses[0].coverage.filter(source => source.status === 'unsupported').length, 3);
+  assert.equal(fresh.courses[0].coverage.filter(source => source.status === 'unsupported').length, 4);
   const ambiguous = metadata(); ambiguous.submissions.push({ id: '101', assignmentId: '10', state: 'submitted' });
   assert.throws(() => metadataRecord(ambiguous), /Ambiguous/);
 });

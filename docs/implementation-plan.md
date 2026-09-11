@@ -437,3 +437,12 @@ Work log
   the next deadline-source candidate. Documented the required runtime contract,
   reconciliation, field-age and uncertainty changes before implementation.
   This review did not admit requests or change the app, account or saved guide.
+- 2026-09-11: Revised the isolated metadata collector to remove assignment
+  due/open/close resolvers and read cachedDueDate on self-scoped submissions.
+  Null and missing stored dates retain earlier due dates only as last-known;
+  availability dates and their original ages remain explicitly unrefreshed.
+  These distinctions reach study tasks, AI evidence, the app and document exports.
+  Both runtime queries pass the pinned schema. All 108 unit tests, the Electron
+  localhost network fixture and synthetic desktop refresh pass, including both
+  themes, retained field ages and the production hold. No real Canvas or AI
+  request ran and no personal guide was rewritten. Admission review continues.

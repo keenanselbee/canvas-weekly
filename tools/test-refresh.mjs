@@ -230,9 +230,9 @@ try {
     const { metadataRecord } = require('./canvas-metadata.js');
     globalThis.syntheticRecords = [metadataRecord({ course: { id: '1', name: 'Example course', code: 'DEMO 101' },
       assignments: [{ id: '10', courseId: '1', name: 'Example assignment', state: 'published', points: 5,
-        dueAt: new Date(Date.now() + 7 * 86400000).toISOString(), closesAt: null, opensAt: null, submissionTypes: ['online_upload'] },
+        submissionTypes: ['online_upload'] },
       { id: '11', courseId: '1', name: 'Practice exam 2020', state: 'published', points: null,
-        dueAt: null, closesAt: null, opensAt: null, submissionTypes: ['online_upload'] }], submissions: [] })];
+        submissionTypes: ['online_upload'] }], submissions: [{ id: '100', assignmentId: '10', state: 'ungraded', cachedDueDate: new Date(Date.now() + 7 * 86400000).toISOString() }] })];
   }, new URL('../src/canvas-metadata.js', import.meta.url).href);
   await page.evaluate(() => window.canvasWeekly.updateGuide());
   const mixed = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
@@ -240,6 +240,10 @@ try {
   assert.equal(mixed.items[0].status, 'unknown');
   assert.equal(mixed.items[0].instructionsStale, true);
   assert.equal(mixed.items[0].instructionsObservedAt, beforeMetadata.items[0].instructionsObservedAt);
+  assert.equal(mixed.items[0].dueDateState, 'stored');
+  assert.equal(mixed.items[0].availabilityStale, true);
+  assert.equal(mixed.items[0].closesAt, beforeMetadata.items[0].closesAt);
+  assert.equal(mixed.items[0].availabilityObservedAt, beforeMetadata.items[0].availabilityObservedAt);
   assert.equal(mixed.courses[0].syllabus, beforeMetadata.courses[0].syllabus);
   assert.match(await fs.readFile(mixed.outputPath, 'utf8'), /Instructions are last-known information/);
   assert.match(await fs.readFile(mixed.documentPath, 'utf8'), /Assignment metadata refreshed; instructions not rechecked/);
@@ -249,6 +253,7 @@ try {
     const mixedItem = page.locator('.task').filter({ has: page.getByRole('heading', { name: 'Example assignment', exact: true }) });
     if (!await mixedItem.locator('details').evaluate(element => element.open)) await mixedItem.getByText('Instructions and details', { exact: true }).click();
     await mixedItem.getByText(/Last-known instructions, observed/).waitFor();
+    await mixedItem.getByText(/Availability dates were not refreshed/).waitFor();
     await mixedItem.screenshot({ path: `.codex-temp/visual/metadata-instructions-${theme}.png` });
   }
   await page.evaluate(() => window.canvasWeekly.updateGuide());

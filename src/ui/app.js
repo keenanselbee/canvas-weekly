@@ -225,8 +225,11 @@ function renderGuide() {
       const content = node('div', 'task-content');
       content.append(node('h3', '', item.title), node('p', '', `${item.courseName}${item.stale ? ' · Last known information — recheck Canvas' : ''}`));
       if (item.metadataOnly && !item.stale) content.append(node('p', 'muted', 'Assignment metadata refreshed; instructions not rechecked.'));
+      if (item.dueDateStale) content.append(node('p', 'muted', 'Deadline needs confirmation; any displayed date is last-known.'));
       const detail = node('details');
       detail.append(node('summary', '', 'Instructions and details'));
+      if (item.metadataOnly) detail.append(node('p', 'muted', `Deadline source: ${item.dueDateStale ? 'stored student deadline unavailable' : 'Canvas stored student deadline'}. Date last observed ${format(item.dueDateObservedAt)}.`));
+      if (item.availabilityStale) detail.append(node('p', 'muted', `Availability dates were not refreshed. Any displayed dates are last-known, observed ${format(item.availabilityObservedAt)}. Confirm the current window.`));
       if (item.instructionsStale) detail.append(node('p', 'muted', `Last-known instructions, observed ${format(item.instructionsObservedAt)}. Recheck the current source.`));
       if (item.quizDetailsStale) detail.append(node('p', 'muted', `Quiz details were last observed ${format(item.quizDetailsObservedAt)} and were not refreshed.`));
       detail.append(node('p', '', item.instructions || 'No instructions supplied.'), node('p', '', `Submission: ${item.status}. Available until: ${format(item.closesAt)}.`));
