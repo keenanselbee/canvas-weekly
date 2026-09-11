@@ -31,6 +31,9 @@ Existing module evidence is retained as stale; new scans report the gap.
 The earlier live run cannot be certified unchanged: no before/after account
 baseline or complete request ledger was recorded. See the
 [safety audit](docs/safety-audit.md) for evidence and remaining repairs.
+New collector requests write a local credential-free intent/outcome ledger under
+application storage/canvas-audit. It does not record authentication-window traffic
+and cannot prove the absence of Canvas-side effects.
 
 In Settings, sign in to Canvas in the separate window. A successful account check
 returns to Canvas Weekly automatically. If it stays open, close it and click Check

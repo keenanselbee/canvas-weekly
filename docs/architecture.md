@@ -88,6 +88,13 @@ with stale markers. Disappearance alone is not cancellation. Keep stable Canvas
 IDs and linked quiz/assignment IDs for deduplication. Source claims include URL,
 retrieval time and original content; suggestions are separate from course facts.
 
+Canvas collector requests also append a credential-free local JSONL audit record
+before transmission and after response headers or network failure. Flush intent
+to disk before fetching; refuse the source when logging fails. Do not log query
+strings (pagination cursors may be sensitive), credentials, bodies or exception
+text. These logs cover collector requests, not authentication-window traffic, and
+cannot prove the absence of server-side side effects. Unpaired intent is uncertain.
+
 Week identity is Monday's YYYY-MM-DD in the configured academic IANA timezone.
 Preserve exact UTC deadlines plus display timezone. Week rollover, DST boundaries,
 due overrides, null deadlines, overdue work and optional retries require tests.

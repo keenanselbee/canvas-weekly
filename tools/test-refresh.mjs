@@ -36,9 +36,21 @@ try {
   await page.getByText('Course selection saved.', { exact: true }).waitFor();
   await page.locator('#notice').waitFor({ state: 'hidden', timeout: 6500 });
   await page.getByRole('button', { name: 'This week', exact: true }).click();
+  await page.evaluate(output => {
+    window.refreshFinished = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { unsubscribe(); reject(new Error('Refresh did not finish')); }, 20000);
+      const unsubscribe = window.canvasWeekly.onStateChanged(state => {
+        if (!state.run.busy && state.guide?.outputPath?.startsWith(output)) {
+          clearTimeout(timer); unsubscribe(); resolve(state);
+        }
+      });
+    });
+  }, output);
   await page.getByRole('button', { name: 'Update guide', exact: true }).click();
+  const first = await page.evaluate(() => window.refreshFinished);
   await page.getByRole('heading', { name: 'Example assignment' }).waitFor();
-  const first = await page.evaluate(() => window.canvasWeekly.getState());
+  assert.equal(first.run.busy, false);
+  assert.ok(first.guide.outputPath.startsWith(output));
   assert.equal(first.guide.items.length, 1);
   assert.ok((await fs.readFile(first.guide.outputPath, 'utf8')).includes('Complete the practice.'));
   assert.ok((await fs.readFile(first.guide.outputPath, 'utf8')).includes('Read the external syllabus.'));
@@ -46,8 +58,7 @@ try {
   await assert.rejects(page.evaluate(() => window.canvasWeekly.openSource('https://unknown.example/')), /Choose a source/);
   const notes = path.join(path.dirname(first.guide.outputPath), 'Student Notes.md');
   await fs.writeFile(notes, 'Keep these student notes.');
-  await page.getByRole('button', { name: 'Update guide', exact: true }).click();
-  await page.waitForFunction(async () => !(await window.canvasWeekly.getState()).run.busy);
+  await page.evaluate(() => window.canvasWeekly.updateGuide());
   assert.equal(await fs.readFile(notes, 'utf8'), 'Keep these student notes.');
   assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.changes.length, 0);
   await fs.mkdir('.codex-temp/visual', { recursive: true });

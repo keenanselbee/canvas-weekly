@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 const id = value => {
   if (!/^\d+$/.test(String(value))) throw new Error('Invalid Canvas identifier.');
   return String(value);
@@ -53,12 +55,13 @@ export function blockedAssessmentUrl(value) {
 }
 
 export class CanvasClient {
-  constructor({ origin, fetcher, token, signal, onProgress = () => {} }) {
+  constructor({ origin, fetcher, token, signal, onProgress = () => {}, audit = async () => {} }) {
     this.origin = new URL(origin).origin;
     this.fetcher = fetcher;
     this.token = token;
     this.signal = signal;
     this.onProgress = onProgress;
+    this.audit = audit;
   }
   async read(operation, args = {}, list = false) {
     const initial = requestUrl(this.origin, operation, args);
@@ -72,11 +75,22 @@ export class CanvasClient {
       visited.add(next.href);
       let response;
       for (let attempt = 0; attempt < 3; attempt++) {
-        response = await this.fetcher(next.href, {
-          method: 'GET', redirect: 'manual', credentials: this.token ? 'omit' : 'include',
-          headers: { Accept: 'application/json', ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) },
-          signal: this.signal ? AbortSignal.any([this.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
-        });
+        const evidence = { requestId: randomUUID(), operation, origin: next.origin, path: next.pathname,
+          paginated: next.searchParams.has('page'), preservesUnread: operation === 'conversation' };
+        await this.audit({ ...evidence, event: 'request' });
+        this.signal?.throwIfAborted();
+        try {
+          response = await this.fetcher(next.href, {
+            method: 'GET', redirect: 'manual', credentials: this.token ? 'omit' : 'include',
+            headers: { Accept: 'application/json', ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) },
+            signal: this.signal ? AbortSignal.any([this.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
+          });
+        } catch (error) {
+          await this.audit({ ...evidence, event: 'network-error' });
+          throw error;
+        }
+        try { await this.audit({ ...evidence, event: 'response', status: response.status }); }
+        catch (error) { await response.body?.cancel(); throw error; }
         if (response.status !== 429 || attempt === 2) break;
         const delay = Math.min(10000, Math.max(1000, Number(response.headers.get('retry-after')) * 1000 || 2000 * (attempt + 1)));
         await response.body?.cancel();

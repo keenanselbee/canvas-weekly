@@ -3,10 +3,12 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { CanvasClient, blockedAssessmentUrl } from './canvas-client.js';
 import { atomicJson } from './settings.js';
+import { CanvasAudit } from './canvas-audit.js';
 
 export class CanvasConnection {
   constructor({ directory, settings, onChange, onConnected = () => {} }) {
     this.file = path.join(directory, 'canvas-credential.json');
+    this.audit = new CanvasAudit(directory);
     this.settings = settings;
     this.onChange = onChange;
     this.onConnected = onConnected;
@@ -45,7 +47,7 @@ export class CanvasConnection {
   }
   client(options = {}) {
     return new CanvasClient({ origin: this.settings.value.canvasBaseUrl, token: this.token,
-      fetcher: (url, init) => this.session.fetch(url, init), ...options });
+      fetcher: (url, init) => this.session.fetch(url, init), ...options, audit: event => this.audit.write(event) });
   }
   async verify() {
     if (this.verification) return this.verification;

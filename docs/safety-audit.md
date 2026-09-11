@@ -22,8 +22,15 @@ Findings and repair status
 2. High: no complete historical request ledger or account-state baseline exists.
    Source coverage timestamps cannot prove every request or absence of writes.
    A future request ledger cannot retroactively certify the earlier run.
-   Repair pending: credential-free local request intent/outcome logging and
-   actual Electron transport interception tests with synthetic endpoints.
+   Repair: collector requests now record intent before network access and HTTP
+   status or network failure afterward. Logs live in local application storage
+   under canvas-audit/YYYY-MM-DD.jsonl. They contain request IDs, operation, origin,
+   path and timestamps, never query strings, headers, course content or exceptions.
+   Failed intent writes prevent the request; failed outcome writes stop that
+   source. A request without an outcome is inconclusive (for example, a crash).
+   A response event records HTTP status, not successful parsing or account state.
+   Authentication browser traffic and rejected operations are not in this ledger.
+   Actual Electron transport interception tests remain pending.
 3. Medium: the login network guard allows broader GET subresources than needed.
    It blocks common assessment routes and non-login Canvas writes but is not an
    exact operation boundary for all traffic. SSO requests are a separate human
