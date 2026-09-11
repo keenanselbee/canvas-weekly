@@ -327,3 +327,13 @@ Work log
   limits and concrete admission tests. This documentation/query milestone does
   not register a new operation, widen the gate, run account requests or change
   guides. Permission dependencies and runtime preflight integration remain open.
+- 2026-09-10: Added offline enrollment-evidence validation with complete cursor
+  chains, bound identities, immutable selected fields, response limits and safe
+  failures. Six synthetic tests retain conflicting/custom/test/completed roles
+  and reject partial or malformed evidence. This module makes no requests and
+  produces no collection authorization. Further source review found that the
+  enrollment-state getter can create a missing row; a separate recalculation
+  path can transition expired temporary enrollments. Reachability of that path
+  through selected permissions remains unresolved. Documented the distinction
+  and retained the production hold. No real Canvas, website or AI request was
+  made; the student's saved guide remains unchanged. All 85 unit tests pass.

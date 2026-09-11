@@ -71,10 +71,62 @@ and treats temporary enrollments separately using their enrollment state.
 enrollment_visibility_level_for calculates full, limited, section or restricted
 visibility from role/permission checks. apply_enrollment_visibility adds SQL
 conditions; the query's final user-ID restriction narrows those results to self.
-These functions contain no explicit progression evaluation or enrollment change.
-Their permission and inherited enrollment-state dependencies remain part of the
-existing review. A returned list is constrained by visibility, not a universal
-account-role audit.
+These functions contain no explicit progression evaluation or enrollment change,
+but that does not establish the same property for their getters. A returned list
+is constrained by visibility, not a universal account-role audit.
+
+Enrollment-state dependency findings
+-----------------------------------
+
+EnrollmentDateBuilder.preload_state only preloads the association; its separate
+build method writes a date-range cache. EnrollmentState.active? compares the
+stored state without calling ensure_current_state. However, Enrollment overrides
+the enrollment_state getter: if the association remains missing after reload,
+create_enrollment_state uses first_or_create. The temporary-enrollment branch of
+section_visibilities_for calls that getter. Association preloading therefore does
+not prove an absence of database writes for missing state rows.
+[Enrollment date builder](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/canvas/builders/enrollment_date_builder.rb),
+[Enrollment getter](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/enrollment.rb).
+
+The separate EnrollmentState.ensure_current_state path recalculates access/date
+state and saves changes. This is not always only cache maintenance: when an
+expired temporary enrollment reaches calculate_state_based_on_dates, it can call
+enrollment.conclude, deactivate or destroy. Enrollment.state_based_on_date reaches
+that recalculation through get_effective_state. The section-visibility active?
+call above does not itself invoke it. Reachability through the remaining selected
+permission dependencies is unresolved; neither actual execution nor an account
+change at UBC has been established. Do not generalize these methods into a claim
+that all enrollment reads are harmless or all enrollment reads change accounts.
+[Enrollment-state model](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/enrollment_state.rb).
+
+Enrollment.has_permission_to? delegates to RoleOverride.enabled_for? and caches
+the result in memory. Course.cached_account_users_for reads account memberships
+through a Rails cache; account_membership_allows then invokes AccountUser's
+permission helpers. Those helpers and selected registry callbacks still need
+review. These findings retain the production hold.
+
+Offline response validation
+---------------------------
+
+src/canvas-enrollment-scope.js validates already-decoded synthetic responses. It
+has no request builder, transport, production registration or authorization result.
+Every page is paired with its requested cursor; the validator requires a complete
+chain, bound course/user IDs, known raw states/types and explicit role/section
+fields. It rejects partial GraphQL errors, missing/duplicate identities, cursor
+cycles, empty evidence, excess pages/nodes/bytes and cancellation. Errors exclude
+upstream text. Output copies and freezes selected fields only.
+
+Mixed, custom, completed, inactive and test roles remain in the evidence rather
+than being silently removed. A role name is not treated as proof of built-in
+privileges. Passing validation does not establish date-effective enrollment,
+account-wide rights, current-session identity or safe request execution. The
+future transport must enforce request/stream/time limits before decoding; this
+validator's decoded-size checks do not replace that boundary. No evidence is
+persisted, exported or sent to the planner by this module.
+
+Six synthetic tests cover these conditions, including multiple sections and a
+completed teaching role. Runtime admission and permission classification remain
+unimplemented until the dependency review is resolved.
 
 Acceptance and remaining work
 -----------------------------
