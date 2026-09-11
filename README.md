@@ -17,13 +17,13 @@ an explicitly labeled sample guide, native output folder selection, and persiste
 System/Light/Dark appearance. Canvas browser sign-in, optional encrypted API token
 connection, course selection and a restricted API collector are implemented.
 A live four-course collection has saved 65 assessment records with explicit
-source gaps. Markdown and standalone HTML guides, in-app reading, same-week
+source gaps. Markdown, standalone HTML and Word guides, in-app reading, same-week
 updates, revisions, separate student notes and change reporting are implemented.
 Optional ChatGPT sign-in and study suggestions use the pinned official Codex CLI
 runtime included as a dependency. Page bodies, calendar events and course message
 details now feed both the factual guide and optional AI evidence. Public and
 password-protected HTTP Basic course websites can now be connected under Courses.
-Browser-login websites, linked PDF/Word contents and Word export remain pending; see
+Browser-login websites and linked PDF/Word contents remain pending; see
 [external course sources](docs/external-course-sources.md).
 
 Safety audit follow-up: module and module-item reads are now disabled because
@@ -58,7 +58,9 @@ not extend session lifetimes. Switching accounts clears course selection.
 After connecting, choose courses and use Update guide on This week. Open guide
 exports the saved study plan with current local checkmarks, then opens Weekly Plan.html
 in the default browser. The document follows browser light/dark preferences and
-includes section navigation and print styles. Weekly Plan.md remains alongside it.
+includes section navigation and print styles. Weekly Plan.md and Weekly Plan.docx
+remain alongside it. The Word copy includes the same plan, source details and
+verification notes, with local preparation states labeled To do or Done.
 Opening the guide does not contact Canvas or
 ChatGPT. The plan suggests preparation days, separates recorded deadlines, and
 lists concrete information to double-check. Study checkmarks stay on this device;
@@ -70,8 +72,9 @@ Run `npm run test:refresh` for a synthetic desktop collection/export/update test
 it uses isolated test storage and temporary output, never your Canvas account.
 Run `npm run test:document` for standalone document checks and light/dark/narrow/
 print screenshots. The HTML includes no scripts or remote resources; source links
-require a click. Print styles are checked; PDF pagination and Word export still
-need separate verification.
+require a click. Word structure, content, safe links and file protection are tested.
+Word page rendering remains unverified because LibreOffice is unavailable in this
+environment; actual PDF pagination also needs separate verification.
 
 Under Courses, expand Course websites, choose a discovered link or enter a course
 site address, then Add website. Enter its separate website login if requested.

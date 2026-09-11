@@ -59,7 +59,11 @@ use checkboxes in the app and Student Notes.md for editable personal notes.
 Open guide now selects the standalone Weekly Plan.html document in the browser.
 It includes section navigation, light/dark appearance, a compact navigation menu
 on narrow windows, and print styles. Preparation checkboxes are a disabled
-snapshot of app progress. The Markdown copy remains available alongside it.
+snapshot of app progress. Markdown and Word copies remain available alongside it.
+Word preserves the same study plan and supporting evidence, using native headings
+and lists, To do/Done labels, source hyperlinks and page numbers. It uses a compact
+reference layout with a simple masthead. No course images or scripts are embedded.
+Manual Word edits block replacement just like edits to the other generated files.
 Source content is escaped; the document contains no executable scripts, remote
 images, fonts or other automatic network requests. External source navigation
 occurs only when the student clicks a link.
@@ -70,8 +74,9 @@ Further acceptance work
 
 1. Evaluate richer planning against the full real-course evidence and improve
    workload balance using student availability rather than an invented timetable.
-2. Verified Word output and actual PDF pagination review. Standalone HTML and
-   print styles are implemented and visually checked with synthetic evidence.
+2. Word page rendering and actual PDF pagination review. Word export passes
+   structural/content and file-safety tests; LibreOffice is unavailable here.
+   Standalone HTML and print styles are visually checked with synthetic evidence.
 3. Validate external course sites with real course access; add browser-login and
    linked-document support. Public/Basic HTML/text collection and gaps are implemented.
 4. Tightened UBC login verification, with no unverified claims about the earlier

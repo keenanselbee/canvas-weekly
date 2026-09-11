@@ -118,16 +118,25 @@ Week identity is Monday's YYYY-MM-DD in the configured academic IANA timezone.
 Preserve exact UTC deadlines plus display timezone. Week rollover, DST boundaries,
 due overrides, null deadlines, overdue work and optional retries require tests.
 
-Render deterministic Markdown and a standalone HTML document from the same plan;
-verified Word output remains pending. Parse generated Markdown with markdown-it,
+Render Markdown, standalone HTML and Word documents from the same plan.
+Parse generated Markdown with markdown-it,
 with source HTML disabled, HTTPS-only source links, no images and no scripts.
 The HTML includes a CSP permitting only its hashed inline stylesheet. All fonts
 are local system fonts. Light/dark and print styles require no network access.
 
-Revision changed Markdown/HTML files with a shared revision ID. An ownership
+Word export uses the pinned docx runtime library in the app, without Python or
+Office on the student's computer. The compact reference preset sets Letter paper,
+one-inch margins, Calibri 11-point body text and explicit heading/list spacing.
+Native lists, headings, hyperlinks and page-number furniture replace HTML markup;
+remote resources, macros and course-supplied field instructions are never embedded.
+Content/structure tests pass; page rendering is still unverified without LibreOffice.
+
+Revision changed Markdown/HTML/Word files with a shared revision ID. An ownership
 marker stores separate content hashes; existing unowned or manually edited files
-block replacement. Old Markdown-only folders acquire HTML on their next local
-export. Stage both documents, recheck existing contents, then replace individual
+block replacement. Old Markdown-only or Markdown/HTML folders acquire missing
+formats on their next local export. Word's input hash includes a renderer version;
+unchanged input reuses verified existing bytes despite variable ZIP metadata.
+Stage changed documents, recheck existing byte contents, then replace individual
 files atomically and publish marker/state. Roll back replacements on ordinary
 errors; a process crash can still interrupt the multi-file update, in which case
 hash mismatches prevent silent replacement on the next attempt. Never overwrite

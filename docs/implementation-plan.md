@@ -16,7 +16,7 @@ Milestone ledger
 | M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Safety repairs implemented and local HTTPS interception tested; tightened UBC login flow still needs account validation |
 | M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Complete: ddd9975; synthetic end-to-end verified |
 | M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Live account restoration and validated synthetic planning verified with pinned CLI; full-course quality review pending |
-| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Canvas evidence and public/Basic website adapter implemented; live site validation, browser-login sites, linked documents and Word output pending |
+| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Canvas evidence, public/Basic websites and Word export implemented; live site validation, browser-login sites, linked documents and Word page rendering pending |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Pending |
 
 Scheduling, multi-provider support, public distribution and hosted service are
@@ -164,3 +164,11 @@ Work log
   No actual Canvas or university course-site request ran. DATA 311 compatibility,
   browser-only login, linked PDF/DOCX contents and Word export remain unverified
   or unfinished as detailed in external-course-sources.md.
+- 2026-09-10: Added Word output from the same Markdown study-plan content with
+  native headings/lists, safe source links and progress labels. Export ownership,
+  revisions, manual-edit protection and rollback now work with binary files.
+  Identical Word input reuses verified prior bytes to avoid redundant revisions.
+  Structural checks exposed duplicate default style IDs; corrected the style
+  configuration and added regression coverage. Word content/layout-token tests,
+  file-lock rollback and synthetic desktop refresh pass. LibreOffice is absent;
+  Word page rendering remains explicitly unverified. No Canvas account was used.

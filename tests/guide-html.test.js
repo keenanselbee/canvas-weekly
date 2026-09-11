@@ -47,6 +47,7 @@ test('HTML export migrates Markdown-only folders, preserves manual edits and rol
     const markerPath = path.join(path.dirname(first.outputPath), '.canvas-weekly.json');
     // Previous releases owned only the Markdown document.
     await fs.rm(first.documentPath);
+    await fs.rm(first.wordPath);
     await fs.writeFile(markerPath, JSON.stringify({ owner: store.accountKey(origin, 'one'), hash: contentHash(oldMarkdown) }));
     await store.export(guide, output, 'one');
     assert.equal(await fs.readFile(first.documentPath, 'utf8'), oldHtml);
