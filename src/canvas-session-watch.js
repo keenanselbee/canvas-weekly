@@ -2,7 +2,23 @@ import { createHash } from 'node:crypto';
 
 const cookieName = '_normandy_session';
 const changed = () => new DOMException('Canvas browser session changed. Reconnect before refreshing your guide.', 'AbortError');
-const unavailable = () => new Error('Canvas browser session could not be verified. Reconnect before refreshing your guide.');
+const sessionIssues = Object.freeze({
+  configuration: 'The session reader is unavailable.',
+  lookup: 'The browser session could not be read.',
+  timeout: 'Reading the browser session timed out.',
+  missing: 'The expected Canvas session cookie is missing.',
+  ambiguous: 'More than one matching Canvas session cookie was found.',
+  scope: 'The Canvas session cookie has an unsupported domain or path.',
+  flags: 'The Canvas session cookie has unsupported security flags.',
+  value: 'The Canvas session cookie is empty or has an unsupported size.',
+  expiry: 'The Canvas session cookie is expired or has unsupported expiry information.',
+});
+class SessionVerificationError extends Error {
+  constructor(reason) {
+    super(`Canvas browser session could not be verified. ${sessionIssues[reason]} Your previous guide is preserved. Reconnect Canvas; if this repeats, report CW_SESSION_${reason.toUpperCase()}.`);
+  }
+}
+const unavailable = (reason = 'lookup') => new SessionVerificationError(reason);
 
 // Watches the stock Canvas session cookie without changing it. This detects
 // local cookie replacement, not a server-side identity change with the same
@@ -10,7 +26,7 @@ const unavailable = () => new Error('Canvas browser session could not be verifie
 export async function watchCanvasSession({ cookies, origin, signal }) {
   const url = new URL(origin);
   if (url.protocol !== 'https:' || url.origin !== origin || !(signal instanceof AbortSignal)
-    || typeof cookies?.get !== 'function' || typeof cookies?.on !== 'function' || typeof cookies?.removeListener !== 'function') throw unavailable();
+    || typeof cookies?.get !== 'function' || typeof cookies?.on !== 'function' || typeof cookies?.removeListener !== 'function') throw unavailable('configuration');
   signal.throwIfAborted();
   const controller = new AbortController();
   const lifetime = AbortSignal.any([signal, controller.signal]);
@@ -46,22 +62,26 @@ export async function watchCanvasSession({ cookies, origin, signal }) {
     let rejectAbort;
     const aborted = new Promise((_resolve, reject) => { rejectAbort = () => reject(lifetime.reason); });
     lifetime.addEventListener('abort', rejectAbort, { once: true });
-    timer = setTimeout(() => controller.abort(unavailable()), 10000);
+    timer = setTimeout(() => controller.abort(unavailable('timeout')), 10000);
     try {
       // All applicable same-name cookies are returned, including path shadows.
       const list = await Promise.race([cookies.get({ url: origin + '/api/graphql', name: cookieName }), aborted]);
       assertCurrent();
-      if (!Array.isArray(list) || list.length !== 1) throw unavailable();
+      if (!Array.isArray(list)) throw unavailable('lookup');
+      if (!list.length) throw unavailable('missing');
+      if (list.length !== 1) throw unavailable('ambiguous');
       const cookie = list[0];
-      if (!applies(cookie) || cookie.path !== '/' || cookie.secure !== true || cookie.httpOnly !== true
-        || typeof cookie.value !== 'string' || !cookie.value || cookie.value.length > 16384
-        || !(cookie.session === true || (cookie.session === false && Number.isFinite(cookie.expirationDate) && cookie.expirationDate > Date.now() / 1000))) throw unavailable();
+      if (!applies(cookie) || cookie.path !== '/') throw unavailable('scope');
+      if (cookie.secure !== true || cookie.httpOnly !== true) throw unavailable('flags');
+      if (typeof cookie.value !== 'string' || !cookie.value || cookie.value.length > 16384) throw unavailable('value');
+      if (!(cookie.session === true || (cookie.session === false && Number.isFinite(cookie.expirationDate) && cookie.expirationDate > Date.now() / 1000))) throw unavailable('expiry');
       const digest = createHash('sha256').update(JSON.stringify([cookie.value, cookie.domain, cookie.path, cookie.hostOnly])).digest('hex');
       if (fingerprint !== undefined && fingerprint !== digest) throw changed();
       fingerprint = digest;
       expiration = cookie.session ? null : cookie.expirationDate;
     } catch (error) {
-      controller.abort(lifetime.aborted ? lifetime.reason : error?.name === 'AbortError' ? changed() : unavailable());
+      controller.abort(lifetime.aborted ? lifetime.reason : error?.name === 'AbortError' ? changed()
+        : error instanceof SessionVerificationError ? error : unavailable());
       lifetime.throwIfAborted();
     } finally {
       clearTimeout(timer);

@@ -658,3 +658,16 @@ Work log
   Real Canvas profile/course-list reads succeeded during user testing, but a
   session-cookie verification failure stopped the guide refresh before collection.
   The cause remains unconfirmed; this UI milestone does not resolve that failure.
+- 2026-09-11: Added specific, credential-free diagnostics for browser-session
+  verification. Missing/ambiguous cookies, unsupported scope/security/expiry,
+  invalid values, lookup failures and timeouts remain blocked under the same
+  validation rules. Unexpected store exceptions are sanitized. All 146 unit
+  tests pass. The isolated desktop refresh fixture verifies that missing and
+  unsupported cookies report their reason before network reads and preserve the
+  saved guide and all three exported formats. Timeout/cancellation cleanup and
+  cookie-change rejection also pass. No real account request was made by these
+  tests. The app was reopened for a human retry to identify the actual UBC failure;
+  its cause and a successful real refresh remain unverified. The combined rebuilt
+  package passes inventory/payload/private-state and bundled-runtime checks.
+  Installer SHA256:
+  ad6b17839d266ba189c466a115d353832a0c06ebd9159c5e48a7413ac24bfaeb.

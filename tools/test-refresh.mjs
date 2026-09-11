@@ -305,6 +305,26 @@ try {
     assert.deepEqual((await page.evaluate(() => window.canvasWeekly.getState())).guide, repeatedMetadata);
     assert.deepEqual(await Promise.all(protectedExports.map(file => fs.readFile(file))), beforeConnectionChange, 'A changed connection must not overwrite any guide format');
   }
+  for (const reason of ['MISSING', 'FLAGS']) {
+    await application.evaluate(async ({ session }, reason) => {
+      const cookies = session.fromPartition('persist:canvas').cookies;
+      await cookies.remove('https://canvas.ubc.ca', '_normandy_session');
+      if (reason === 'FLAGS') await cookies.set({ url: 'https://canvas.ubc.ca', name: '_normandy_session',
+        value: 'private-diagnostic-fixture', path: '/', secure: true, httpOnly: false });
+    }, reason);
+    const beforeRejectedRefresh = await application.evaluate(() => globalThis.syntheticRequestCount);
+    await assert.rejects(page.evaluate(() => window.canvasWeekly.updateGuide()), new RegExp('CW_SESSION_' + reason));
+    assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeRejectedRefresh, 'An unverified session must stop before network reads');
+    const rejectedState = await page.evaluate(() => window.canvasWeekly.getState());
+    assert.equal(rejectedState.run.busy, false);
+    assert.equal(rejectedState.run.message.includes('private-diagnostic-fixture'), false);
+    assert.deepEqual(rejectedState.guide, repeatedMetadata);
+    assert.deepEqual(await Promise.all(protectedExports.map(file => fs.readFile(file))), beforeConnectionChange, 'Session diagnostics must preserve all guide formats');
+  }
+  await application.evaluate(async ({ session }) => {
+    await session.fromPartition('persist:canvas').cookies.set({ url: 'https://canvas.ubc.ca', name: '_normandy_session',
+      value: 'synthetic-restored-refresh-session', path: '/', secure: true, httpOnly: true });
+  });
   await application.evaluate((_electron, moduleUrl) => {
     const require = process.getBuiltinModule('module').createRequire(moduleUrl);
     const { CanvasConnection } = require('./canvas-session.js');

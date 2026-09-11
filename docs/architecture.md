@@ -114,6 +114,15 @@ account/enrollment preflights and standard-student-role restrictions described i
 canvas-metadata-admission.md. These source-reviewed checks are implemented and
 tested locally; institution deployment compatibility still requires live evidence.
 
+Browser-session verification fails closed with a credential-free CW_SESSION_ code:
+MISSING, AMBIGUOUS, SCOPE, FLAGS, VALUE, EXPIRY, LOOKUP, TIMEOUT or CONFIGURATION.
+The UI reports which precondition failed without disclosing cookie values, domain
+details or storage exceptions. These diagnostics do not relax cookie validation
+or admit additional requests. Connected indicates successful profile verification;
+it does not establish that the stricter refresh session checks have passed. A
+failed refresh preserves the previous guide. Institutional compatibility must be
+investigated from the specific failure before changing the guard.
+
 The isolated Electron connection fixture exercises eight lifecycle scenarios.
 The desktop refresh fixture also deliberately returns data after invalidating the
 connection and verifies that no guide format is overwritten. Neither fixture

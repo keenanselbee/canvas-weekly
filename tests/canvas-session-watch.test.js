@@ -38,14 +38,32 @@ test('cookie changes and removals abort immediately, including same-value and pa
   }
 });
 
-test('missing, ambiguous, expired and nonstandard cookies cannot establish a session watch', async () => {
-  for (const list of [[], [cookie(), cookie()], [cookie({ path: '/api' })], [cookie({ secure: false })],
-    [cookie({ httpOnly: false })], [cookie({ value: '' })], [cookie({ domain: 'other.example' })],
-    [cookie({ session: false, expirationDate: 1 })], [cookie({ session: false })]]) {
+test('rejected cookies expose specific diagnostic reasons without cookie contents', async () => {
+  for (const [list, reason] of [[null, 'LOOKUP'], [[], 'MISSING'], [[cookie(), cookie()], 'AMBIGUOUS'],
+    [[cookie({ path: '/api' })], 'SCOPE'], [[cookie({ domain: 'other.example' })], 'SCOPE'],
+    [[cookie({ secure: false })], 'FLAGS'], [[cookie({ httpOnly: false })], 'FLAGS'],
+    [[cookie({ value: '' })], 'VALUE'], [[cookie({ value: 'x'.repeat(16385) })], 'VALUE'],
+    [[cookie({ session: false, expirationDate: 1 })], 'EXPIRY'], [[cookie({ session: false })], 'EXPIRY']]) {
     const { cookies, options } = setup(list);
-    await assert.rejects(watchCanvasSession(options), /could not be verified/);
+    await assert.rejects(watchCanvasSession(options), error => {
+      assert.match(error.message, new RegExp('CW_SESSION_' + reason));
+      assert.match(error.message, /previous guide is preserved/);
+      assert.equal(error.message.includes('private-cookie-fixture'), false);
+      assert.equal(error.message.includes('other.example'), false);
+      return true;
+    });
     assert.equal(cookies.listenerCount('changed'), 0);
   }
+});
+
+test('session lookup timeout provides a safe reason and releases its listener', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { cookies, options } = setup();
+  cookies.get = () => new Promise(() => {});
+  const pending = watchCanvasSession(options);
+  t.mock.timers.tick(10000);
+  await assert.rejects(pending, /CW_SESSION_TIMEOUT/);
+  assert.equal(cookies.listenerCount('changed'), 0);
 });
 
 test('a missed event still fails the next cookie check and store errors stay private', async () => {
@@ -53,7 +71,11 @@ test('a missed event still fails the next cookie check and store errors stay pri
     const { cookies, options } = setup();
     const watch = await watchCanvasSession(options);
     cookies.get = replacement;
-    await assert.rejects(watch.check(), error => !error.message.includes('private'));
+    await assert.rejects(watch.check(), error => {
+      assert.equal(error.message.includes('private'), false);
+      if (error.name !== 'AbortError') assert.match(error.message, /CW_SESSION_LOOKUP/);
+      return true;
+    });
     assert.equal(watch.signal.aborted, true);
     assert.equal(cookies.listenerCount('changed'), 0);
   }

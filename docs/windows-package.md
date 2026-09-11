@@ -132,3 +132,11 @@ Status-navigation and isolated package checks pass. Latest installer SHA256:
 58de590c8153a6d1a9a6e1497cb8c00c6a3470a5cebb57174b7b9787382d2aab.
 This supersedes the timezone-settings build; it has not been installed or used
 for live account validation.
+
+Connection-diagnostics rebuild (2026-09-11): Codex options now shows detected,
+ready or manual-selection-needed status. Canvas session rejection includes a
+credential-free diagnostic reason while preserving the same safety checks.
+Unit, status, desktop refresh and isolated package checks pass. Latest SHA256:
+ad6b17839d266ba189c466a115d353832a0c06ebd9159c5e48a7413ac24bfaeb.
+This supersedes the connection-navigation artifact. The installer has not been
+installed; live UBC refresh is still blocked pending the specific session error.
