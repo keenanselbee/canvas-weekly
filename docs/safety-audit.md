@@ -27,8 +27,11 @@ not be read as certification of the withdrawn collector.
 The replacement's [metadata permission review](canvas-metadata-permissions-review.md)
 separates in-memory date overrides, server caches, authentication bookkeeping
 and learning-state effects. The reviewed GraphQL operation hooks do not match
-the candidate's fixed names. Remaining dependencies and authenticated transport
-are still under review; no replacement query has been sent to Canvas.
+the candidate's fixed names. A separate exact-body POST transport now passes
+local Electron/HTTPS tests, with bounded reads, connection cancellation and
+sanitized audit. Production still rejects these requests. Remaining source
+dependencies and live authentication wiring are unfinished; no replacement query
+has been sent to Canvas. See [transport status](canvas-metadata-design.md).
 
 1. High: GET module listings are not free of learning-progress side effects.
    The modules controller selects the current student and calls evaluate_for.

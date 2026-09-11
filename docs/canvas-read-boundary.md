@@ -97,7 +97,8 @@ Local document import remains a useful complementary path while this work is
 pending, not a substitute for the automatic collector. It must retain provenance,
 copy age and uncertainty without contacting Canvas.
 
-The first replacement component is now implemented as a transport-free candidate;
-see [metadata collector design](canvas-metadata-design.md). Its fixed queries have
-passed pinned-schema validation, but it has no production network admission and
-does not yet restore refresh or assignment instructions.
+The replacement query/parser and bounded POST transport are implemented as isolated
+components; see [metadata collector design](canvas-metadata-design.md). Fixed queries
+passed pinned-schema validation, and actual Electron admission passed local HTTPS
+tests. There is still no production admission, verified live authentication binding
+or restoration of refresh and assignment instructions.

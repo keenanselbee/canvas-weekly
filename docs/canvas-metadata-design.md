@@ -1,8 +1,9 @@
 Candidate Canvas metadata collector
 ===================================
 
-Status: implemented as an isolated, transport-free component in canvas-metadata.js.
-It is not imported by the production Canvas client or enabled in the session gate.
+Status: isolated query/parser and network components are implemented in
+canvas-metadata.js and canvas-metadata-transport.js. Neither is connected to the
+production Canvas client or enabled in its session gate.
 Live guide refresh remains paused. This is a component of the replacement collector,
 not a completed restoration of automatic collection.
 
@@ -68,8 +69,8 @@ statuses. Cancellation and failures reject the result rather than returning a
 partial successful snapshot. Transport exception text and GraphQL errors are not
 copied into user-visible errors.
 
-The decoded-response budget is not a network allocation limit: the future
-transport must enforce byte/time limits while receiving the body, before parsing.
+The decoded-response budget is not a network allocation limit. The isolated
+transport now also limits bytes while receiving the body, before parsing.
 A unit check exercises the existing production network guard to confirm that
 POST /api/graphql is still denied; no live GraphQL request was made.
 
@@ -82,15 +83,63 @@ Seven new unit tests exercise the body boundary, normalization, pagination,
 failures, cancellation and limits. Schema validation proves field/type compatibility
 for that revision, not resolver side-effect freedom or UBC compatibility.
 
+Isolated transport
+------------------
+
+CanvasMetadataTransport is constructed once per course collection with fixed
+origin/course/student IDs, a connection-lifetime AbortSignal, and supplied
+authentication, fetch and audit callbacks. It has no default credential lookup or
+network function. The future production adapter must establish the verified
+identity/enrollment binding and abort it whenever the connection changes.
+
+request accepts only a canonical metadata envelope. Its single-use Electron
+admission callback compares the actual upload bytes, method and exact URL with
+the pending main-process request. Renderer/frame requests, files, blobs, altered
+bodies, extra URL parameters and repeated admission are rejected. The request
+must pass interception before its response is accepted. This callback is installed
+only by the isolated fixture; the production CanvasNetwork still rejects POST.
+
+Session requests send X-CSRF-Token with session cookies; token requests use Bearer
+authorization with cookies omitted. Authentication values are supplied in memory
+and never added to audit records. The transport does not extract live Canvas CSRF
+cookies or verify institutional token permissions yet. It never broadens scopes,
+retries a failed request, follows redirects or falls back to the withdrawn REST
+collector. Chromium may reject a POST redirect before exposing its HTTP response;
+the app then reports a generic read failure rather than inventing a status.
+
+Each request has a 30-second cancellation deadline, including response streaming.
+It rejects responses above 2 MiB and collections above 16 MiB or 200 requests.
+Declared Content-Length is checked, but received bytes are counted independently.
+JSON content type and UTF-8 decoding are validated. Only one read can run per
+instance. Cancellation removes admission and stops accepting the result even if
+an injected fetch callback does not settle. Audit writes remain awaited so a
+request cannot precede its durable intent record.
+
+CanvasAudit accepts POST records only for the two named metadata operations at
+/api/graphql with a SHA-256 body hash. It persists request intent, HTTP response
+when available, network/read errors and body-read events, omitting raw queries,
+variables, headers, response contents and exception text. body-read means the
+body was received and parsed as JSON; collectMetadata still checks GraphQL errors
+and field semantics. It is not evidence of a successful collection or unchanged
+Canvas account state. Existing GET audit records keep their previous format.
+
+Ten transport unit tests cover admission, identities, headers, budgets, timeout,
+cancellation, audit failures and sanitization. npm run test:metadata-network uses
+real Electron session.fetch and a local HTTPS fixture to test pagination, actual
+upload interception, renderer borrowing, session/token separation, redirect denial,
+received byte limits, GraphQL errors and connection cancellation. It uses an
+ephemeral test certificate and isolated profile, with no real account or Canvas
+host. These results do not complete the source permission review.
+
 Integration work still required
 -------------------------------
 
 1. Finish the permission/override/controller review described above.
-2. Add a named authenticated transport for only these exact bodies, with bounded
-   reads, manual redirects, cancellation and flushed intent/outcome audit. Bind
-   pending network admission to method, origin, body and authenticated identity;
-   a browser must not borrow a pending request. Session CSRF and API-token paths
-   need separate verification. Scoped developer-key tokens cannot access the
+2. Integrate the isolated transport only after the remaining permission review.
+   Supply a verified connection/enrollment binding and actual session CSRF lookup;
+   abort that binding on account, course-scope or credential changes. The fixture
+   verifies transport headers and cookie separation, not real Canvas authentication.
+   Scoped developer-key tokens cannot access the
    required GraphQL types in the reviewed revision; report this without asking
    for broader permissions. GraphQL uses POST, so method alone cannot enforce
    the mutation boundary. Apply the additional identity, envelope and CSRF checks

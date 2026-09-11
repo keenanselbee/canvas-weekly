@@ -61,7 +61,9 @@ Canvas's request-forgery protection accepts a valid X-CSRF-Token for session
 requests. It separately handles API requests classified as outside the app.
 The future collector must use the intended session token mechanism, not spoof
 request classification to bypass CSRF. Cookie naming, encoding, expiry and the
-actual Electron session transport remain to be verified before use.
+institutional session behavior remain to be verified before use. The subsequent
+isolated transport fixture verifies Electron header/cookie handling, not live
+Canvas CSRF-cookie extraction; see [transport status](canvas-metadata-design.md).
 [Request-forgery source](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/canvas/request_forgery_protection.rb).
 
 The transport acceptance checks must include:
@@ -88,8 +90,9 @@ The functions above narrow the review; they do not close the whole call graph.
 Finish the shared visibility SQL feature branches, section/observer/account
 permission dependencies and selected role-registry callbacks. Confirm that
 schema analyzers and any model load callbacks on the selected records do not
-introduce learning-state writes. Complete session authentication and actual
-Electron request-body admission tests using isolated fixtures first.
+introduce learning-state writes. Complete the verified account/enrollment binding
+and institutional session authentication. Actual Electron request-body admission
+has since passed the isolated fixture described in the transport design.
 
 The pinned upstream source and passing schema checks cannot establish UBC's
 deployed behavior. Record that limitation in the restoration decision, including
@@ -98,5 +101,6 @@ restoration must keep missing or old instructions visibly separate from fresh
 deadlines. It does not complete the personal study-guide objective.
 
 Downloaded upstream files remain in ignored .codex-temp/graphql-review for the
-continuing audit. This milestone changes documentation only; it does not widen
-the production network gate, run an account request, or change saved guides.
+continuing audit. The original review milestone changed documentation only.
+The subsequent isolated transport work does not widen the production network
+gate, run an account request, or change saved guides.

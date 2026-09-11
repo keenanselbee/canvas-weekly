@@ -25,8 +25,9 @@ remain available. Do not treat the last saved scan as current. See the
 [read-boundary review](docs/canvas-read-boundary.md) for the finding and replacement
 collector acceptance criteria. This is an unresolved release requirement.
 An isolated [metadata collector candidate](docs/canvas-metadata-design.md) now has
-fixed, schema-validated queries and bounded response handling; authenticated
-transport, remaining permission review and source reconciliation are still pending.
+fixed, schema-validated queries and a bounded transport tested against local
+HTTPS. Live authentication wiring, remaining permission review and source
+reconciliation are still pending.
 
 The Electron desktop shell is implemented with This week, Courses and Settings,
 an explicitly labeled sample guide, native output folder selection, and persisted
@@ -133,6 +134,11 @@ HTTPS server to test actual request interception. Windows PowerShell generates
 an ephemeral test certificate without installing it in any certificate store.
 Diagnostic test profiles/logs remain under ignored `.codex-temp/network-*`.
 The test never loads saved application accounts or contacts Canvas.
+
+`npm run test:metadata-network` separately tests the isolated replacement query
+transport: exact POST-body admission, browser denial, cookie/token separation,
+redirects, byte limits and cancellation. Its diagnostic profiles remain under
+`.codex-temp/metadata-network-*`. It does not enable production Canvas refresh.
 
 From this repository, run:
 

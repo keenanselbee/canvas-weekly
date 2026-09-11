@@ -1,0 +1,174 @@
+import { createHash, randomUUID } from 'node:crypto';
+import { metadataRequest, permittedMetadataBody } from './canvas-metadata.js';
+
+const pageLimit = 2 * 1024 * 1024;
+const collectionLimit = 16 * 1024 * 1024;
+
+function untilAborted(task, signal, discard = () => {}) {
+  return new Promise((resolve, reject) => {
+    let stopped = false;
+    const abort = () => { stopped = true; signal.removeEventListener('abort', abort); reject(new DOMException('Metadata read cancelled.', 'AbortError')); };
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) abort();
+    Promise.resolve(task).then(value => {
+      signal.removeEventListener('abort', abort);
+      if (stopped) discard(value);
+      else resolve(value);
+    }, error => {
+      signal.removeEventListener('abort', abort);
+      if (!stopped) reject(error);
+    });
+  });
+}
+
+function discardResponse(response) {
+  try { response?.body?.cancel().catch(() => {}); } catch { /* Already closed or locked. */ }
+}
+
+// Candidate transport only. CanvasConnection does not instantiate this class or
+// install its admission callback. The production refresh hold remains in force.
+// Create one instance per course collection using a verified account binding.
+export class CanvasMetadataTransport {
+  #origin;
+  #courseId;
+  #studentId;
+  #connectionSignal;
+  #authentication;
+  #fetcher;
+  #audit;
+  #pending = null;
+  #busy = false;
+  #bytes = 0;
+  #requests = 0;
+
+  constructor({ origin, courseId, studentId, connectionSignal, authentication, fetcher, audit }) {
+    const url = new URL(origin);
+    if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new Error('Invalid Canvas metadata origin.');
+    metadataRequest('assignments', courseId, studentId);
+    if (!(connectionSignal instanceof AbortSignal) || typeof authentication !== 'function' || typeof fetcher !== 'function' || typeof audit !== 'function') throw new Error('A bound connection, authentication, transport and audit are required.');
+    this.#origin = url.origin;
+    this.#courseId = courseId;
+    this.#studentId = studentId;
+    this.#connectionSignal = connectionSignal;
+    this.#authentication = authentication;
+    this.#fetcher = fetcher;
+    this.#audit = audit;
+  }
+
+  // Install only on the same isolated Electron session used by fetcher. Admit
+  // one main-process request with exactly these upload bytes; no files or blobs.
+  allows(details) {
+    const pending = this.#pending;
+    if (!pending || pending.admitted !== null || pending.signal.aborted
+      || details.url !== this.#origin + '/api/graphql' || details.method !== 'POST'
+      || (details.webContentsId !== undefined && details.webContentsId !== 0) || details.webContents || details.frame
+      || !Number.isSafeInteger(details.id) || details.id < 0
+      || !Array.isArray(details.uploadData) || !details.uploadData.length || details.uploadData.length > 16) return false;
+    let offset = 0;
+    for (const part of details.uploadData) {
+      if (!part || Object.hasOwn(part, 'file') || Object.hasOwn(part, 'blobUUID') || !Buffer.isBuffer(part.bytes)
+        || part.bytes.length > pending.body.length - offset
+        || !part.bytes.equals(pending.body.subarray(offset, offset + part.bytes.length))) return false;
+      offset += part.bytes.length;
+    }
+    if (offset !== pending.body.length) return false;
+    pending.admitted = details.id;
+    return true;
+  }
+
+  async request(value, signal) {
+    let body;
+    try { body = JSON.stringify(value); } catch { /* Reject unserializable inputs. */ }
+    if (!permittedMetadataBody(body, this.#courseId, this.#studentId) || Buffer.byteLength(body) > 8192) throw new Error('This Canvas metadata request is not permitted.');
+    const envelope = JSON.parse(body);
+    if (this.#busy) throw new Error('A Canvas metadata read is already running.');
+    if (this.#requests >= 200 || this.#bytes >= collectionLimit) throw new Error('Canvas metadata exceeded the collection limit.');
+    const timeout = new AbortController();
+    const combined = AbortSignal.any([this.#connectionSignal, timeout.signal, ...(signal ? [signal] : [])]);
+    const cancelled = () => new DOMException(timeout.signal.aborted ? 'Canvas metadata read timed out.' : 'Canvas metadata read cancelled.', timeout.signal.aborted ? 'TimeoutError' : 'AbortError');
+    if (combined.aborted) throw cancelled();
+    const timer = setTimeout(() => timeout.abort(), 30000);
+    timer.unref?.();
+    this.#busy = true;
+    const evidence = { requestId: randomUUID(), operation: envelope.operationName === 'CanvasWeeklyAssignments' ? 'metadataassignments' : 'metadatasubmissions',
+      origin: this.#origin, path: '/api/graphql', method: 'POST', paginated: envelope.variables.after !== null,
+      bodyHash: createHash('sha256').update(body).digest('hex') };
+    let intent = false;
+    let response;
+    let reader;
+    let auditFailed = false;
+    const write = async event => {
+      try { await this.#audit({ ...evidence, ...event }); }
+      catch { auditFailed = true; throw new Error('Canvas metadata audit could not be saved. Collection stopped.'); }
+    };
+    const stopReader = () => { reader?.cancel().catch(() => {}); };
+    combined.addEventListener('abort', stopReader, { once: true });
+    try {
+      const auth = await untilAborted(this.#authentication(), combined);
+      if (combined.aborted) throw cancelled();
+      if (!auth || !['session', 'token'].includes(auth.kind) || typeof auth.value !== 'string'
+        || !auth.value.length || auth.value.length > 4096 || /[^\x21-\x7e]/.test(auth.value)) throw new Error('Reconnect Canvas before reading metadata.');
+      const headers = { Accept: 'application/json', 'Content-Type': 'application/json',
+        ...(auth.kind === 'session' ? { 'X-CSRF-Token': auth.value } : { Authorization: `Bearer ${auth.value}` }) };
+      await write({ event: 'request' });
+      intent = true;
+      if (combined.aborted) throw cancelled();
+      this.#requests++;
+      const pending = { body: Buffer.from(body), admitted: null, signal: combined };
+      this.#pending = pending;
+      response = await untilAborted(this.#fetcher(this.#origin + '/api/graphql', { method: 'POST', body, headers,
+        credentials: auth.kind === 'session' ? 'include' : 'omit', redirect: 'manual', signal: combined }), combined, discardResponse);
+      this.#pending = null;
+      if (combined.aborted) throw cancelled();
+      if (pending.admitted === null) throw new Error('Canvas metadata interception was not confirmed.');
+      await write({ event: 'response', status: response.status });
+      if (response.status === 401) throw new Error('Canvas login expired. Reconnect Canvas.');
+      if (response.status === 403) throw new Error('This Canvas connection cannot read metadata. No broader permissions were requested.');
+      if (response.status >= 300 && response.status < 400) throw new Error('Canvas redirected the metadata read. The redirect was not followed.');
+      if (response.status !== 200) throw new Error('Canvas could not provide metadata. Try again later.');
+      const contentType = response.headers.get('content-type') || '';
+      if (!/^application\/(json|graphql-response\+json)(?:\s*;\s*charset\s*=\s*"?utf-8"?)?$/i.test(contentType)) throw new Error('Canvas returned an unsupported metadata response.');
+      const declared = response.headers.get('content-length');
+      if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > pageLimit)) throw new Error('Canvas metadata exceeded the response limit.');
+      reader = response.body.getReader();
+      if (combined.aborted) throw cancelled();
+      const chunks = [];
+      let bytes = 0;
+      while (true) {
+        const { done, value: chunk } = await untilAborted(reader.read(), combined);
+        if (combined.aborted) throw cancelled();
+        if (done) break;
+        bytes += chunk.byteLength;
+        this.#bytes += chunk.byteLength;
+        if (bytes > pageLimit || this.#bytes > collectionLimit) throw new Error('Canvas metadata exceeded the response limit.');
+        chunks.push(chunk);
+      }
+      let data;
+      try { data = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)).replace(/^while\(1\);/, '')); }
+      catch { throw new Error('Canvas returned unreadable metadata.'); }
+      await write({ event: 'body-read' });
+      if (combined.aborted) throw cancelled();
+      // GraphQL errors and field semantics are validated by collectMetadata.
+      return data;
+    } catch (error) {
+      if (intent && !auditFailed) await write({ event: response ? 'read-error' : 'network-error' });
+      if (auditFailed) throw new Error('Canvas metadata audit could not be saved. Collection stopped.');
+      if (combined.aborted) throw cancelled();
+      // Only errors created here are suitable for display. Transport/auth errors
+      // can contain URLs, headers, credentials or institution response bodies.
+      const known = ['Reconnect Canvas before reading metadata.', 'Canvas metadata interception was not confirmed.',
+        'Canvas login expired. Reconnect Canvas.', 'This Canvas connection cannot read metadata. No broader permissions were requested.',
+        'Canvas redirected the metadata read. The redirect was not followed.', 'Canvas could not provide metadata. Try again later.',
+        'Canvas returned an unsupported metadata response.', 'Canvas metadata exceeded the response limit.', 'Canvas returned unreadable metadata.'];
+      throw new Error(known.includes(error?.message) ? error.message : 'Canvas metadata could not be read. Previous information must be preserved.');
+    } finally {
+      this.#pending = null;
+      clearTimeout(timer);
+      combined.removeEventListener('abort', stopReader);
+      if (reader) {
+        try { reader.cancel().catch(() => {}); reader.releaseLock(); } catch { /* Do not replace the original failure. */ }
+      } else discardResponse(response);
+      this.#busy = false;
+    }
+  }
+}

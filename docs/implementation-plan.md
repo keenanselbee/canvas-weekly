@@ -259,3 +259,14 @@ Work log
   This documentation milestone preserves the production pause and makes no
   authenticated requests or guide changes. Source links and local document links
   were checked against the pinned repository tree and workspace.
+- 2026-09-10: Implemented an isolated metadata transport with exact upload-byte
+  admission, connection cancellation, session/token separation, streaming byte
+  budgets and a request deadline. Added named POST audit hashes and body-read/error
+  events without raw queries, credentials or responses. Ten new unit tests and
+  actual Electron/local HTTPS checks cover the boundary, including renderer
+  borrowing, redirects, GraphQL errors and cancellation. Chromium may reject a
+  POST redirect before returning its status; the fixture verifies that no redirect
+  target receives a request. All 66 unit tests, existing network checks and rebuilt
+  Windows package checks pass. Production refresh remains paused and no actual
+  Canvas account was contacted. Verified live authentication, remaining source
+  review and reconciliation with saved instructions are still required.
