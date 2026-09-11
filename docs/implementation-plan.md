@@ -561,3 +561,20 @@ Work log
   Sender identities/attachments, automatic Canvas instructions/materials and live
   UBC compatibility remain unfinished. Ignored fixture profiles/logs/review sources
   and the local dist build remain for inspection. The broader goal remains active.
+- 2026-09-11: Confirmed AssignmentType.description invokes the excluded lock
+  resolver even without requesting lockInfo; kept that field disabled. Reviewed
+  CourseType.syllabusBody, Course sanitizer/restriction/version callbacks and the
+  existing course permission path. Added a fixed course-bound syllabus read after
+  metadata and before messages. Extracted text and safe references enter the guide
+  and planner; links, images and embeds are not fetched by this source. Empty or
+  unavailable text retains previous syllabus evidence as stale, while account,
+  login, interception, audit and cancellation failures stop the update. Pinned
+  the query hash and validated it against the upstream schema. All 140 unit tests,
+  actual local Electron network tests (including production integration and fatal
+  syllabus failures), synthetic desktop refresh with syllabus HTML export, and
+  rebuilt package checks pass. Installer SHA256:
+  796c546b2dbe10d04ac9ad442e0f27c59f2b83e6b4550a69294720bec33fcfeb.
+  No real Canvas/AI request or personal-guide update ran. Assignment instructions,
+  Canvas page/file contents and live UBC compatibility remain incomplete. The
+  broader goal is active. Ignored test profiles, logs, source-review files and dist
+  artifacts remain available for inspection.

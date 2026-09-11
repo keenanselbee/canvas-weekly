@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { metadataRequest, permittedMetadataBody, parseMetadataPage } from './canvas-metadata.js';
+import { courseSyllabusRequest, parseCourseSyllabus } from './canvas-syllabus.js';
 import { ownSubmissionRequest, parseOwnSubmission } from './canvas-own-submission.js';
 import { permittedEnrollmentScopeBody } from './canvas-enrollment-scope.js';
 import { canvasResponseIdentity } from './canvas-identity.js';
@@ -144,6 +145,13 @@ export class CanvasMetadataTransport {
   }
 
   get remainingRequests() { return Math.max(0, requestLimit - this.#requests); }
+
+  async readCourseSyllabus(signal) {
+    const body = JSON.stringify(courseSyllabusRequest(this.#courseId));
+    const value = await this.#read({ method: 'POST', path: '/api/graphql', operation: 'coursesyllabus', body, paginated: false }, signal);
+    signal?.throwIfAborted(); this.#connectionSignal.throwIfAborted();
+    return parseCourseSyllabus(value, this.#courseId, this.#origin);
+  }
 
   // Only validated course-filtered responses establish thread authority for this run.
   async readCourseConversations(scope, after = null, signal) {

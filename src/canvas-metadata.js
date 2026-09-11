@@ -1,6 +1,6 @@
 // Fixed field-level collector admitted by docs/canvas-metadata-admission.md.
 // This selection does not authorize instruction, module or assessment reads.
-export const METADATA_NOTICE = 'Canvas refresh checks assignments, stored deadlines and submission status. Course messages are checked when available. Instructions and materials remain incomplete; review coverage and last-known information.';
+export const METADATA_NOTICE = 'Canvas refresh checks assignments, stored deadlines and submission status. Course messages and syllabus text are checked when available. Assignment instructions and other materials remain incomplete; review coverage and last-known information.';
 const queries = Object.freeze({
   assignments: `query CanvasWeeklyAssignments($courseId: ID!, $after: String) {
   course(id: $courseId) {

@@ -36,6 +36,19 @@ export async function collectStudentMetadata({ transport, courseId, studentId, g
   // neither exported nor used as cached authority for a later guide update.
   const record = metadataRecord(metadata);
   try {
+    const syllabus = await transport.readCourseSyllabus(signal);
+    signal?.throwIfAborted();
+    record.sources.syllabus = syllabus;
+    record.coverage.push({ source: 'course syllabus', status: syllabus.text ? 'ok' : 'partial',
+      message: syllabus.text ? 'Collected Canvas syllabus text. Images, embedded media and linked contents were not read by this source; check them separately.'
+        : 'Canvas did not supply syllabus text. Check the course home page or external syllabus. Any retained text is last-known information.' });
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (error instanceof CanvasCollectionStoppedError || error?.name === 'AbortError') throw error;
+    record.coverage.push({ source: 'course syllabus', status: 'error',
+      message: 'The course syllabus could not be refreshed. Any previous text is last-known information; check the original source.' });
+  }
+  try {
     const messages = await collectCourseMessages({ transport, courseId, studentId, signal });
     signal?.throwIfAborted();
     record.sources.conversation = messages.conversation;

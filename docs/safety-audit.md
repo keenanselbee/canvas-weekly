@@ -5,7 +5,9 @@ Current status, 2026-09-11: the fixed assignment/direct-submission metadata
 collector is admitted for manual refreshes under the
 [bounded admission decision](canvas-metadata-admission.md). The subsequent
 [message decision](canvas-message-review.md) admits fixed course-tagged discovery
-and text queries with fatal-error propagation and optional-source coverage. Legacy REST body,
+and text queries with fatal-error propagation and optional-source coverage. The
+[syllabus decision](canvas-syllabus-review.md) separately admits stored syllabus
+text and references; assignment descriptions remain excluded. Legacy REST body,
 module, quiz and Canvas file-content reads remain disabled. Historical pause
 references below describe earlier repair stages; they do not certify the old
 collector or establish unchanged account history. Full content collection and

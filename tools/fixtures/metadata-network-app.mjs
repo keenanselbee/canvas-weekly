@@ -66,6 +66,8 @@ globalThis.metadataFixtureReady = app.whenReady().then(async () => {
       assert.equal(records.length, 1);
       assert.equal(records[0].sources.metadata.assignments.length, 2);
       assert.equal(records[0].sources.conversation.length, 2);
+      assert.match(records[0].sources.syllabus.text, /Read the syllabus/);
+      assert.deepEqual(records[0].sources.syllabus.links, ['https://course.example/syllabus']);
       assert.equal(records[0].sources.conversation[0].data.messages.length, 2);
       assert.equal(records[0].coverage.find(item => item.source === 'course messages').status, 'ok');
       assert.equal(connection.session.cookies.listenerCount('changed'), cookieListeners, 'Cookie watcher must be disposed');

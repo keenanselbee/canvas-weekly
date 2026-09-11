@@ -8,7 +8,9 @@ reads existing submissions for freshly observed assignments and the bound user.
 This decision restores assignment metadata, stored student deadlines and status;
 it does not authorize automatic instruction/material reads. The subsequent
 [message admission](canvas-message-review.md) adds the two fixed course-message
-queries after metadata using the same bound transport.
+queries after metadata using the same bound transport. The later
+[syllabus admission](canvas-syllabus-review.md) also adds the stored course syllabus
+field; it does not allow assignment descriptions or their lock resolver.
 
 Integrated evidence and boundary
 --------------------------------

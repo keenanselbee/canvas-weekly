@@ -15,7 +15,14 @@ export function courseEvidence(record, previous, origin, now) {
     current.push({ id: `${record.id}:${kind}:${id}`, courseId: record.id, courseName, kind, title: String(title || kind),
       body: content.text, sourceUrl: url || base, observedAt: now, stale: false, ...extra });
   };
-  if (record.sources.course) add('syllabus', record.id, 'Course syllabus', record.sources.course.syllabus_body, base + '/assignments/syllabus');
+  if (record.sources.syllabus) {
+    const url = base + '/assignments/syllabus';
+    if (record.sources.syllabus.text) add('syllabus', record.id, 'Course syllabus', '', url, { body: record.sources.syllabus.text });
+    for (const link of record.sources.syllabus.links) {
+      const target = referenceUrl(link, url);
+      if (target) references.set(target, { title: target, sourceUrl: target, foundOn: url, status: 'Linked contents not collected' });
+    }
+  } else if (!record.sources.syllabus && record.sources.course) add('syllabus', record.id, 'Course syllabus', record.sources.course.syllabus_body, base + '/assignments/syllabus');
   for (const page of record.sources.pages || []) {
     if (typeof page.body === 'string' && !page.locked_for_user) add('page', page.page_id, page.title, page.body, sourceUrl(page.html_url, origin, base + (page.url ? `/pages/${encodeURIComponent(page.url)}` : '/pages')));
   }

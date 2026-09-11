@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { CanvasMetadataTransport, CanvasCollectionStoppedError } from '../src/canvas-metadata-transport.js';
+import { courseSyllabusRequest } from '../src/canvas-syllabus.js';
 import { CanvasAudit } from '../src/canvas-audit.js';
 import { metadataRequest } from '../src/canvas-metadata.js';
 import { enrollmentScopeRequest } from '../src/canvas-enrollment-scope.js';
@@ -77,7 +78,7 @@ test('foreign assignment pages cannot extend the direct submission scope', async
 test('metadata transport rejects altered requests before authentication, audit or network', async () => {
   const setup = fixture({ authentication: () => assert.fail('Invalid requests must not load authentication') });
   for (const altered of [null, {}, { ...request(), operationName: 'CreateSubmission' }, metadataRequest('assignments', '2', '99'),
-    courseConversationsRequest('1', '99'), conversationTextRequest('10'),
+    courseConversationsRequest('1', '99'), conversationTextRequest('10'), courseSyllabusRequest('1'),
     { ...request(), operationName: 'CanvasWeeklySubmissionStates' }, { ...request(), query: 'mutation { submitAssignment }' }, { ...request(), session_token: 'x' },
     enrollmentScopeRequest('2', '99'), enrollmentScopeRequest('1', '100'),
     { ...enrollmentScopeRequest('1', '99'), query: enrollmentScopeRequest('1', '99').query.replace('excludeConcluded: false', 'excludeConcluded: true') }]) {
@@ -496,4 +497,22 @@ test('optional sources can distinguish connection and audit failures from unavai
     } });
     await assert.rejects(context.transport.request(request()), error => !(error instanceof CanvasCollectionStoppedError));
   }
+});
+
+
+test('stored syllabus uses fixed bound transport, sanitized content and redacted audit', async () => {
+  const setup = fixture({ fetcher: async (_url, init) => {
+    assert.ok(setup.transport.allows(setup.details(init)));
+    assert.deepEqual(JSON.parse(init.body), courseSyllabusRequest('1'));
+    return new Response(JSON.stringify({ data: { course: { _id: '1', syllabusBody: '<p>Password: private-syllabus-secret</p><p>Read before class.</p>' } } }),
+      { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
+  } });
+  const syllabus = await setup.transport.readCourseSyllabus();
+  assert.match(syllabus.text, /Read before class/);
+  assert.doesNotMatch(syllabus.text, /private-syllabus-secret/);
+  assert.equal(setup.transport.remainingRequests, 199);
+  assert.ok(setup.events.every(event => event.operation === 'coursesyllabus' && /^[a-f0-9]{64}$/.test(event.bodyHash)));
+  assert.doesNotMatch(JSON.stringify(setup.events), /private-syllabus|Read before class|syllabusBody/);
+  setup.connection.abort();
+  await assert.rejects(setup.transport.readCourseSyllabus(), { name: 'AbortError' });
 });

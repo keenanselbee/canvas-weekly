@@ -73,7 +73,7 @@ export function reconcile(records, previous, { origin, now, timeZone }) {
     }
     courses.push({ id: record.id, name: record.sources.metadata?.course.name || details?.name || priorCourse?.name || `Course ${record.id}`,
       code: record.sources.metadata?.course.code || details?.course_code || priorCourse?.code || `Course ${record.id}`,
-      syllabus: details ? plainText(details.syllabus_body) : priorCourse?.syllabus || '',
+      syllabus: record.sources.syllabus?.text || (details ? plainText(details.syllabus_body) : priorCourse?.syllabus || ''),
       sourceUrl: `${origin}/courses/${record.id}`, coverage: record.coverage,
       announcements: evidence.evidence.filter(item => item.kind === 'announcement'),
       ...evidence,

@@ -3,9 +3,10 @@ Application architecture
 
 Status: implementation target with delivered components tracked in implementation-plan.md.
 The admitted Canvas path is the fixed metadata collector described in
-[its admission decision](canvas-metadata-admission.md), followed by the two
-[course-message queries](canvas-message-review.md). Message discovery and text
-pages share the same account binding, request gate and budgets. Optional message
+[its admission decision](canvas-metadata-admission.md), followed by the stored
+[syllabus field](canvas-syllabus-review.md) and two
+[course-message queries](canvas-message-review.md). These sources share the same
+account binding, request gate and budgets. Optional syllabus/message
 failures become coverage gaps; connection, cancellation and audit failures stop
 export. Legacy REST body collection
 remains disabled; no general GraphQL or browser-action bridge is exposed.
