@@ -347,3 +347,19 @@ Work log
   cancellation. Isolated Electron status and desktop checks pass in both themes
   and at minimum width. Visual review caught and fixed a hidden-state CSS conflict.
   No real planning request was made and Canvas collection remains paused.
+- 2026-09-10: Added a browser-session watcher to the paused refresh pipeline.
+  It reads and fingerprints the stock session cookie, cancels on applicable
+  cookie changes and rechecks after verification/collection and before export.
+  The watcher changes no cookies, omits credentials from outputs and disposes
+  listeners on completion or failure. Token connections retain their existing
+  independent binding. Five new unit tests bring the suite to 93 passing tests;
+  nine Electron connection scenarios and the synthetic desktop refresh pass.
+  Late results after cookie replacement preserve all three guide formats.
+  Reviewed account membership/role permission helpers and narrowed unresolved
+  registry and inherited-model dependencies. Production collection stays paused;
+  server identity changes without cookie changes and institutional rotation
+  behavior remain unverified. Rebuilt the Windows installer with the sidebar
+  and session guard; packaged source/payload, reader workers, fresh profile,
+  bundled Codex initialization and theme/restart checks pass. No real Canvas
+  collection or planning request was made. Test profiles and source-review
+  downloads remain in ignored .codex-temp.

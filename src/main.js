@@ -193,16 +193,21 @@ else {
       const userId = canvas.profile.id;
       const binding = canvas.capture();
       controller = new AbortController();
-      const signal = AbortSignal.any([controller.signal, binding.signal]);
+      let signal = AbortSignal.any([controller.signal, binding.signal]);
+      let sessionWatch;
       run = { busy: true, message: 'Checking Canvas connection…' }; publish();
       try {
+        sessionWatch = await canvas.watchSession(binding, signal);
+        if (sessionWatch) signal = AbortSignal.any([signal, sessionWatch.signal]);
         await canvas.verify();
+        await sessionWatch?.check();
         signal.throwIfAborted();
         binding.assertCurrent();
         if (canvas.profile.id !== userId) throw new Error('Canvas account changed. Reconnect and select courses for this account.');
         const previous = await guides.load(binding.origin, userId);
         binding.assertCurrent();
         const records = await canvas.client({ signal, onProgress: message => { run = { busy: true, message }; publish(); } }).collect(binding.courseIds);
+        await sessionWatch?.check();
         binding.assertCurrent();
         if (!records.some(record => record.coverage.some(source => ['assignments', 'quizzes', 'assignment metadata'].includes(source.source) && source.status === 'ok'))) throw new Error('No assessment information could be refreshed. Your previous guide has been preserved.');
         try {
@@ -227,6 +232,7 @@ else {
           catch (error) { signal.throwIfAborted(); next.planningNote = error.message; }
         }
         signal.throwIfAborted();
+        await sessionWatch?.check();
         binding.assertCurrent();
         run = { busy: true, message: 'Saving your weekly guide…' }; publish();
         guide = await guides.export(next, snapshot().outputDirectory, userId, signal);
@@ -235,7 +241,7 @@ else {
       } catch (error) {
         run = { busy: false, message: controller.signal.aborted ? 'Refresh cancelled. Your previous guide is preserved.' : error.message };
         throw new Error(run.message);
-      } finally { controller = null; publish(); }
+      } finally { sessionWatch?.dispose(); controller = null; publish(); }
     });
     handle('guide:cancel', () => { controller?.abort(); return snapshot(); });
     handle('guide:task', async (taskId, done) => {

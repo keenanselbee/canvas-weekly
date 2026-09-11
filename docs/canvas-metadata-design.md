@@ -163,6 +163,46 @@ decoded headers, changed-cookie retrieval, no POST with missing/malformed cookie
 token-mode separation and sanitized audit output. No real Canvas session was read.
 The upstream basis is linked in the [permission review](canvas-metadata-permissions-review.md).
 
+Browser-session change detection
+--------------------------------
+
+The guide-refresh pipeline now adds watchCanvasSession to its existing local
+account/course binding for browser authentication. The production collection hold
+still runs first, so this does not enable a Canvas request. Token authentication
+uses its existing immutable token/lifetime binding and does not read browser
+cookies for this guard.
+
+The watcher reads the stock _normandy_session cookie applicable to /api/graphql
+and requires exactly one secure, HTTP-only root-path cookie with a valid lifetime.
+It keeps only an internal fingerprint after each check, never exports the cookie
+or fingerprint, and changes no cookies. Missing, duplicate, path-shadowed,
+nonstandard or expired cookies reject the run. The cookie name is configurable
+in Canvas server configuration; other institutional names are not yet supported.
+[Pinned session configuration](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/config/initializers/session_store.rb).
+
+An Electron cookie-change listener cancels the run on any applicable same-name
+change/removal, including same-value overwrites. Unrelated cookies and CSRF
+remasking do not trigger it. Checks after account verification, collection and
+before export reread the cookie to catch missed notifications. Each lookup has a
+10-second bound and supports cancellation; late lookup results are discarded.
+All listeners are disposed on failure, cancellation or completion. The combined
+signal reaches collection, website reads, planning and the existing atomic export.
+[Electron cookie events](https://www.electronjs.org/docs/latest/api/cookies).
+
+This is deliberately conservative: normal server session-cookie rotation may
+cancel a run and require a fresh manual attempt. It does not detect a server-side
+account switch that leaves the cookie unchanged, prove the cookie's account ID,
+or establish institutional compatibility. Profile verification and enrollment
+review remain required. The initial watcher is established before the profile
+check so a changed account cannot be silently accepted using the prior guide.
+
+Five unit tests cover private/invalid/missing/expired cookies, changes, missed
+events, cancellation and disposal. The actual Electron lifecycle fixture checks
+replacement, removal, unrelated CSRF changes and token-mode separation. Synthetic
+desktop refreshes verify that late results after local connection invalidation or
+cookie replacement preserve the in-memory guide and all three exported formats.
+No real Canvas session was inspected for these tests.
+
 Merging metadata into a saved guide
 ----------------------------------
 

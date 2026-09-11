@@ -133,5 +133,38 @@ globalThis.connectionFixtureResults = app.whenReady().then(async () => {
     release(); await cleanup; await checking;
     assert.equal(state.requests, 1);
   });
+  await check('collection session watch reacts to real Electron cookie changes', async () => {
+    const state = setup(); await state.connection.verify();
+    const cookies = state.connection.session.cookies;
+    const setCookie = async details => {
+      let listener;
+      const changed = new Promise(resolve => {
+        listener = (_event, cookie, _cause, removed) => {
+          if (!removed && cookie.name === details.name && cookie.value === details.value) { cookies.removeListener('changed', listener); resolve(); }
+        };
+        cookies.on('changed', listener);
+      });
+      try { await cookies.set(details); await changed; }
+      finally { cookies.removeListener('changed', listener); }
+    };
+    await setCookie({ url: 'https://canvas.example', name: '_normandy_session', value: 'synthetic-cookie-one', path: '/', secure: true, httpOnly: true });
+    const initialListeners = cookies.listenerCount('changed');
+    const watcher = await state.connection.watchSession(state.connection.capture(), new AbortController().signal);
+    await setCookie({ url: 'https://canvas.example', name: '_csrf_token', value: 'synthetic-csrf-rotation', path: '/', secure: true });
+    watcher.assertCurrent(); await watcher.check();
+    const aborted = new Promise(resolve => watcher.signal.addEventListener('abort', resolve, { once: true }));
+    await setCookie({ url: 'https://canvas.example', name: '_normandy_session', value: 'synthetic-cookie-two', path: '/', secure: true, httpOnly: true });
+    await aborted;
+    assert.equal(watcher.signal.aborted, true);
+    assert.equal(cookies.listenerCount('changed'), initialListeners);
+    watcher.dispose();
+    const replacement = await state.connection.watchSession(state.connection.capture(), new AbortController().signal);
+    const removed = new Promise(resolve => replacement.signal.addEventListener('abort', resolve, { once: true }));
+    await cookies.remove('https://canvas.example', '_normandy_session');
+    await removed;
+    assert.equal(replacement.signal.aborted, true);
+    state.connection.token = 'synthetic-token-mode';
+    assert.equal(await state.connection.watchSession(state.connection.capture(), new AbortController().signal), null);
+  });
   return passed;
 });

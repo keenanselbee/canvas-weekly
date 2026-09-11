@@ -140,6 +140,23 @@ text search. Temporary pinned sources remain under .codex-temp/graphql-review.
 Remaining review before production admission
 -------------------------------------------
 
+Account-membership follow-up (2026-09-10): AccountUser.permission_check delegates
+to enabled_for?, which caches RoleOverride.enabled_for?; permitted_for_account?
+returns a policy Success object. These helpers do not call the model's nearby
+registration, notification, save or destroy methods. RoleOverride.permission_for
+and uncached_permission_for read roles/account chains/overrides, calculate an
+in-memory permission hash and cache it. enabled_for? adjusts the allowed scope;
+it does not execute the named permission. The pinned registry entries for
+manage_grades, view_all_grades, read_roster, read_course_content and the three
+manage_assignments add/edit/delete permissions contain no account_allows callback.
+Other selected permissions and inherited dependencies are not cleared by this
+observation. ObserverEnrollment.observed_students and observed_student_ids select
+existing enrollment/user associations; the restricted-access option adds an SQL
+join to enrollment_states rather than recalculating those states in that helper.
+[Account membership helpers](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/account_user.rb),
+[Permission registry](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/config/initializers/permissions_registry.rb),
+[Observer helpers](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/observer_enrollment.rb).
+
 The functions above narrow the review; they do not close the whole call graph.
 Finish section/observer/account permission dependencies and selected permission-
 registry callbacks. Complete inherited model-load concern and selected getter

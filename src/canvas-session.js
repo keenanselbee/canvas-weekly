@@ -5,6 +5,7 @@ import { CanvasClient, blockedAssessmentUrl } from './canvas-client.js';
 import { atomicJson } from './settings.js';
 import { CanvasAudit } from './canvas-audit.js';
 import { CanvasNetwork } from './canvas-network.js';
+import { watchCanvasSession } from './canvas-session-watch.js';
 
 export class CanvasConnection {
   constructor({ directory, settings, onChange, onConnected = () => {} }) {
@@ -66,6 +67,14 @@ export class CanvasConnection {
         this.token = safeStorage.decryptString(Buffer.from(credential.encrypted, 'base64'));
       }
     } catch (error) { if (error.code !== 'ENOENT') this.restoreError = 'Saved Canvas connection could not be restored. Reconnect Canvas.'; }
+  }
+  async watchSession(binding, signal) {
+    binding.assertCurrent();
+    if (this.token) return null;
+    const watcher = await watchCanvasSession({ cookies: this.session.cookies, origin: binding.origin,
+      signal: AbortSignal.any([signal, binding.signal]) });
+    try { binding.assertCurrent(); return watcher; }
+    catch (error) { watcher.dispose(); throw error; }
   }
   async hasSavedSession() {
     if (this.token) return true;

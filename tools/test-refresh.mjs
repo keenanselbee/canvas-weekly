@@ -31,6 +31,10 @@ try {
       return new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
     };
   }, output);
+  await application.evaluate(async ({ session }) => {
+    await session.fromPartition('persist:canvas').cookies.set({ url: 'https://canvas.ubc.ca', name: '_normandy_session',
+      value: 'synthetic-refresh-session', path: '/', secure: true, httpOnly: true });
+  });
   await application.evaluate((_electron, moduleUrl) => {
     const require = process.getBuiltinModule('module').createRequire(moduleUrl);
     const { CourseWebsites } = require('./course-websites.js');
@@ -253,21 +257,29 @@ try {
   assert.equal(repeatedMetadata.changes.length, 0);
   const protectedExports = [repeatedMetadata.outputPath, repeatedMetadata.documentPath, repeatedMetadata.wordPath];
   const beforeConnectionChange = await Promise.all(protectedExports.map(file => fs.readFile(file)));
-  await application.evaluate((_electron, moduleUrl) => {
-    const require = process.getBuiltinModule('module').createRequire(moduleUrl);
-    const { CanvasClient } = require('./canvas-client.js');
-    globalThis.syntheticCollectionEntered = new Promise(resolve => { globalThis.enterCollection = resolve; });
-    const hold = new Promise(resolve => { globalThis.releaseCollection = resolve; });
-    CanvasClient.prototype.collect = async function () {
-      globalThis.enterCollection(); await hold;
-      return structuredClone(globalThis.syntheticRecords); // Deliberately ignores cancellation to exercise the consumer guard.
-    };
-  }, new URL('../src/canvas-client.js', import.meta.url).href);
-  await page.evaluate(() => { window.changedConnectionResult = window.canvasWeekly.updateGuide().then(() => 'unexpected success', error => error.message); });
-  await application.evaluate(async () => { await globalThis.syntheticCollectionEntered; globalThis.syntheticConnection.invalidate(); globalThis.releaseCollection(); });
-  assert.match(await page.evaluate(() => window.changedConnectionResult), /connection changed/);
-  assert.deepEqual((await page.evaluate(() => window.canvasWeekly.getState())).guide, repeatedMetadata);
-  assert.deepEqual(await Promise.all(protectedExports.map(file => fs.readFile(file))), beforeConnectionChange, 'A changed connection must not overwrite any guide format');
+  for (const change of ['connection', 'cookie']) {
+    await application.evaluate((_electron, moduleUrl) => {
+      const require = process.getBuiltinModule('module').createRequire(moduleUrl);
+      const { CanvasClient } = require('./canvas-client.js');
+      globalThis.syntheticCollectionEntered = new Promise(resolve => { globalThis.enterCollection = resolve; });
+      const hold = new Promise(resolve => { globalThis.releaseCollection = resolve; });
+      CanvasClient.prototype.collect = async function () {
+        globalThis.enterCollection(); await hold;
+        return structuredClone(globalThis.syntheticRecords); // Deliberately ignores cancellation to exercise the consumer guard.
+      };
+    }, new URL('../src/canvas-client.js', import.meta.url).href);
+    await page.evaluate(() => { window.changedConnectionResult = window.canvasWeekly.updateGuide().then(() => 'unexpected success', error => error.message); });
+    await application.evaluate(async (_electron, change) => {
+      await globalThis.syntheticCollectionEntered;
+      if (change === 'connection') globalThis.syntheticConnection.invalidate();
+      else await globalThis.syntheticConnection.session.cookies.set({ url: 'https://canvas.ubc.ca', name: '_normandy_session',
+        value: 'synthetic-changed-refresh-session', path: '/', secure: true, httpOnly: true });
+      globalThis.releaseCollection();
+    }, change);
+    assert.match(await page.evaluate(() => window.changedConnectionResult), /(?:connection|session) changed/);
+    assert.deepEqual((await page.evaluate(() => window.canvasWeekly.getState())).guide, repeatedMetadata);
+    assert.deepEqual(await Promise.all(protectedExports.map(file => fs.readFile(file))), beforeConnectionChange, 'A changed connection must not overwrite any guide format');
+  }
   await application.evaluate((_electron, moduleUrl) => {
     const require = process.getBuiltinModule('module').createRequire(moduleUrl);
     const { CanvasClient } = require('./canvas-client.js');

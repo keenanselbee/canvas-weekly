@@ -10,7 +10,7 @@ delete environment.ELECTRON_RUN_AS_NODE;
 const application = await electron.launch({ args: ['tools/fixtures/connection-app.mjs'], env: environment });
 try {
   const passed = await application.evaluate(() => globalThis.connectionFixtureResults);
-  assert.equal(passed.length, 8);
-  console.log('Connection checks passed: late profile success/failure, verification replacement, account/scope binding, client cancellation, queued credential removal and invalid identity rejection. Synthetic responses only.');
+  assert.equal(passed.length, 9);
+  console.log('Connection checks passed: late profile success/failure, verification replacement, account/scope binding, client cancellation, queued credential removal, invalid identity rejection and actual Electron session-cookie changes. Synthetic responses only.');
   console.log('Fixture profile: ' + directory);
 } finally { await application.close(); }
