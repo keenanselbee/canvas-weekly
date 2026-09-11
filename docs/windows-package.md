@@ -125,3 +125,10 @@ runtime checks pass. SHA256:
 c5f340657248edcf063fbf05afbaef724003aeb44324f9b4f17ea5d8c8b75747.
 This is the latest local artifact; installation and live sign-in remain untested.
 See personal-release-review.md for the remaining requirement-level checks.
+
+Connection-navigation rebuild (2026-09-11): sidebar statuses open the relevant
+Settings controls, and the Connections hover/focus area has wider padding.
+Status-navigation and isolated package checks pass. Latest installer SHA256:
+58de590c8153a6d1a9a6e1497cb8c00c6a3470a5cebb57174b7b9787382d2aab.
+This supersedes the timezone-settings build; it has not been installed or used
+for live account validation.

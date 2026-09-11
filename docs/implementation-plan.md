@@ -640,3 +640,13 @@ Work log
   and remaining live acceptance. The goal remains incomplete. The old app is still
   running; the user's close/sign-in handoff is pending. No real account request,
   personal setting change or guide export ran during this milestone.
+- 2026-09-11: Made Canvas and ChatGPT sidebar statuses keyboard-accessible links
+  to their corresponding Settings controls. Clicking Not connected scrolls to and
+  focuses the appropriate sign-in button; navigation does not start authentication.
+  Widened the Connections hover/focus area to match the sidebar navigation width
+  with horizontal padding. Status tests pass for mouse/keyboard navigation, target
+  focus and visibility at 800x600; light/dark hover screenshots were inspected.
+  Rebuilt package checks pass. Installer SHA256:
+  58de590c8153a6d1a9a6e1497cb8c00c6a3470a5cebb57174b7b9787382d2aab.
+  No real account actions or personal-guide changes ran. Live login and collection
+  acceptance remain outstanding.

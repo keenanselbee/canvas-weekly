@@ -17,7 +17,13 @@ into the reading experience.
 The sidebar footer separates Canvas and ChatGPT connection states, with Codex as
 secondary connection detail. A separate study-suggestions row shows Off, On or
 Sign in; connection alone does not imply permission to send course text. The
-Connections header opens Settings. Limited Canvas coverage stays visible when
+Connections header opens Settings.
+Each service's status is also a keyboard-accessible button: it opens Settings,
+scrolls to that service and focuses its first connection control. Navigation alone
+does not start authentication or alter the account. The Connections header's
+hover/focus area spans the same width as the sidebar navigation buttons, with
+horizontal padding around the label and arrow.
+Limited Canvas coverage stays visible when
 connected, with a source-coverage explanation on This week. A future collection
 hold must remain visible even when signed in. Both text and checkmarks convey connection status.
 

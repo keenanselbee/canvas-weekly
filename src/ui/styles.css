@@ -23,11 +23,13 @@ nav { display:grid; gap:5px; }
 .nav-item.selected { background:var(--selected); }
 .nav-item.selected:before { content:''; width:3px; height:18px; position:absolute; left:0; background:var(--accent); border-radius:3px; }
 .sidebar-bottom { margin-top:auto; padding:20px 6px 0; font-size:12px; }
-.connection-heading { display:flex; justify-content:space-between; align-items:center; width:100%; padding:6px 0; margin-bottom:6px; border:0; background:transparent; text-align:left; color:var(--muted); font-size:12px; }
+.connection-heading { display:flex; justify-content:space-between; align-items:center; width:calc(100% + 12px); padding:6px; margin:0 -6px 6px; border:0; background:transparent; text-align:left; color:var(--muted); font-size:12px; }
 .connection-heading span { font-size:20px; line-height:1; }
 .connection-row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; padding:7px 0; }
 .connection-row small { font-size:11px; }
 .connection-state { flex:none; font-size:11px; color:var(--muted); }
+button.connection-state { background:transparent; border:0; padding:4px; margin:-4px; min-height:24px; font-weight:400; }
+button.connection-state:hover { background:var(--hover); text-decoration:underline; }
 .connection-state[data-status="connected"] { color:var(--accent); }
 .connection-state[data-status="connected"]:before { content:'✓'; margin-right:4px; }
 .connection-note { color:var(--warning); font-size:11px; margin:-3px 0 4px; }

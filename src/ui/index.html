@@ -17,9 +17,9 @@
     </nav>
     <section class="sidebar-bottom" aria-label="Connections and AI usage">
       <button id="connection-settings" class="connection-heading" aria-label="Manage connections in Settings">Connections <span aria-hidden="true">&#8250;</span></button>
-      <div class="connection-row"><span>Canvas</span><span id="connection-status" class="connection-state">Not connected</span></div>
+      <div class="connection-row"><span>Canvas</span><button id="connection-status" class="connection-state" aria-label="Canvas: Not connected. Open connection settings">Not connected</button></div>
       <small id="canvas-collection-status" class="connection-note" hidden>Refresh paused</small>
-      <div class="connection-row"><span>ChatGPT <small>via Codex</small></span><span id="ai-status" class="connection-state">Not connected</span></div>
+      <div class="connection-row"><span>ChatGPT <small>via Codex</small></span><button id="ai-status" class="connection-state" aria-label="ChatGPT: Not connected. Open connection settings">Not connected</button></div>
       <div class="connection-row suggestions-row"><span>Study suggestions</span><span id="suggestions-status" class="connection-state">Off</span></div>
       <details class="ai-usage">
         <summary><span>AI tokens</span><strong id="ai-token-count">—</strong></summary>

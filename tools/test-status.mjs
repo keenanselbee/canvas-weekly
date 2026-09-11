@@ -25,6 +25,9 @@ try {
     assert.equal(await page.locator('#ai-token-count').textContent(), '—');
     assert.equal(await page.locator('#canvas-collection-status').isVisible(), true);
     await page.locator('.sidebar-bottom').screenshot({ path: `.codex-temp/visual/connections-${theme}.png` });
+    await page.locator('#connection-settings').hover();
+    await page.locator('.sidebar-bottom').screenshot({ path: `.codex-temp/visual/connections-hover-${theme}.png` });
+    await page.locator('h1').hover();
   }
   state.ai.usage = { status: 'completed', tokens: { totalTokens: 1500, inputTokens: 1200, cachedInputTokens: 800, outputTokens: 300, reasoningOutputTokens: 100 } };
   await send(state);
@@ -57,5 +60,20 @@ try {
   assert.equal(await page.evaluate(() => document.querySelector('.sidebar').scrollWidth > document.querySelector('.sidebar').clientWidth), false);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.screenshot({ path: '.codex-temp/visual/connections-small.png' });
+  state.ai.connecting = false;
+  await send(state);
+  await page.waitForFunction(() => document.querySelector('#ai-status').textContent === 'Not connected');
+  for (const [service, action] of [['Canvas', 'Sign in to Canvas'], ['ChatGPT', 'Connect ChatGPT']]) {
+    await page.getByRole('button', { name: 'This week', exact: true }).click();
+    const status = page.getByRole('button', { name: `${service}: Not connected. Open connection settings`, exact: true });
+    if (service === 'Canvas') await status.click();
+    else { await status.focus(); await status.press('Enter'); }
+    await page.getByRole('heading', { name: 'Settings', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => document.activeElement.textContent), action);
+    assert.equal(await page.getByRole('button', { name: action, exact: true }).evaluate(element => {
+      const bounds = element.getBoundingClientRect(); return bounds.top >= 0 && bounds.bottom <= innerHeight;
+    }), true);
+    assert.equal(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), 1, 'Status navigation must not start authentication');
+  }
   console.log('Connection panel checks passed: both themes, unknown/reported usage, disclosure focus, settings navigation, small window. Synthetic state only.');
 } finally { await application.close(); }

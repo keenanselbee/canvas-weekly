@@ -42,6 +42,7 @@ function renderConnections() {
     const element = document.getElementById(id);
     element.textContent = connection.connecting ? 'Signing in…' : connection.connected ? 'Connected' : 'Not connected';
     element.dataset.status = connection.connecting ? 'connecting' : connection.connected ? 'connected' : 'disconnected';
+    element.setAttribute('aria-label', `${id === 'connection-status' ? 'Canvas' : 'ChatGPT'}: ${element.textContent}. Open connection settings`);
   }
   const collectionStatus = document.querySelector('#canvas-collection-status');
   collectionStatus.hidden = !state.canvas.collectionIssue && !(state.canvas.connected && state.canvas.collectionNotice);
@@ -387,7 +388,9 @@ function renderSettings() {
   } else {
     canvasActions.append(button('Sign in to Canvas', async () => { update(await api.openCanvasLogin()); render(); }, 'primary'), button('Check connection', async () => { announce('Checking Canvas connection…'); update(await api.verifyCanvas()); announce('Canvas connected. Choose your courses.'); go('courses'); }));
   }
-  connections.append(row('Canvas', state.canvas.connected ? `Connected as ${state.canvas.name}` : 'Sign in in the Canvas window, then close it and check the connection.', canvasActions));
+  const canvasSettings = row('Canvas', state.canvas.connected ? `Connected as ${state.canvas.name}` : 'Sign in in the Canvas window, then close it and check the connection.', canvasActions);
+  canvasSettings.id = 'canvas-settings';
+  connections.append(canvasSettings);
   const advanced = node('details', 'connection-options');
   advanced.append(node('summary', '', 'Canvas connection options'));
   const origin = node('input'); origin.type = 'url'; origin.value = state.settings.canvasBaseUrl; origin.setAttribute('aria-label', 'Canvas address');
@@ -405,7 +408,9 @@ function renderSettings() {
   const aiActions = node('div', 'actions');
   if (state.ai.connected) aiActions.append(button('Disconnect', async () => { update(await api.disconnectChatGPT()); render(); }));
   else aiActions.append(button(state.ai.connecting ? 'Sign-in open' : 'Connect ChatGPT', async () => { update(await api.connectChatGPT()); render(); }), button('Check sign-in', async () => { update(await api.checkChatGPT()); render(); }));
-  connections.append(row('ChatGPT via Codex', state.ai.connected ? 'Connected. Your account usage limits apply.' : state.ai.error || 'Sign in through the official ChatGPT page to add study suggestions.', aiActions));
+  const aiSettings = row('ChatGPT via Codex', state.ai.connected ? 'Connected. Your account usage limits apply.' : state.ai.error || 'Sign in through the official ChatGPT page to add study suggestions.', aiActions);
+  aiSettings.id = 'ai-settings';
+  connections.append(aiSettings);
   const aiToggle = node('input'); aiToggle.type = 'checkbox'; aiToggle.checked = Boolean(state.settings.aiEnabled); aiToggle.setAttribute('aria-label', 'Use ChatGPT suggestions');
   aiToggle.addEventListener('change', () => perform(async () => { update(await api.setAIEnabled(aiToggle.checked)); }));
   connections.append(row('Study suggestions', 'When enabled, selected course text is sent to ChatGPT. Factual guides work without it.', aiToggle));
@@ -446,5 +451,13 @@ function render() {
 }
 document.querySelectorAll('[data-page]').forEach(item => item.addEventListener('click', () => go(item.dataset.page)));
 document.querySelector('#connection-settings').addEventListener('click', () => go('settings'));
+for (const [status, target] of [['connection-status', 'canvas-settings'], ['ai-status', 'ai-settings']]) {
+  document.getElementById(status).addEventListener('click', () => {
+    go('settings');
+    const section = document.getElementById(target);
+    section.scrollIntoView({ block: 'center' });
+    section.querySelector('button').focus({ preventScroll: true });
+  });
+}
 api.onStateChanged(update);
 perform(async () => { update(await api.getState()); render(); });
