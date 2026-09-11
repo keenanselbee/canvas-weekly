@@ -337,3 +337,13 @@ Work log
   through selected permissions remains unresolved. Documented the distinction
   and retained the production hold. No real Canvas, website or AI request was
   made; the student's saved guide remains unchanged. All 85 unit tests pass.
+- 2026-09-10: Reworked the sidebar connection area into separate Canvas, ChatGPT
+  (via Codex), study-suggestion and expandable AI-token rows. Connection status
+  does not hide the collection pause or imply suggestions are enabled. Added
+  latest-run/session usage from existing Codex notifications with explicit
+  missing/partial counts and input/output subtotals; no account-wide balance or
+  price is inferred. Counts are not persisted. All 88 unit tests pass, including
+  repeated/invalid/foreign usage events, missing counts, failed planning and
+  cancellation. Isolated Electron status and desktop checks pass in both themes
+  and at minimum width. Visual review caught and fixed a hidden-state CSS conflict.
+  No real planning request was made and Canvas collection remains paused.

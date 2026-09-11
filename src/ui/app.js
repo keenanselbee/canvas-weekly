@@ -30,13 +30,35 @@ function announce(message, persistent = false) {
 function update(next) {
   if (next.canvas.error && next.canvas.error !== state?.canvas.error) announce(next.canvas.error, true);
   const runChanged = state && (state.run?.busy !== next.run?.busy || state.run?.message !== next.run?.message);
-  const connectionChanged = state && (JSON.stringify(state.canvas) !== JSON.stringify(next.canvas) || JSON.stringify(state.ai) !== JSON.stringify(next.ai));
+  const connectionChanged = state && (JSON.stringify(state.canvas) !== JSON.stringify(next.canvas) || ['connected', 'connecting', 'error', 'available'].some(key => state.ai[key] !== next.ai[key]));
   state = next;
   document.documentElement.dataset.theme = state.appearance.dark ? 'dark' : 'light';
-  document.querySelector('#connection-status').textContent = state.canvas.connected ? 'Canvas connected' : state.canvas.connecting ? 'Signing in to Canvas' : 'Canvas not connected';
-  document.querySelector('#ai-status').textContent = state.ai.connected ? `ChatGPT via Codex connected${state.settings.aiEnabled ? '' : ' · Suggestions off'}` : state.ai.connecting ? 'ChatGPT sign-in in progress' : 'ChatGPT not connected';
+  renderConnections();
   if (runChanged) { if (state.run.message) announce(state.run.message, state.run.busy); render(); }
   else if (connectionChanged) render();
+}
+function renderConnections() {
+  for (const [id, connection] of [['connection-status', state.canvas], ['ai-status', state.ai]]) {
+    const element = document.getElementById(id);
+    element.textContent = connection.connecting ? 'Signing in…' : connection.connected ? 'Connected' : 'Not connected';
+    element.dataset.status = connection.connecting ? 'connecting' : connection.connected ? 'connected' : 'disconnected';
+  }
+  document.querySelector('#canvas-collection-status').hidden = !state.canvas.collectionIssue;
+  document.querySelector('#suggestions-status').textContent = state.settings.aiEnabled ? (state.ai.connected ? 'On' : 'Sign in') : 'Off';
+  const usage = state.ai.usage;
+  const tokens = usage?.tokens;
+  const format = value => value.toLocaleString();
+  document.querySelector('#ai-token-count').textContent = tokens ? format(tokens.totalTokens) : '—';
+  const caption = !usage ? 'No AI run this session' : usage.status === 'running' ? 'Current AI run · so far' : 'Latest AI run · this session';
+  document.querySelector('#ai-usage-caption').textContent = caption;
+  document.querySelector('#ai-usage-scope').textContent = !usage ? caption : `${caption}. ${usage.status === 'running' ? 'Planning in progress.' : usage.status === 'completed' ? 'Completed.' : 'Did not finish; reported usage may be partial.'}${tokens ? '' : ' Token usage not reported.'}`;
+  const breakdown = document.querySelector('#ai-usage-breakdown');
+  breakdown.hidden = !tokens;
+  breakdown.replaceChildren();
+  if (tokens) for (const [label, key] of [['Input', 'inputTokens'], ['Cached input', 'cachedInputTokens'], ['Output', 'outputTokens'], ['Reasoning', 'reasoningOutputTokens']]) {
+    const item = node('div'); item.append(node('dt', '', label), node('dd', '', format(tokens[key]))); breakdown.append(item);
+  }
+  document.querySelector('#ai-usage-subtotals').hidden = !tokens;
 }
 function header(title, subtitle, action) {
   const header = node('header', 'page-header');
@@ -401,5 +423,6 @@ function render() {
   ({ week: renderWeek, courses: renderCourses, settings: renderSettings })[page]();
 }
 document.querySelectorAll('[data-page]').forEach(item => item.addEventListener('click', () => go(item.dataset.page)));
+document.querySelector('#connection-settings').addEventListener('click', () => go('settings'));
 api.onStateChanged(update);
 perform(async () => { update(await api.getState()); render(); });

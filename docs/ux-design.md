@@ -14,6 +14,27 @@ leads with the academic week, last refresh, and a single primary Update guide
 button. Open guide is secondary. Course selection and configuration are not mixed
 into the reading experience.
 
+The sidebar footer separates Canvas and ChatGPT connection states, with Codex as
+secondary connection detail. A separate study-suggestions row shows Off, On or
+Sign in; connection alone does not imply permission to send course text. The
+Connections header opens Settings. A paused Canvas refresh remains visible even
+when signed in. Both text and checkmarks convey connection status.
+
+AI tokens shows the latest reported planning-run total in the current app session,
+with an expandable input/output/cache/reasoning breakdown. No report displays a
+dash rather than zero. Running and interrupted/failed runs are labeled; reported
+subtotals are not added twice. These are Canvas Weekly planning tokens, not
+account-wide usage, remaining allowance or a billing estimate. Counts reset on
+restart or account recheck/disconnection and are not written to the guide.
+
+Usage comes from `thread/tokenUsage/updated.tokenUsage.total`, verified against
+the locally generated app-server schema. Each planner run creates a fresh
+ephemeral thread; cumulative notifications replace the displayed count. Only
+valid nonnegative integer counters from that run are accepted, and listeners
+stop when the run ends. The last reported count is not guaranteed to include
+usage reported after cancellation or termination. No new API request is needed
+for this display. See the [official app-server notification documentation](https://learn.chatgpt.com/docs/app-server).
+
 On first launch show a welcome card: Connect Canvas, choose courses, create your
 first guide. ChatGPT connection is available from Settings; a factual guide still
 works without AI. An explicitly labeled sample preview demonstrates the layout

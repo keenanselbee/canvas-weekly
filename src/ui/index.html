@@ -15,7 +15,21 @@
       <button data-page="courses" class="nav-item"><span aria-hidden="true">▥</span>Courses</button>
       <button data-page="settings" class="nav-item"><span aria-hidden="true">⚙</span>Settings</button>
     </nav>
-    <div class="sidebar-bottom"><span class="status-dot"></span><span id="connection-status">Canvas not connected</span><small id="ai-status">ChatGPT not connected</small></div>
+    <section class="sidebar-bottom" aria-label="Connections and AI usage">
+      <button id="connection-settings" class="connection-heading" aria-label="Manage connections in Settings">Connections <span aria-hidden="true">&#8250;</span></button>
+      <div class="connection-row"><span>Canvas</span><span id="connection-status" class="connection-state">Not connected</span></div>
+      <small id="canvas-collection-status" class="connection-note" hidden>Refresh paused</small>
+      <div class="connection-row"><span>ChatGPT <small>via Codex</small></span><span id="ai-status" class="connection-state">Not connected</span></div>
+      <div class="connection-row suggestions-row"><span>Study suggestions</span><span id="suggestions-status" class="connection-state">Off</span></div>
+      <details class="ai-usage">
+        <summary><span>AI tokens</span><strong id="ai-token-count">—</strong></summary>
+        <small id="ai-usage-scope">No AI run this session</small>
+        <dl id="ai-usage-breakdown" hidden></dl>
+        <small id="ai-usage-subtotals" hidden>Cached input is included in input; reasoning is included in output.</small>
+        <small>Canvas Weekly only. Account limits and billing are separate.</small>
+      </details>
+      <small id="ai-usage-caption" class="usage-caption">No AI run this session</small>
+    </section>
   </aside>
   <main id="main"></main>
   <div id="notice" role="status" aria-live="polite" hidden></div>

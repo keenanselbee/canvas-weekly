@@ -5,7 +5,7 @@ import { EventEmitter } from 'node:events';
 import path from 'node:path';
 import { CodexClient, planningEvidence } from '../src/codex-client.js';
 
-function fakeServer(overrides = {}) {
+function fakeServer(overrides = {}, notifications = []) {
   const requests = [];
   const child = new EventEmitter();
   child.stdin = new PassThrough(); child.stdout = new PassThrough(); child.stderr = new PassThrough(); child.kill = () => child.emit('exit', 0);
@@ -17,6 +17,7 @@ function fakeServer(overrides = {}) {
       queueMicrotask(() => {
         child.stdout.write(JSON.stringify({ id: message.id, result }) + '\n');
         if (message.method === 'turn/start') {
+          for (const notification of notifications) child.stdout.write(JSON.stringify(notification) + '\n');
           child.stdout.write(JSON.stringify({ method: 'item/completed', params: { threadId: 'thread1', item: { type: 'agentMessage', text: JSON.stringify({ priorities: [{ sourceId: 'one', action: 'Read the notes', reason: 'Prepare before the deadline', suggestedDate: '2026-09-10', checks: [], steps: [{ text: 'Review the notes.', kind: 'suggested', quote: '' }] }] }) } } }) + '\n');
           child.stdout.write(JSON.stringify({ method: 'turn/completed', params: { threadId: 'thread1', turn: { id: 'turn1', status: 'completed' } } }) + '\n');
         }
@@ -43,6 +44,52 @@ test('Codex transport handles login and structured planning without granting too
     assert.ok(server.requests.find(item => item.id === 987).error);
     const turn = server.requests.find(item => item.method === 'turn/start');
     assert.equal(turn.params.sandboxPolicy.networkAccess, false);
+  } finally { client.close(); }
+});
+
+const usageEvent = (total, threadId = 'thread1') => ({ method: 'thread/tokenUsage/updated', params: { threadId, turnId: 'turn1', tokenUsage: { total } } });
+const tokenCounts = { totalTokens: 1500, inputTokens: 1200, cachedInputTokens: 800, outputTokens: 300, reasoningOutputTokens: 100 };
+const planningInput = { week: { today: '2026-09-10', end: '2026-09-13' }, timeZone: 'UTC', items: [{ id: 'one' }] };
+
+test('planning usage uses cumulative reported totals and ignores unrelated, duplicate and invalid updates', async () => {
+  const server = fakeServer({}, [usageEvent(tokenCounts), usageEvent(tokenCounts),
+    usageEvent({ ...tokenCounts, totalTokens: 9000 }, 'another-thread'),
+    usageEvent({ ...tokenCounts, totalTokens: -1 }), usageEvent({ ...tokenCounts, inputTokens: '1200' }),
+    usageEvent({ ...tokenCounts, cachedInputTokens: 1300 }), usageEvent({ ...tokenCounts, totalTokens: 1400 }),
+    usageEvent({ ...tokenCounts, outputTokens: Number.MAX_SAFE_INTEGER + 1 })]);
+  const client = new CodexClient({ directory: path.resolve('.codex-temp/codex-test'), spawnProcess: () => server.child });
+  try {
+    await client.plan(planningInput);
+    assert.deepEqual(client.state.usage, { status: 'completed', tokens: tokenCounts });
+    client.receive(usageEvent({ ...tokenCounts, totalTokens: 9000 }));
+    assert.equal(client.state.usage.tokens.totalTokens, 1500, 'finished run ignores late events');
+    await client.logout();
+    assert.equal(client.state.usage, undefined, 'disconnect clears account-scoped usage');
+  } finally { client.close(); }
+});
+
+test('failed planning retains reported usage and missing usage is not reported as zero', async () => {
+  for (const notifications of [[], [usageEvent(tokenCounts)]]) {
+    const server = fakeServer({}, notifications);
+    const client = new CodexClient({ directory: path.resolve('.codex-temp/codex-test'), spawnProcess: () => server.child });
+    try {
+      await assert.rejects(client.plan({ ...planningInput, items: [{ id: 'different' }] }));
+      assert.deepEqual(client.state.usage, { status: 'failed', tokens: notifications.length ? tokenCounts : null });
+      await client.plan(planningInput);
+      assert.equal(client.state.usage.status, 'completed');
+      assert.equal(client.state.usage.tokens?.totalTokens ?? null, notifications.length ? 1500 : null);
+    } finally { client.close(); }
+  }
+});
+
+test('cancelled planning retains its last reported usage as interrupted', async () => {
+  const server = fakeServer({}, [usageEvent(tokenCounts)]);
+  const client = new CodexClient({ directory: path.resolve('.codex-temp/codex-test'), spawnProcess: () => server.child });
+  const controller = new AbortController();
+  client.on('state', state => { if (state.usage?.status === 'running' && state.usage.tokens) controller.abort(); });
+  try {
+    await assert.rejects(client.plan(planningInput, controller.signal), { name: 'AbortError' });
+    assert.deepEqual(client.state.usage, { status: 'interrupted', tokens: tokenCounts });
   } finally { client.close(); }
 });
 

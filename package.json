@@ -11,6 +11,7 @@
     "start": "node tools/start.mjs",
     "test": "node --test tests/*.test.js",
     "test:desktop": "node tools/test-desktop.mjs",
+    "test:status": "node tools/test-status.mjs",
     "test:refresh": "node tools/test-refresh.mjs",
     "test:network": "node tools/test-network.mjs",
     "test:metadata-network": "node tools/test-metadata-network.mjs",
