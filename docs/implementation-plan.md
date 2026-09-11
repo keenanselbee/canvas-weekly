@@ -420,3 +420,13 @@ Work log
   absence, and section override resolution reaches the state getter. Keep
   production collection paused until that path and serializer extensions are
   resolved. This pass changed review documents only; no live account request ran.
+- 2026-09-11: Verified the complete pinned archive against all 6,721 Ruby paths
+  and completed the stock account-serializer extension registration inventory.
+  Only the extension mechanism and a test double were found. Confirmed three
+  additional selected permission entries have no account_allows callback.
+  Identified the context-free bulk temporary-status endpoint and documented its
+  state-scope, empty-response and cross-shard limitations before any admission.
+  The slower redundant download was stopped and its partial file removed after
+  verifying the complete replacement. Source packages, extracted Ruby files and
+  inventory remain in ignored .codex-temp/graphql-review for continuing review.
+  No real Canvas request, AI request, app setting or saved guide was changed.

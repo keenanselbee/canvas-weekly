@@ -147,6 +147,43 @@ account change has been observed in the user's account.
 [Course enrollment and visibility](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/course.rb),
 [Section override selection](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/assignment_override_applicator.rb).
 
+Targeted temporary-status candidate
+----------------------------------
+
+The pinned routes expose GET /api/v1/temporary_enrollment_status for
+bulk_temporary_enrollment_status. Unlike the single-user status action, this
+action explicitly skips get_course_from_section and require_context. A candidate
+request would bind user_ids[] to the verified user, set limit=1 and omit
+account/course/section context parameters. It must retain the same response
+identity, redirect, request, body and cancellation guards as the isolated
+metadata transport. It is not currently admitted or called by Canvas Weekly.
+
+The action checks the temporary_enrollments feature and, when enabled, selects
+authorized users using api_show_user. It returns per-user booleans from SQL
+existence/pluck queries. active_by_date joins existing enrollment_states rows;
+that helper does not call enrollment_state or ensure_current_state. The bulk
+action does not call the enrollment JSON serializer or its temporary-display
+state getter. The normal REST enrollment serializer does call that getter when
+temporary enrollment is enabled, so it remains excluded as a shortcut.
+
+The status result has narrower scope than the complete self-enrollment query:
+temporary_enrollments_for_recipient uses active enrollment workflow state and
+courses in available/claimed/created states. It does not prove that concluded,
+inactive, invited or rejected rows are not temporary, even though section
+overrides can inspect non-deleted rows. A future combined admission rule would
+need complete selected-course enrollment evidence and an explicitly supported
+state/course scope before using an is_recipient=false result. can_provide is not
+evidence that a user is or is not a temporary recipient.
+
+When the feature is disabled, bulk status returns an empty object. An empty
+object can also result when no requested user survives lookup/authorization;
+it must not be silently interpreted as a negative recipient result. Resolve
+this distinction, cross-shard identity behavior and the full controller/auth
+path before integrating this candidate. No live status request was made.
+[Routes](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/config/routes.rb),
+[Bulk status action](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/controllers/enrollments_api_controller.rb),
+[Enrollment scopes](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/enrollment.rb).
+
 Enrollment.has_permission_to? delegates to RoleOverride.enabled_for? and caches
 the result in memory. Course.cached_account_users_for reads account memberships
 through a Rails cache; account_membership_allows then invokes AccountUser's

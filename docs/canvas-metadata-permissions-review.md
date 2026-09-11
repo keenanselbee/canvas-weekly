@@ -264,12 +264,36 @@ count explicitly. On an empty first page the ordinal result uses page 1, total
 pages 1 and no next page; bookmark results use first and no next bookmark. Both
 formats match the isolated preflight's accepted initial-page Link values.
 This closes the selected paging-adapter review for the pinned stack. It does
-not close account serializer extensions or the separate enrollment/permission
+not close the separate enrollment/permission
 dependencies, and does not certify the institution's deployment.
 [Pinned dependency lock](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/Gemfile.lock),
 [Canvas paging override](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/config/initializers/folio.rb),
 [Folio 0.0.12 source package](https://rubygems.org/downloads/folio-pagination-0.0.12.gem),
 [WillPaginate 4.0.1 source package](https://rubygems.org/downloads/will_paginate-4.0.1.gem).
+
+Stock serializer-extension inventory (2026-09-11): downloaded the complete
+pinned source archive, validated its gzip stream and compared extracted Ruby
+paths with the previously recorded repository tree. All 6,721 Ruby files match,
+with no missing, unexpected or non-regular Ruby paths. The archive SHA-256 is
+9bbfb966e623b193235305cd505c3ffbc734d36857588bc41eeffe64c7ad84fc.
+Searching that complete Ruby inventory for register_extension,
+extend_account_json and direct Account.extensions references found the mechanism
+in lib/api/v1/account.rb, a comment in the LTI account lookup controller and the
+mock extension in spec/apis/v1/accounts_api_spec.rb. No production registration
+or extension implementation was found in the pinned Ruby source. The test stubs
+extensions to return a mock; it does not register a production callback. This
+closes the stock-source registration inventory, not an institution's additional
+plugins or separately loaded code. The account preflight must retain that
+deployment limitation rather than claim a universal empty extension list.
+[Pinned source tree](https://github.com/instructure/canvas-lms/tree/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c),
+[Extension mechanism](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/api/v1/account.rb),
+[Extension test double](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/spec/apis/v1/accounts_api_spec.rb).
+
+The complete pinned registry entries for read_sis, manage_sis and
+manage_user_logins also have no account_allows callback. These are relevant to
+the default account serializer's SIS fields and the self-user permission path.
+This supplements the previously reviewed account-membership/RoleOverride
+helpers; it does not clear unrelated course/enrollment permission branches.
 
 Response identity follow-up: the controller emits current_user.global_id in
 X-Canvas-User-Id and the real user's global ID during impersonation. Profile

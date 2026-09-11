@@ -234,8 +234,9 @@ is rejected before starting does not invalidate the already-running read.
 Successful output contains only the bound local/global user IDs and
 accountMembership: none, frozen in memory. It is not proof of student enrollment,
 date-effective access or permission to start collection. The production session
-does not instantiate this transport or admit this GET. Remaining serializer,
-permission and institution-specific dependencies retain the collection hold.
+does not instantiate this transport or admit this GET. The stock serializer's
+extension registration inventory is complete in the permission review; remaining
+enrollment/permission paths and institution-specific dependencies retain the hold.
 
 Audit records use accountscope with request/response/body-read/read-error events
 and omit account bodies, identity headers and query strings. Four unit cases
