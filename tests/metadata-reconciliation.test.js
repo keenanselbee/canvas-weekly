@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { metadataRecord } from '../src/canvas-metadata.js';
+import { collectMetadata, metadataRecord } from '../src/canvas-metadata.js';
 import { reconcile, buildGuide, renderMarkdown } from '../src/guide.js';
 import { renderHtml } from '../src/guide-html.js';
 import { buildStudyPlan } from '../src/study-plan.js';
@@ -212,4 +212,25 @@ test('a later full instruction source clears field staleness without retaining o
   assert.equal(next.items[0].quizDetailsStale, false);
   assert.equal(next.items[0].metadataOnly, undefined);
   assert.ok(next.changes.some(change => change.field === 'instructions'));
+});
+
+
+test('direct lookup returning null preserves the saved deadline and generates a status verification task', async () => {
+  const previous = reconcile([original()], null, first);
+  const snapshot = structuredClone(previous);
+  const source = metadata();
+  const collected = await collectMetadata({ courseId: '1', studentId: '99', transport: {
+    remainingRequests: 199,
+    readAssignmentPage: async () => ({ course: source.course, nodes: source.assignments, next: null }),
+    readOwnSubmission: async () => null,
+  } });
+  const next = reconcile([metadataRecord(collected)], previous, refresh);
+  assert.deepEqual(previous, snapshot, 'Reconciliation must not mutate the saved input');
+  assert.equal(next.items[0].status, 'unknown');
+  assert.equal(next.items[0].dueAt, previous.items[0].dueAt);
+  assert.equal(next.items[0].dueDateObservedAt, first.now);
+  assert.equal(next.items[0].dueDateStale, true);
+  const guide = buildGuide(next);
+  assert.ok(guide.studyPlan.checks.some(check => check.title.startsWith('Confirm status:')));
+  assert.ok(guide.studyPlan.checks.some(check => check.title.startsWith('Recheck deadline:')));
 });

@@ -42,14 +42,17 @@ test('direct submission reads require fresh validated assignment scope and keep 
       assert.equal(context.transport.allows(context.details(init)), true);
       return new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
     } });
+  assert.equal(context.transport.remainingRequests, 200);
   await assert.rejects(context.transport.readOwnSubmission('10'), /Read this assignment/);
   await assert.rejects(context.transport.request(ownSubmissionRequest('10', '99')), /not permitted/);
   assert.equal(authCalls, 0);
   await context.transport.readAssignmentPage();
+  assert.equal(context.transport.remainingRequests, 199);
   await assert.rejects(context.transport.readOwnSubmission('11'), /Read this assignment/);
   assert.equal(authCalls, 1);
   value = { data: { submission: { _id: '20', assignmentId: '10', state: 'unsubmitted', cachedDueDate: null } } };
   assert.deepEqual(await context.transport.readOwnSubmission('10'), { id: '20', assignmentId: '10', state: 'unsubmitted', cachedDueDate: null });
+  assert.equal(context.transport.remainingRequests, 198);
   assert.deepEqual(JSON.parse(context.sent[1].body), ownSubmissionRequest('10', '99'));
   assert.equal(context.events.filter(event => event.operation === 'metadataownsubmission' && event.event === 'body-read').length, 1);
   value = { data: { submission: null } };
@@ -73,7 +76,7 @@ test('foreign assignment pages cannot extend the direct submission scope', async
 test('metadata transport rejects altered requests before authentication, audit or network', async () => {
   const setup = fixture({ authentication: () => assert.fail('Invalid requests must not load authentication') });
   for (const altered of [null, {}, { ...request(), operationName: 'CreateSubmission' }, metadataRequest('assignments', '2', '99'),
-    metadataRequest('submissions', '1', '100'), { ...request(), query: 'mutation { submitAssignment }' }, { ...request(), session_token: 'x' },
+    { ...request(), operationName: 'CanvasWeeklySubmissionStates' }, { ...request(), query: 'mutation { submitAssignment }' }, { ...request(), session_token: 'x' },
     enrollmentScopeRequest('2', '99'), enrollmentScopeRequest('1', '100'),
     { ...enrollmentScopeRequest('1', '99'), query: enrollmentScopeRequest('1', '99').query.replace('excludeConcluded: false', 'excludeConcluded: true') }]) {
     await assert.rejects(setup.transport.request(altered), /not permitted/);
@@ -382,6 +385,7 @@ test('request budget and network timeout remain bounded after successful reads',
   for (let i = 0; i < 200; i++) await setup.transport.request(request());
   await assert.rejects(setup.transport.request(request()), /collection limit/);
   assert.equal(setup.sent.length, 200);
+  assert.equal(setup.transport.remainingRequests, 0);
   context.mock.timers.enable({ apis: ['setTimeout'] });
   let stalled;
   let entered;
@@ -406,4 +410,25 @@ test('audit identity is derived from transmitted canonical JSON, not mutable inp
   assert.equal(setup.events[0].paginated, false);
   await setup.transport.request(request());
   assert.equal(setup.sent.length, 2);
+});
+
+
+test('raw response byte budget is shared across assignment and direct submission reads', async () => {
+  const assignments = { data: { course: { _id: '1', name: 'Example course', courseCode: 'DEMO', assignmentsConnection: {
+    nodes: [{ _id: '10', courseId: '1', name: 'Preparation', state: 'published', pointsPossible: 5, submissionTypes: ['online_upload'] }],
+    pageInfo: { hasNextPage: false, endCursor: null },
+  } } } };
+  let calls = 0;
+  const setup = fixture({ fetcher: async (_url, init) => {
+    assert.ok(setup.transport.allows(setup.details(init)));
+    const value = calls++ === 0 ? assignments : { data: { submission: { _id: '20', assignmentId: '10', state: 'submitted', cachedDueDate: null } } };
+    return new Response(JSON.stringify({ ...value, extra: 'x'.repeat(1024 * 1024) }),
+      { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
+  } });
+  await setup.transport.readAssignmentPage();
+  for (let i = 0; i < 14; i++) await setup.transport.readOwnSubmission('10');
+  await assert.rejects(setup.transport.readOwnSubmission('10'), /response limit/);
+  assert.equal(calls, 16);
+  await assert.rejects(setup.transport.readOwnSubmission('10'), /collection limit/);
+  assert.equal(calls, 16, 'Exhausted byte budget must stop before another request');
 });

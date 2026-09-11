@@ -6,6 +6,7 @@ import { canvasResponseIdentity } from './canvas-identity.js';
 
 const pageLimit = 2 * 1024 * 1024;
 const collectionLimit = 16 * 1024 * 1024;
+const requestLimit = 200;
 
 function untilAborted(task, signal, discard = () => {}) {
   return new Promise((resolve, reject) => {
@@ -116,7 +117,7 @@ export class CanvasMetadataTransport {
     if (!(permittedMetadataBody(body, this.#courseId, this.#studentId) || permittedEnrollmentScopeBody(body, this.#courseId, this.#studentId))
       || Buffer.byteLength(body) > 8192) throw new Error('This Canvas metadata request is not permitted.');
     const envelope = JSON.parse(body);
-    const operation = { CanvasWeeklyAssignments: 'metadataassignments', CanvasWeeklySubmissionStates: 'metadatasubmissions', CanvasWeeklyEnrollmentScope: 'metadataenrollments' }[envelope.operationName];
+    const operation = { CanvasWeeklyAssignments: 'metadataassignments', CanvasWeeklyEnrollmentScope: 'metadataenrollments' }[envelope.operationName];
     return this.#read({ method: 'POST', path: '/api/graphql', operation, body, paginated: envelope.variables.after !== null }, signal);
   }
 
@@ -136,6 +137,8 @@ export class CanvasMetadataTransport {
     return parseOwnSubmission(value, assignmentId);
   }
 
+  get remainingRequests() { return Math.max(0, requestLimit - this.#requests); }
+
   // Negative membership evidence only, not authorization to read course data.
   // Never enumerate accounts or accept a caller-supplied URL or pagination link.
   checkAccountMembership(signal) {
@@ -146,7 +149,7 @@ export class CanvasMetadataTransport {
     if (this.#identityRejected) throw new Error('Reconnect Canvas before reading metadata.');
     if (this.#accountScopeRejected) throw new Error(accountScopeUnavailable);
     if (this.#busy) throw new Error('A Canvas metadata read is already running.');
-    if (this.#requests >= 200 || this.#bytes >= collectionLimit) throw new Error('Canvas metadata exceeded the collection limit.');
+    if (this.#requests >= requestLimit || this.#bytes >= collectionLimit) throw new Error('Canvas metadata exceeded the collection limit.');
     const timeout = new AbortController();
     const combined = AbortSignal.any([this.#connectionSignal, timeout.signal, ...(signal ? [signal] : [])]);
     const cancelled = () => new DOMException(timeout.signal.aborted ? 'Canvas metadata read timed out.' : 'Canvas metadata read cancelled.', timeout.signal.aborted ? 'TimeoutError' : 'AbortError');

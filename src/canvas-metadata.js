@@ -10,24 +10,15 @@ const queries = Object.freeze({
     }
   }
 }`,
-  submissions: `query CanvasWeeklySubmissionStates($courseId: ID!, $studentId: ID!, $after: String) {
-  course(id: $courseId) {
-    _id
-    submissionsConnection(first: 100, after: $after, studentIds: [$studentId], filter: {states: [unsubmitted, submitted, pending_review, graded, ungraded]}) {
-      pageInfo { hasNextPage endCursor }
-      nodes { _id assignmentId state cachedDueDate }
-    }
-  }
-}`,
 });
-const names = Object.freeze({ assignments: 'CanvasWeeklyAssignments', submissions: 'CanvasWeeklySubmissionStates' });
+const names = Object.freeze({ assignments: 'CanvasWeeklyAssignments' });
 const validId = value => typeof value === 'string' && /^[1-9]\d{0,31}$/.test(value);
 const validCursor = value => value === null || (typeof value === 'string' && value.length > 0 && value.length <= 1024 && !/[\u0000-\u001f\u007f]/.test(value));
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 export function metadataRequest(operation, courseId, studentId, after = null) {
   if (!Object.hasOwn(queries, operation) || !validId(courseId) || !validId(studentId) || !validCursor(after)) throw new Error('Invalid course metadata request.');
-  const variables = Object.freeze({ courseId, ...(operation === 'submissions' ? { studentId } : {}), after });
+  const variables = Object.freeze({ courseId, after });
   return Object.freeze({ operationName: names[operation], query: queries[operation], variables });
 }
 
@@ -77,10 +68,6 @@ export function parseMetadataPage(value, operation, courseId) {
   const nodes = connection.nodes.map(node => {
     if (!object(node) || !validId(node._id) || seen.has(node._id)) throw new Error('Canvas returned invalid or duplicate metadata identities.');
     seen.add(node._id);
-    if (operation === 'submissions') {
-      if (!validId(node.assignmentId) || !['unsubmitted', 'submitted', 'pending_review', 'graded', 'ungraded'].includes(node.state)) throw new Error('Canvas returned invalid submission status metadata.');
-      return { id: node._id, assignmentId: node.assignmentId, state: node.state, cachedDueDate: parseMetadataDate(node.cachedDueDate) };
-    }
     if (node.courseId !== courseId || node.state !== 'published'
       || !(node.pointsPossible === null || (typeof node.pointsPossible === 'number' && Number.isFinite(node.pointsPossible) && node.pointsPossible >= 0))
       || !Array.isArray(node.submissionTypes) || node.submissionTypes.length > 20
@@ -88,52 +75,55 @@ export function parseMetadataPage(value, operation, courseId) {
     return { id: node._id, courseId, name: text(node.name, true), state: node.state, points: node.pointsPossible,
       submissionTypes: [...node.submissionTypes] };
   });
-  return { course: { id: courseId, ...(operation === 'assignments' ? { name: text(course.name), code: text(course.courseCode, true) } : {}) },
+  return { course: { id: courseId, name: text(course.name), code: text(course.courseCode, true) },
     nodes, next: connection.pageInfo.hasNextPage ? connection.pageInfo.endCursor : null };
 }
 
-// No default transport, token, session or global fetch. This component can only
-// run with a supplied request function; production continues to reject all scans.
-export async function collectMetadata({ request, courseId, studentId, signal }) {
+// No default transport, token, session or global fetch. Use one fresh bound
+// transport for the entire course, including preflights and raw response limits.
+export async function collectMetadata({ transport, courseId, studentId, signal }) {
+  signal?.throwIfAborted();
   metadataRequest('assignments', courseId, studentId);
-  if (typeof request !== 'function') throw new Error('A reviewed metadata transport is required.');
+  if (!transport || typeof transport.readAssignmentPage !== 'function' || typeof transport.readOwnSubmission !== 'function') {
+    throw new Error('A reviewed metadata transport is required.');
+  }
   const result = { course: null, assignments: [], submissions: [] };
-  let bytes = 0;
-  for (const operation of ['assignments', 'submissions']) {
-    let after = null;
-    const cursors = new Set();
-    const identities = new Set();
-    const assignmentStatuses = new Set();
-    for (let page = 0; ; page++) {
-      signal?.throwIfAborted();
-      if (page >= 100 || cursors.has(after)) throw new Error('Canvas metadata pagination did not finish. Previous information must be preserved.');
-      cursors.add(after);
-      let value;
-      try { value = await request(metadataRequest(operation, courseId, studentId, after), signal); }
-      catch {
-        signal?.throwIfAborted();
-        throw new Error('Canvas metadata could not be read. Previous information must be preserved.');
-      }
-      signal?.throwIfAborted();
-      const encoded = JSON.stringify(value);
-      if (typeof encoded !== 'string') throw new Error('Canvas returned unreadable metadata.');
-      const length = Buffer.byteLength(encoded);
-      bytes += length;
-      if (length > 2 * 1024 * 1024 || bytes > 16 * 1024 * 1024) throw new Error('Canvas metadata exceeded the supported size.');
-      const parsed = parseMetadataPage(value, operation, courseId);
-      if (operation === 'assignments') {
-        if (result.course && JSON.stringify(result.course) !== JSON.stringify(parsed.course)) throw new Error('Course metadata changed during pagination. Try again later.');
-        result.course = parsed.course;
-      }
-      for (const node of parsed.nodes) {
-        if (identities.has(node.id) || (operation === 'submissions' && assignmentStatuses.has(node.assignmentId))) throw new Error('Canvas metadata repeated a record across pages. Try again later.');
-        identities.add(node.id);
-        if (operation === 'submissions') assignmentStatuses.add(node.assignmentId);
-        result[operation].push(node);
-      }
-      after = parsed.next;
-      if (after === null) break;
+  let after = null;
+  const cursors = new Set();
+  const identities = new Set();
+  for (let page = 0; ; page++) {
+    signal?.throwIfAborted();
+    if (page >= 100 || cursors.has(after)) throw new Error('Canvas metadata pagination did not finish. Previous information must be preserved.');
+    cursors.add(after);
+    const parsed = await transport.readAssignmentPage(after, signal);
+    signal?.throwIfAborted();
+    if (parsed.course.id !== courseId) throw new Error('Canvas returned metadata for a different course.');
+    if (result.course && JSON.stringify(result.course) !== JSON.stringify(parsed.course)) throw new Error('Course metadata changed during pagination. Try again later.');
+    result.course = parsed.course;
+    for (const node of parsed.nodes) {
+      if (identities.has(node.id)) throw new Error('Canvas metadata repeated a record across pages. Try again later.');
+      identities.add(node.id);
+      result.assignments.push(node);
     }
+    after = parsed.next;
+    if (after === null) break;
+  }
+  // Account/enrollment/assignment pages consume the same budget. Refuse an
+  // incomplete status scan before its first request instead of silently omitting
+  // later assignments. Callers preserve the prior guide if collection fails.
+  if (!Number.isSafeInteger(transport.remainingRequests) || transport.remainingRequests < result.assignments.length) {
+    throw new Error('This course exceeds the remaining Canvas request limit. No guide was replaced.');
+  }
+  const submissionIds = new Set();
+  for (const assignment of result.assignments) {
+    signal?.throwIfAborted();
+    const submission = await transport.readOwnSubmission(assignment.id, signal);
+    signal?.throwIfAborted();
+    // No readable row is unknown, never "not submitted" or "no deadline".
+    if (submission === null) continue;
+    if (submission.assignmentId !== assignment.id || submissionIds.has(submission.id)) throw new Error('Canvas returned ambiguous submission metadata.');
+    submissionIds.add(submission.id);
+    result.submissions.push(submission);
   }
   return result;
 }

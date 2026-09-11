@@ -502,3 +502,15 @@ Work log
   per-assignment budget/coverage handling. No real Canvas/AI calls or personal
   guide changes occurred. Ignored test profiles and pinned source review files
   remain under .codex-temp for inspection.
+- 2026-09-11: Replaced course-wide submission collection with one direct lookup
+  per freshly observed assignment. Removed the old query, parser branch and
+  transport/audit admission. All assignment pages must finish first; insufficient
+  shared request capacity rejects the update before status reads. Null records
+  produce unknown status and partial coverage while saved deadlines retain their
+  original age and verification tasks. Added tests for duplicate/mismatched rows,
+  cancellation, request capacity and shared raw-byte limits. All 120 unit tests,
+  localhost Electron metadata checks and desktop refresh safeguards pass; the
+  three runtime GraphQL queries validate against the pinned schema. Collection
+  remains paused pending integrated admission and further course-content work.
+  No real Canvas/AI requests, personal guide writes or package build ran. Ignored
+  fixture profiles and logs remain under .codex-temp for inspection.

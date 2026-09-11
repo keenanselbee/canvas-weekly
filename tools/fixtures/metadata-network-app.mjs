@@ -36,7 +36,7 @@ globalThis.metadataFixtureReady = app.whenReady().then(async () => {
   };
   state.read = () => state.transport.request(metadataRequest('assignments', '1', '99'));
   state.accounts = () => state.transport.checkAccountMembership();
-  state.collect = () => collectMetadata({ courseId: '1', studentId: '99', request: (value, signal) => state.transport.request(value, signal) });
+  state.collect = () => collectMetadata({ courseId: '1', studentId: '99', transport: state.transport, signal: state.connection.signal });
   state.collectStudent = () => collectStudentMetadata({ courseId: '1', studentId: '99', globalUserId: '90099',
     transport: state.transport, signal: state.connection.signal });
   state.enrollments = () => collectEnrollmentScope({ courseId: '1', studentId: '99', signal: state.connection.signal,

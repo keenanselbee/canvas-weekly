@@ -1,10 +1,12 @@
 Canvas metadata admission decision
 ==================================
 
-Decision, 2026-09-11: withhold production admission. The fixed course submission
-query still has a reachable enrollment-state write path when elevated course
-permissions are present. A client-side enrollment preflight is not an atomic
-server-side restriction on the following query. The production hold remains.
+Decision, 2026-09-11: retain the production hold. The course-wide submission
+query was rejected because elevated permissions can reach an enrollment-state
+write path; separate preflights cannot make that branch unreachable. The query
+has now been removed from collection, body admission and audit admission, and
+replaced with assignment-bound direct lookups. The integrated admission decision
+and full instructions/materials/messages collector remain outstanding.
 
 Why the preflight does not close this path
 -----------------------------------------
@@ -75,12 +77,12 @@ Replacement candidates
   state_based_on_date and enrollment_state while filtering all current courses.
 - User.viewableSubmissionsConnection supplies submissions with comments through
   stream items. It cannot provide the complete outstanding-work inventory.
-- Query.submission(assignmentId:, userId:) is the next bounded candidate. The
+- Query.submission(assignmentId:, userId:) is the selected bounded replacement. The
   SubmissionByAssignmentAndUser loader reads an existing active row with find_by;
   it does not create a missing submission or use the course-wide visibility
   loader. Its first Submission read policy passes for the student's own published
   assignment. The anonymous-grading helper and permission fallbacks are reviewed
-  below; production orchestration still needs to replace the old query.
+  below; orchestration now uses the direct query behind the production hold.
 
 The proposed fixed query validates against the pinned schema:
 
@@ -98,12 +100,13 @@ only IDs from validated pages read for its bound course. readOwnSubmission can
 request only those IDs for the bound student; generic request does not accept
 the new operation. Null remains unavailable, not evidence of no deadline or no
 submission. The existing identity, credential, cancellation, byte/request limits
-and redacted audit apply. This component is not yet used by production collection.
-
-Before admission, replace the course-wide query in collection orchestration,
-preserve prior status/dates as last-known for missing records, and account for
-per-assignment request costs in coverage. Do not broaden privileges or obtain
-attempts to fill gaps. The production hold remains in place.
+and redacted audit apply. Collection orchestration now uses this component behind
+the production hold. After all assignment pages finish, it verifies sufficient
+remaining request capacity for one lookup per assignment. Insufficient capacity,
+failed responses, duplicate identities and cancellation reject the whole update.
+Null records produce partial coverage, unknown status and retained last-known
+deadlines with verification tasks. No privileges or attempt access are added.
+The old course-wide query cannot be constructed or admitted by the transport.
 
 Direct lookup fallback review, 2026-09-11
 ---------------------------------------
@@ -135,9 +138,9 @@ problem. That finding supports the isolated replacement component, not a claim
 that the deployed institution matches this source or that historical account
 state is unchanged. Response identity checks remain mandatory.
 
-Validation: 116 unit tests passed. The localhost Electron HTTPS fixture verifies
-observed-assignment admission, fixed student identity, null and mismatched result
-handling, and audit redaction. No real Canvas or AI requests were made.
+Validation: 120 unit tests passed. The localhost Electron HTTPS fixture verifies
+observed-assignment admission, complete direct collection through CanvasConnection,
+fixed student identity, null and mismatched results, and audit redaction. No real Canvas or AI requests were made.
 
 Fallback source references:
 

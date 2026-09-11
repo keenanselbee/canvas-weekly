@@ -46,10 +46,12 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
     }
     const input = JSON.parse(Buffer.concat(chunks));
     if (input.operationName === 'CanvasWeeklyOwnSubmission') {
-      assert.deepEqual(input.variables, { assignmentId: '10', studentId: '99' });
+      assert.equal(input.variables.studentId, '99');
+      assert.ok(['10', '11'].includes(input.variables.assignmentId));
+      const id = input.variables.assignmentId;
       response.end(JSON.stringify({ data: { submission: mode === 'own-null' ? null : {
-        _id: '20', assignmentId: mode === 'own-foreign' ? '11' : '10', state: 'submitted',
-        cachedDueDate: '2026-09-18T23:59:00-07:00', body: 'own-submission-private-body',
+        _id: id === '10' ? '20' : '21', assignmentId: mode === 'own-foreign' ? '11' : id, state: id === '10' ? 'submitted' : 'unsubmitted',
+        cachedDueDate: id === '10' ? '2026-09-18T23:59:00-07:00' : null, body: 'own-submission-private-body',
       } } }));
       return;
     }
@@ -63,14 +65,13 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
         enrollmentsConnection: { nodes: [node], pageInfo: { hasNextPage: next !== null, endCursor: next } } } } }));
       return;
     }
-    const assignments = input.operationName === 'CanvasWeeklyAssignments';
-    const next = assignments && input.variables.after === null ? 'next' : null;
+    assert.equal(input.operationName, 'CanvasWeeklyAssignments', 'No course-wide submission query is admitted');
+    const next = input.variables.after === null ? 'next' : null;
     const id = input.variables.after === null ? '10' : '11';
-    const nodes = assignments ? [{ _id: id, courseId: '1', name: 'Synthetic preparation', state: 'published', pointsPossible: 5,
-      submissionTypes: ['online_upload'] }]
-      : [{ _id: '20', assignmentId: '10', state: 'submitted', cachedDueDate: '2026-09-18T23:59:00-07:00' }, { _id: '21', assignmentId: '11', state: 'unsubmitted', cachedDueDate: null }];
+    const nodes = [{ _id: id, courseId: '1', name: 'Synthetic preparation', state: 'published', pointsPossible: 5,
+      submissionTypes: ['online_upload'] }];
     response.end(JSON.stringify({ data: { course: { _id: '1', name: 'Example course', courseCode: 'DEMO 1',
-      [assignments ? 'assignmentsConnection' : 'submissionsConnection']: { nodes, pageInfo: { hasNextPage: next !== null, endCursor: next } } } } }));
+      assignmentsConnection: { nodes, pageInfo: { hasNextPage: next !== null, endCursor: next } } } } }));
   });
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -87,7 +88,7 @@ try {
   assert.equal(result.assignments.length, 2);
   assert.equal(result.submissions[1].state, 'unsubmitted');
   assert.equal(result.submissions[0].cachedDueDate, '2026-09-19T06:59:00.000Z');
-  assert.equal(received.length, 3);
+  assert.equal(received.length, 4);
   for (const request of received) {
     assert.equal(request.method, 'POST');
     assert.equal(request.route, '/api/graphql');
@@ -108,7 +109,7 @@ try {
     await isolated.cookies.set({ url: origin, name: '_csrf_token', value: 'malformed-private-cookie', secure: true, path: '/' });
   });
   await assert.rejects(application.evaluate(async () => globalThis.metadataFixture.read()), error => /Reconnect Canvas/.test(error.message) && !/private/.test(error.message));
-  assert.equal(received.length, 3, 'Missing or invalid CSRF must not reach the server');
+  assert.equal(received.length, 4, 'Missing or invalid CSRF must not reach the server');
   await application.evaluate(async () => {
     const { isolated, origin } = globalThis.metadataFixture;
     await isolated.cookies.set({ url: origin, name: '_csrf_token', value: encodeURIComponent(Buffer.alloc(64, 251).toString('base64')), secure: true, path: '/' });
@@ -117,7 +118,7 @@ try {
     const { isolated, origin } = globalThis.metadataFixture;
     await isolated.fetch(origin + '/api/graphql', { method: 'POST', body: '{"query":"mutation { submit }"}' });
   }));
-  assert.equal(received.length, 3);
+  assert.equal(received.length, 4);
   // Hold the main-process request while the renderer tries to borrow its body.
   const canonical = await application.evaluate(async () => {
     const state = globalThis.metadataFixture;
@@ -132,9 +133,9 @@ try {
   await assert.rejects(page.evaluate(async ({ origin, canonical }) => fetch(origin + '/api/graphql', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(canonical),
   }), { origin, canonical }));
-  assert.equal(received.length, 3, 'Renderer borrowing must not reach the server');
+  assert.equal(received.length, 4, 'Renderer borrowing must not reach the server');
   await application.evaluate(async () => { const state = globalThis.metadataFixture; state.release(); state.hold = null; await state.pending; });
-  assert.equal(received.length, 4);
+  assert.equal(received.length, 5);
   await application.evaluate(async () => {
     const state = globalThis.metadataFixture;
     await state.isolated.cookies.set({ url: state.origin, name: '_csrf_token', value: encodeURIComponent(Buffer.alloc(64, 247).toString('base64')), secure: true, path: '/' });
@@ -235,7 +236,7 @@ try {
     }
     const operations = received.slice(start).map(request => request.method === 'GET' ? 'account' : JSON.parse(request.body).operationName);
     const expected = ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope'];
-    if (scenario === 'student-only') expected.push('CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklySubmissionStates');
+    if (scenario === 'student-only') expected.push('CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyOwnSubmission');
     assert.deepEqual(operations, expected, 'Every enrollment page must pass before the first assignment request');
   }
   const logFiles = await fs.readdir(path.join(directory, 'canvas-audit'));
@@ -258,8 +259,12 @@ try {
   const bridge = await application.evaluate(() => globalThis.metadataFixture.testConnectionBridge());
   assert.deepEqual(bridge, { count: 1, pausedBeforeWatch: true, deniedOutsideRun: true, cancelledOnChange: true });
   assert.deepEqual(received.slice(beforeBridge).map(request => request.method === 'GET' ? 'account' : JSON.parse(request.body).operationName),
-    ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklySubmissionStates']);
+    ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyOwnSubmission']);
   const beforeOwn = received.length;
+  const ownAuditDirectory = path.join(directory, 'canvas-audit');
+  const beforeOwnLog = (await Promise.all((await fs.readdir(ownAuditDirectory)).map(file => fs.readFile(path.join(ownAuditDirectory, file), 'utf8')))).join('');
+  const ownReadCount = log => log.split('\n').filter(Boolean).map(line => JSON.parse(line)).filter(event => event.operation === 'metadataownsubmission' && event.event === 'body-read').length;
+  const beforeOwnReads = ownReadCount(beforeOwnLog);
   await application.evaluate(() => globalThis.metadataFixture.reset('session'));
   await assert.rejects(application.evaluate(() => globalThis.metadataFixture.transport.readOwnSubmission('10')), /Read this assignment/);
   await application.evaluate(() => globalThis.metadataFixture.transport.readAssignmentPage());
@@ -275,7 +280,7 @@ try {
   const auditDirectory = path.join(directory, 'canvas-audit');
   const ownAudit = (await Promise.all((await fs.readdir(auditDirectory)).map(file => fs.readFile(path.join(auditDirectory, file), 'utf8')))).join('');
   assert.doesNotMatch(ownAudit, /own-submission-private-body|CanvasWeeklyOwnSubmission/);
-  assert.equal(ownAudit.split('\n').filter(Boolean).map(line => JSON.parse(line)).filter(event => event.operation === 'metadataownsubmission' && event.event === 'body-read').length, 3);
+  assert.equal(ownReadCount(ownAudit) - beforeOwnReads, 3);
   console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, fixed account preflight, paginated metadata/enrollment parsing, foreign-user rejection, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
   console.log('Fixture profile: ' + directory);
 } finally {

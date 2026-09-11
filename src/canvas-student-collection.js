@@ -28,7 +28,7 @@ export async function collectStudentMetadata({ transport, courseId, studentId, g
     throw new Error('This course needs a supported student enrollment. Mixed, custom and non-student roles are not supported yet.');
   }
 
-  const metadata = await collectMetadata({ request, courseId, studentId, signal });
+  const metadata = await collectMetadata({ transport, courseId, studentId, signal });
   signal?.throwIfAborted();
   // Enrollment and account evidence are confined to this invocation. They are
   // neither exported nor used as cached authority for a later guide update.
