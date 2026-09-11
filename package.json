@@ -2,6 +2,8 @@
   "name": "canvas-weekly",
   "version": "0.1.0",
   "description": "A read-only Canvas companion for weekly study guides",
+  "author": "Canvas Weekly",
+  "license": "UNLICENSED",
   "private": true,
   "type": "module",
   "main": "src/main.js",
@@ -12,10 +14,14 @@
     "test:refresh": "node tools/test-refresh.mjs",
     "test:network": "node tools/test-network.mjs",
     "test:document": "node tools/test-guide-document.mjs",
-    "test:websites": "node tools/test-website-network.mjs"
+    "test:websites": "node tools/test-website-network.mjs",
+    "build:windows": "node tools/build-windows.mjs",
+    "test:package": "node tools/test-package.mjs"
   },
   "devDependencies": {
+    "@electron/asar": "4.3.0",
     "electron": "44.3.0",
+    "electron-builder": "26.15.3",
     "jszip": "3.10.1",
     "playwright": "1.63.0"
   },

@@ -10,6 +10,11 @@ delivery options, architecture, milestones, and acceptance criteria.
 Implementation specifications: [Windows UX](docs/ux-design.md),
 [architecture](docs/architecture.md), and [milestone ledger](docs/implementation-plan.md).
 
+A local unsigned Windows x64 installer can now be built with `npm run build:windows`.
+Run `npm run test:package` to inspect its contents and test the actual bundled app
+with an isolated profile. See [Windows packaging](docs/windows-package.md) for the
+artifact paths, installation behavior and remaining release checks.
+
 ## Current implementation
 
 The Electron desktop shell is implemented with This week, Courses and Settings,

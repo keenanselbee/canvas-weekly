@@ -14,6 +14,11 @@ import { CourseWebsites } from './course-websites.js';
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const uiUrl = pathToFileURL(path.join(directory, 'ui/index.html')).href;
 const testMode = process.env.CANVAS_WEEKLY_TEST === '1';
+if (app.isPackaged && testMode) {
+  const profile = process.env.CANVAS_WEEKLY_TEST_PROFILE;
+  if (!profile || !path.isAbsolute(profile)) throw new Error('Packaged tests require an explicit absolute test profile.');
+  app.setPath('userData', profile);
+}
 if (!app.isPackaged) app.setPath('userData', path.resolve(directory, '../.local', testMode ? 'test-app' : 'app'));
 const store = new SettingsStore(app.getPath('userData'));
 const guides = new GuideStore(path.join(app.getPath('userData'), 'guides'));

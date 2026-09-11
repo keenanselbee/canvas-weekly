@@ -17,7 +17,7 @@ Milestone ledger
 | M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Complete: ddd9975; synthetic end-to-end verified |
 | M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Live account restoration and validated synthetic planning verified with pinned CLI; full-course quality review pending |
 | M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Canvas evidence, public/Basic websites and Word export implemented; live site validation, browser-login sites, linked documents and Word page rendering pending |
-| M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Pending |
+| M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Unsigned x64 installer built; package inventory, matching installer payload, first-run themes and bundled Codex tested; installation walkthrough and live reconnect pending |
 
 Scheduling, multi-provider support, public distribution and hosted service are
 subsequent enhancements. They are documented product directions, not prerequisites
@@ -183,3 +183,13 @@ Work log
   with 17 general checks and remaining checks alongside their review items.
   Re-exported locally without fresh Canvas or AI access. Workload balancing,
   full-course AI quality and Word page rendering remain acceptance gaps.
+- 2026-09-10: Built an unsigned per-user x64 NSIS installer with the pinned Codex
+  runtime and an explicit application-source allowlist. Package tests compare
+  source contents and installer payloads, reject private state and development
+  dependencies, and launch the actual packaged app with an isolated profile.
+  Bundled Codex initializes with no account, Desktop default resolves correctly,
+  and appearance persists across restart. Inspected light/dark first-run views.
+  Initial archive inspection used incompatible path separators; fixed the verifier.
+  A hidden-window screenshot timed out; making the test window visible resolved
+  capture. No real accounts, installer execution, signing or publishing were used.
+  Installation/uninstallation and clean-machine acceptance remain open.

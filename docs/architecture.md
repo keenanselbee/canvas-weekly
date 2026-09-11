@@ -183,6 +183,13 @@ exports or diagnostics. Signing and auto-update publication remain release tasks
 requiring an actual signing identity and release destination. Produce an unsigned
 local build for review first. Do not silently install startup tasks or schedule.
 
+The local x64 NSIS package is now implemented with an explicit source allowlist,
+production dependency collection and unpacked Codex platform binaries. Packaged
+tests require an explicit isolated profile and check installer payload identity,
+fresh state, bundled runtime execution and persisted appearance. Signing, actual
+installation/uninstallation and clean-machine verification remain incomplete;
+see [Windows packaging](windows-package.md).
+
 
 References
 ----------

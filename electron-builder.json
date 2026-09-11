@@ -1,0 +1,26 @@
+{
+  "appId": "app.canvasweekly.desktop",
+  "productName": "Canvas Weekly",
+  "directories": { "output": "dist" },
+  "files": ["src/**/*", "package.json"],
+  "asar": true,
+  "asarUnpack": ["node_modules/@openai/codex-win32-*/**/*"],
+  "npmRebuild": false,
+  "electronDist": "node_modules/electron/dist",
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "signExecutable": false,
+    "requestedExecutionLevel": "asInvoker",
+    "artifactName": "Canvas-Weekly-${version}-${arch}-Setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowElevation": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "runAfterFinish": false,
+    "deleteAppDataOnUninstall": false
+  }
+}
