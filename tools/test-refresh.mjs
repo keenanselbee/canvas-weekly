@@ -68,6 +68,9 @@ try {
     const { CanvasClient } = require('./canvas-client.js');
     globalThis.originalCollectionIssue = Object.getOwnPropertyDescriptor(CanvasClient.prototype, 'collectionIssue');
     globalThis.originalCollect = CanvasClient.prototype.collect;
+    const { CanvasConnection } = require('./canvas-session.js');
+    const capture = CanvasConnection.prototype.capture;
+    CanvasConnection.prototype.capture = function (...args) { globalThis.syntheticConnection = this; return capture.apply(this, args); };
     Object.defineProperty(CanvasClient.prototype, 'collectionIssue', { configurable: true, get: () => null });
     CanvasClient.prototype.collect = async function () { this.signal?.throwIfAborted(); return structuredClone(globalThis.syntheticRecords); };
   }, new URL('../src/canvas-client.js', import.meta.url).href);
@@ -248,6 +251,23 @@ try {
   const repeatedMetadata = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
   assert.equal(repeatedMetadata.items[0].instructionsObservedAt, mixed.items[0].instructionsObservedAt);
   assert.equal(repeatedMetadata.changes.length, 0);
+  const protectedExports = [repeatedMetadata.outputPath, repeatedMetadata.documentPath, repeatedMetadata.wordPath];
+  const beforeConnectionChange = await Promise.all(protectedExports.map(file => fs.readFile(file)));
+  await application.evaluate((_electron, moduleUrl) => {
+    const require = process.getBuiltinModule('module').createRequire(moduleUrl);
+    const { CanvasClient } = require('./canvas-client.js');
+    globalThis.syntheticCollectionEntered = new Promise(resolve => { globalThis.enterCollection = resolve; });
+    const hold = new Promise(resolve => { globalThis.releaseCollection = resolve; });
+    CanvasClient.prototype.collect = async function () {
+      globalThis.enterCollection(); await hold;
+      return structuredClone(globalThis.syntheticRecords); // Deliberately ignores cancellation to exercise the consumer guard.
+    };
+  }, new URL('../src/canvas-client.js', import.meta.url).href);
+  await page.evaluate(() => { window.changedConnectionResult = window.canvasWeekly.updateGuide().then(() => 'unexpected success', error => error.message); });
+  await application.evaluate(async () => { await globalThis.syntheticCollectionEntered; globalThis.syntheticConnection.invalidate(); globalThis.releaseCollection(); });
+  assert.match(await page.evaluate(() => window.changedConnectionResult), /connection changed/);
+  assert.deepEqual((await page.evaluate(() => window.canvasWeekly.getState())).guide, repeatedMetadata);
+  assert.deepEqual(await Promise.all(protectedExports.map(file => fs.readFile(file))), beforeConnectionChange, 'A changed connection must not overwrite any guide format');
   await application.evaluate((_electron, moduleUrl) => {
     const require = process.getBuiltinModule('module').createRequire(moduleUrl);
     const { CanvasClient } = require('./canvas-client.js');
@@ -284,6 +304,6 @@ try {
   assert.deepEqual(switched.settings.selectedCourseIds, []);
   assert.equal(switched.guide, null);
   assert.deepEqual(switched.websites, []);
-  console.log('Desktop checks passed: production refresh hold, synthetic profile/website connections, encrypted website login, in-memory course evidence (not Canvas collection), study plan, persistent local checkmarks, offline Open guide, preserved notes, login errors and account-switch isolation.');
+  console.log('Desktop checks passed: production refresh hold, synthetic profile/website connections, encrypted website login, in-memory course evidence (not Canvas collection), study plan, persistent local checkmarks, offline Open guide, preserved notes, login errors, account-switch isolation and discarded collection after connection change.');
   await page.evaluate(() => window.canvasWeekly.disconnectCanvas());
 } finally { await application.close(); }

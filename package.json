@@ -14,6 +14,7 @@
     "test:refresh": "node tools/test-refresh.mjs",
     "test:network": "node tools/test-network.mjs",
     "test:metadata-network": "node tools/test-metadata-network.mjs",
+    "test:connection": "node tools/test-connection.mjs",
     "test:document": "node tools/test-guide-document.mjs",
     "test:websites": "node tools/test-website-network.mjs",
     "build:windows": "node tools/build-windows.mjs",

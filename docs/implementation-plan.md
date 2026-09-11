@@ -305,3 +305,15 @@ Work log
   binding and remaining source review still precede admission. No real Canvas,
   external course-site or AI request was made, and the saved student guide remains
   unchanged. Test profiles and pinned review sources remain in ignored .codex-temp.
+- 2026-09-10: Bound local Canvas clients and guide runs to an abortable connection
+  lifetime. Delayed profile results cannot reconnect a disconnected account or
+  overwrite a newer verification. Serialized local credential writes/removals
+  prevent a pending token save from undoing Disconnect; browser verification waits
+  for cookie cleanup. Guide runs capture immutable account/course identity and
+  reject late collection results before planning or export. Added eight isolated
+  Electron lifecycle scenarios and a desktop test preserving all three guide
+  formats after connection invalidation. All 79 unit tests, connection/desktop
+  checks and rebuilt-package verification pass. No real account was contacted or
+  student guide changed. This establishes local lifecycle binding only: enrollment
+  role evidence, remote session-cookie changes, remaining source permissions and
+  the full collection path still require work. Production refresh remains paused.

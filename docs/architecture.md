@@ -75,6 +75,28 @@ session reads are unavailable, expose supported API token connection or an hones
 coverage gap. No autonomous unrestricted navigation. UI login can generate normal
 access logs; do not claim zero server-side effects.
 
+CanvasConnection owns an abortable connection lifetime. Starting a new login or
+token connection, disconnecting, changing course selection, or verifying a
+different account invalidates the old lifetime. Clients capture their origin,
+credential and signal instead of borrowing changing connection state. Verification
+results and errors from invalidated lifetimes cannot overwrite the current account;
+an old promise's cleanup cannot clear a newer verification. Local credential writes
+and removals are serialized so a delayed token save cannot undo Disconnect.
+Session verification waits for pending cookie cleanup before issuing a read.
+
+A guide run captures a fixed origin, user ID and immutable course-ID list, checks
+that binding after asynchronous collection stages, and combines its signal with
+user cancellation through external collection, AI planning and export. Course-list
+loading similarly validates the captured identity before publishing loaded data.
+These are local lifecycle guarantees. They do not establish enrollment roles or
+detect remote session-cookie identity changes; those remain production metadata
+admission requirements. The live collection hold remains in place.
+
+The isolated Electron connection fixture exercises eight lifecycle scenarios.
+The desktop refresh fixture also deliberately returns data after invalidating the
+connection and verifies that no guide format is overwritten. Neither fixture
+contacts a real Canvas account.
+
 The session network gate registers each exact collector URL only for the duration
 of its pending GET/manual-redirect fetch. Revalidate its origin, operation and
 fixed parameters at this boundary. Reject browser-originated requests even when

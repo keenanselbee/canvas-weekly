@@ -84,15 +84,23 @@ else {
       catch (error) { run.message = error.message; }
     }
     const loadCourses = async () => {
-      courses = await canvas.client().read('courses', {}, true);
-      guide = await guides.load(store.value.canvasBaseUrl, canvas.profile.id);
+      const binding = canvas.capture({ includeCourses: false });
+      const loadedCourses = await canvas.client({ signal: binding.signal }).read('courses', {}, true);
+      binding.assertCurrent();
+      const loadedGuide = await guides.load(binding.origin, binding.userId);
+      binding.assertCurrent();
       const previousAccount = store.value.lastGuideAccount;
-      const sameAccount = previousAccount?.origin === store.value.canvasBaseUrl && previousAccount?.userId === canvas.profile.id;
+      const sameAccount = previousAccount?.origin === binding.origin && previousAccount?.userId === binding.userId;
       await store.update({
-        lastGuideAccount: { origin: store.value.canvasBaseUrl, userId: canvas.profile.id },
-        selectedCourseIds: sameAccount ? store.value.selectedCourseIds.filter(id => courses.some(course => String(course.id) === id)) : [],
+        lastGuideAccount: { origin: binding.origin, userId: binding.userId },
+        selectedCourseIds: sameAccount ? store.value.selectedCourseIds.filter(id => loadedCourses.some(course => String(course.id) === id)) : [],
       });
-      websites = await websiteStore.list(store.value.lastGuideAccount);
+      binding.assertCurrent();
+      const loadedWebsites = await websiteStore.list({ origin: binding.origin, userId: binding.userId });
+      binding.assertCurrent();
+      courses = loadedCourses;
+      guide = loadedGuide;
+      websites = loadedWebsites;
     };
     canvas = new CanvasConnection({ directory: app.getPath('userData'), settings: store, onChange: publish, onConnected: async () => {
       try { await loadCourses(); run = { busy: false, message: 'Canvas connected. Choose your courses.' }; }
@@ -146,6 +154,7 @@ else {
     handle('courses:select', async selectedCourseIds => {
       requireIdle();
       if (!Array.isArray(selectedCourseIds) || !selectedCourseIds.every(id => courses.some(course => String(course.id) === id))) throw new Error('Choose courses from the connected account.');
+      canvas.invalidate();
       await store.update({ selectedCourseIds: [...new Set(selectedCourseIds)] });
       return snapshot();
     });
@@ -182,16 +191,22 @@ else {
       if (!canvas.profile) throw new Error('Connect Canvas before updating your guide.');
       if (!store.value.selectedCourseIds.length) throw new Error('Choose at least one course first.');
       const userId = canvas.profile.id;
+      const binding = canvas.capture();
       controller = new AbortController();
+      const signal = AbortSignal.any([controller.signal, binding.signal]);
       run = { busy: true, message: 'Checking Canvas connection…' }; publish();
       try {
         await canvas.verify();
+        signal.throwIfAborted();
+        binding.assertCurrent();
         if (canvas.profile.id !== userId) throw new Error('Canvas account changed. Reconnect and select courses for this account.');
-        const previous = await guides.load(store.value.canvasBaseUrl, userId);
-        const records = await canvas.client({ signal: controller.signal, onProgress: message => { run = { busy: true, message }; publish(); } }).collect(store.value.selectedCourseIds);
+        const previous = await guides.load(binding.origin, userId);
+        binding.assertCurrent();
+        const records = await canvas.client({ signal, onProgress: message => { run = { busy: true, message }; publish(); } }).collect(binding.courseIds);
+        binding.assertCurrent();
         if (!records.some(record => record.coverage.some(source => ['assignments', 'quizzes', 'assignment metadata'].includes(source.source) && source.status === 'ok'))) throw new Error('No assessment information could be refreshed. Your previous guide has been preserved.');
         try {
-          const external = await websiteStore.collect({ origin: store.value.canvasBaseUrl, userId }, store.value.selectedCourseIds, { signal: controller.signal,
+          const external = await websiteStore.collect({ origin: binding.origin, userId }, binding.courseIds, { signal,
             onProgress: message => { run = { busy: true, message }; publish(); } });
           for (const record of records) {
             record.sources.websites = external.filter(site => site.courseId === record.id);
@@ -199,20 +214,22 @@ else {
             const connected = new Set(record.sources.websites.map(site => site.siteId));
             if (previous?.courses.find(course => course.id === record.id)?.evidence?.some(source => source.kind === 'website' && !connected.has(source.siteId))) record.coverage.push({ source: 'websites', status: 'unsupported', message: 'A prior course website is disconnected. Its last-known content needs rechecking.' });
           }
-          websites = await websiteStore.list({ origin: store.value.canvasBaseUrl, userId });
+          websites = await websiteStore.list({ origin: binding.origin, userId });
         } catch {
-          controller.signal.throwIfAborted();
+          signal.throwIfAborted();
           for (const record of records) record.coverage.push({ source: 'websites', status: 'error', message: 'Course website collection failed. Check the website settings in Courses.' });
         }
-        const next = buildGuide(reconcile(records, previous, { origin: store.value.canvasBaseUrl, now: new Date().toISOString(), timeZone: store.value.timeZone }));
+        binding.assertCurrent();
+        const next = buildGuide(reconcile(records, previous, { origin: binding.origin, now: new Date().toISOString(), timeZone: store.value.timeZone }));
         if (store.value.aiEnabled) {
           run = { busy: true, message: 'Preparing study suggestions with ChatGPT…' }; publish();
-          try { next.priorities = await codex.plan(planningEvidence(next), controller.signal); next.mode = 'Factual guide with AI study suggestions'; }
-          catch (error) { controller.signal.throwIfAborted(); next.planningNote = error.message; }
+          try { next.priorities = await codex.plan(planningEvidence(next), signal); next.mode = 'Factual guide with AI study suggestions'; }
+          catch (error) { signal.throwIfAborted(); next.planningNote = error.message; }
         }
-        controller.signal.throwIfAborted();
+        signal.throwIfAborted();
+        binding.assertCurrent();
         run = { busy: true, message: 'Saving your weekly guide…' }; publish();
-        guide = await guides.export(next, snapshot().outputDirectory, userId, controller.signal);
+        guide = await guides.export(next, snapshot().outputDirectory, userId, signal);
         run = { busy: false, message: records.some(record => record.coverage.some(source => source.status !== 'ok')) ? 'Guide updated with some information unavailable. Review source coverage.' : 'Weekly guide updated.' };
         return snapshot();
       } catch (error) {

@@ -206,7 +206,10 @@ Integration work still required
 1. Finish the permission/override/controller review described above.
 2. Integrate the isolated transport only after the remaining permission review.
    Supply a verified connection/enrollment binding and connect the tested cookie helper;
-   abort that binding on account, course-scope or credential changes. The fixture
+   CanvasConnection now invalidates local clients on account, course-scope and
+   credential transitions, and guide runs retain an immutable local binding.
+   Enrollment-role evidence and remote cookie/identity-change detection remain
+   required before this can admit metadata requests. The fixture
    verifies transport headers and cookie separation, not real Canvas authentication.
    Scoped developer-key tokens cannot access the
    required GraphQL types in the reviewed revision; report this without asking

@@ -99,6 +99,8 @@ edits to generated guides block replacement; keep notes in Student Notes.md.
 The latest saved guide is available in the app after restart without reconnecting.
 Run `npm run test:refresh` for a synthetic desktop collection/export/update test;
 it uses isolated test storage and temporary output, never your Canvas account.
+Run `npm run test:connection` for delayed-response, account-change, cancellation
+and local credential-cleanup checks with synthetic responses in an isolated profile.
 Run `npm run test:document` for standalone document checks and light/dark/narrow/
 print screenshots. The HTML includes no scripts or remote resources; source links
 require a click. Word structure, content, safe links and file protection are tested.
