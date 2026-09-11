@@ -1,0 +1,26 @@
+# Review candidate only. Not included in the production network allowlist.
+# Bind both IDs to the current connection; exhaust pagination before admission.
+query CanvasWeeklyEnrollmentScope($courseId: ID!, $studentId: ID!, $after: String) {
+  course(id: $courseId) {
+    _id
+    enrollmentsConnection(
+      first: 100
+      after: $after
+      filter: {
+        userIds: [$studentId]
+        states: [active, invited, creation_pending, completed, inactive, rejected, deleted]
+      }
+    ) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        _id
+        userId
+        type
+        state
+        courseSectionId
+        limitPrivilegesToCourseSection
+        role { _id name }
+      }
+    }
+  }
+}

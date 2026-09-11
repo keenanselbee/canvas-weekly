@@ -148,6 +148,11 @@ Complete the verified account/enrollment binding
 and institutional session authentication. Actual Electron request-body admission
 has since passed the isolated fixture described in the transport design.
 
+The [enrollment-scope follow-up](canvas-enrollment-scope.md) records the filtered-
+course-list and completed-role limitations, compares the self-enrollment REST
+serializer, and supplies a schema-validated minimal query for the next preflight
+implementation. It does not authorize that query or certify account-wide roles.
+
 The pinned upstream source and passing schema checks cannot establish UBC's
 deployed behavior. Record that limitation in the restoration decision, including
 the supported identity/enrollment scope and the evidence used. A metadata-only

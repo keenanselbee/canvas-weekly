@@ -317,3 +317,13 @@ Work log
   student guide changed. This establishes local lifecycle binding only: enrollment
   role evidence, remote session-cookie changes, remaining source permissions and
   the full collection path still require work. Production refresh remains paused.
+- 2026-09-10: Reviewed enrollment evidence sources. The existing course-list
+  filter removes conflicting role types, and active-only enumeration misses
+  completed teaching roles that may retain elevated read access. The self-
+  enrollment REST serializer additionally evaluates grade fields by default.
+  Added a minimal self-enrollment GraphQL preflight design and query covering all
+  declared states with no grade/submission fields. It passes the pinned schema
+  validator. Documented resolver/visibility behavior, account-level privilege
+  limits and concrete admission tests. This documentation/query milestone does
+  not register a new operation, widen the gate, run account requests or change
+  guides. Permission dependencies and runtime preflight integration remain open.

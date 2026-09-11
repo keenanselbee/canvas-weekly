@@ -209,7 +209,10 @@ Integration work still required
    CanvasConnection now invalidates local clients on account, course-scope and
    credential transitions, and guide runs retain an immutable local binding.
    Enrollment-role evidence and remote cookie/identity-change detection remain
-   required before this can admit metadata requests. The fixture
+   required before this can admit metadata requests. The
+   [enrollment-scope review](canvas-enrollment-scope.md) explains why the filtered
+   course list is insufficient and provides a schema-validated field-query candidate.
+   The fixture
    verifies transport headers and cookie separation, not real Canvas authentication.
    Scoped developer-key tokens cannot access the
    required GraphQL types in the reviewed revision; report this without asking
