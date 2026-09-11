@@ -610,3 +610,19 @@ Work log
   SHA256: 931263b3abd3e55bfb43fc62b370e32802e17e68c8f6f3d04f6320c8a54f343f.
   No real Canvas/AI request or installer walkthrough ran. Ignored local review
   artifacts and the rebuilt dist installer remain available for inspection.
+- 2026-09-11: Added an HTML print-scope choice, defaulting to the full guide.
+  Overview and checks keeps course starting points, outstanding dated records
+  even when preparation is checked off, and main verification notes. Full tasks,
+  undated items and reference details remain on screen and in the full export;
+  the overview discloses its limited scope. Native inputs/CSS require no scripts
+  or network access. All 144 unit tests and connection-panel checks pass. The
+  isolated document test prints four full pages or two overview pages. A read-only
+  copy of the saved four-course guide prints a five-page overview instead of the
+  59-page full reference; every overview page was visually inspected. The original
+  saved state stayed byte-identical and the viewer made no network requests.
+  Live UBC sign-in remains unverified: the Windows inspection helper was unavailable
+  and the previously opened app predates the fixes. No real Canvas/AI request or
+  personal-guide update ran. AI remains off. Temporary review outputs are ignored.
+  Desktop refresh/export and rebuilt package checks passed with isolated synthetic
+  data. Current installer SHA256:
+  4668fa6fada8160b58d93021dad29f6ff181dd7aa0b3e86bd740e00eec0f3144.

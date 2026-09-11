@@ -78,6 +78,12 @@ separate. Double-check prompts precede the detailed Canvas records. Opening a gu
 updates its local checkmarks without recollecting Canvas. See study-guide-design.md
 for completion semantics, offline behavior and the richer AI planning work.
 
+The exported HTML guide has a collapsed Print options control. Full guide is the
+default; Overview and checks produces a shorter printout with starting points,
+recorded deadlines and main checks. The complete guide stays visible on screen.
+The printed overview explicitly points to the full document for undated work,
+all preparation tasks and supporting details.
+
 
 Visual system
 -------------

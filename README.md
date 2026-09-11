@@ -89,7 +89,12 @@ in the default browser. A Start here overview highlights one unfinished starting
 point per course and warns when multiple items share a recorded deadline. The full
 preparation checklist and source details follow it. The document follows browser light/dark preferences and
 includes section navigation and print styles. Weekly Plan.md and Weekly Plan.docx
-remain alongside it. The Word copy includes the same plan, source details and
+remain alongside it. For a shorter printout, expand Print options in the HTML
+guide, select Overview and checks, then use the browser's Print command. Full guide
+is the default. The overview keeps starting points, outstanding recorded deadlines
+and main verification checks; use the full guide for undated work and all details.
+The on-screen document stays complete regardless of the print choice.
+The Word copy includes the same plan, source details and
 verification notes, with local preparation states labeled To do or Done.
 Opening the guide does not contact Canvas or
 ChatGPT. The plan suggests preparation days, separates recorded deadlines, and

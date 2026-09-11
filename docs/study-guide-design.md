@@ -98,13 +98,27 @@ Source content is escaped; the document contains no executable scripts, remote
 images, fonts or other automatic network requests. External source navigation
 occurs only when the student clicks a link.
 
+Print options in the HTML reading note offers Full guide (default) or Overview
+and checks before using the browser's Print command. Native radio inputs and CSS
+select the print scope without scripts or changing the on-screen document. The
+overview retains course starting points, all outstanding dated records in the
+guide, and the main verification section. Checking preparation off never removes
+an outstanding submission deadline. A printed notice directs students to the full
+guide for undated work, every task, per-item checks and source details. Starting-point
+blocks and deadline rows stay together where they fit on a page. New exports
+default to Full guide; the app does not persist the choice. Markdown and Word
+exports are unchanged.
+
 
 Further acceptance work
 -----------------------
 
 1. Evaluate richer planning against the full real-course evidence and improve
    workload balance using student availability rather than an invented timetable.
-2. HTML-to-PDF print pagination and representative full-course export review.
+2. Broader browser and representative full-course export review. Electron HTML
+   printing passed a synthetic four-page full/two-page overview check, and every
+   page of a five-page overview of the saved four-course guide was inspected.
+   The 59-page full reference printout has not had complete visual review.
    Word export passes structural/content and file-safety tests; a six-page guide
    was paginated in Word 16.0 and every rendered page inspected. See the
    [native Word layout check](word-layout-check.md). This does not establish

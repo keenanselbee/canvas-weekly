@@ -73,3 +73,27 @@ test('HTML export migrates Markdown-only folders, preserves manual edits and rol
     assert.equal((await store.load(origin, 'one')).generatedAt, guide.generatedAt);
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });
+
+test('print overview retains dates and uncertainty without duplicating navigation IDs or dropping full content', () => {
+  const guide = fixture();
+  guide.studyPlan.focus = [];
+  guide.studyPlan.tasks.forEach(task => { task.done = true; });
+  guide.inWeek[0].dueDateStale = true;
+  guide.inWeek[0].availabilityStale = true;
+  const html = renderHtml(guide);
+  const nodes = [];
+  const walk = node => { nodes.push(node); for (const child of node.childNodes || []) walk(child); };
+  walk(parse(html));
+  const ids = nodes.flatMap(node => node.attrs?.filter(attr => attr.name === 'id').map(attr => attr.value) || []);
+  assert.equal(new Set(ids).size, ids.length, 'Section IDs must remain unique');
+  const full = nodes.find(node => node.attrs?.some(attr => attr.name === 'id' && attr.value === 'print-full'));
+  assert.ok(full.attrs.some(attr => attr.name === 'checked'), 'Printing must default to the complete guide');
+  assert.match(html, /Recorded deadlines/);
+  assert.match(html, /Last-known date; recheck/);
+  assert.match(html, /Availability needs recheck/);
+  assert.match(html, /Review the keys\./, 'Full source instructions remain present');
+  assert.match(html, /per-item check and source detail/);
+  const empty = renderHtml(buildGuide(reconcile([], null, { origin, now: '2026-09-10T18:00:00Z', timeZone: 'UTC' })));
+  assert.match(empty, /No outstanding dated items were identified/);
+  assert.match(empty, /id="print-overview"/);
+});

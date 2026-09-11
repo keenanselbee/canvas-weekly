@@ -4,6 +4,8 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { buildGuide, reconcile } from '../src/guide.js';
 import { GuideStore } from '../src/guide-store.js';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { createCanvas } from '@napi-rs/canvas';
 
 await fs.mkdir('.codex-temp/visual', { recursive: true });
 const root = path.resolve('.codex-temp');
@@ -58,6 +60,49 @@ try {
   await page.emulateMedia({ media: 'print' });
   assert.equal(await page.locator('nav').evaluate(node => getComputedStyle(node).display), 'none');
   await page.screenshot({ path: '.codex-temp/visual/document-print.png' });
+  const print = async name => {
+    const base64 = await application.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.printToPDF({ printBackground: true, preferCSSPageSize: true })).toString('base64'));
+    const bytes = Buffer.from(base64, 'base64');
+    await fs.writeFile(path.join(directory, `${name}.pdf`), bytes);
+    const loading = getDocument({ data: new Uint8Array(bytes), isEvalSupported: false, verbosity: 0 });
+    const texts = [];
+    try {
+      const pdf = await loading.promise;
+      for (let number = 1; number <= pdf.numPages; number++) {
+        const printed = await pdf.getPage(number);
+        const text = (await printed.getTextContent()).items.filter(item => item.str?.trim());
+        assert.ok(text.length > 0, 'No blank print pages');
+        for (const item of text) {
+          const [x, y] = item.transform.slice(4);
+          assert.ok(x >= 24 && x + item.width <= printed.view[2] - 24 && y >= 24 && y <= printed.view[3] - 24, `Print text outside page margins: ${item.str}`);
+        }
+        texts.push(text.map(item => item.str).join(' '));
+        if (name === 'overview') {
+          const viewport = printed.getViewport({ scale: 1.5 });
+          const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+          await printed.render({ canvasContext: canvas.getContext('2d'), viewport, canvas }).promise;
+          await fs.writeFile(path.join(directory, `overview-${number}.png`), canvas.toBuffer('image/png'));
+        }
+      }
+      return { pages: pdf.numPages, text: texts.join(' ') };
+    } finally { await loading.destroy(); }
+  };
+  const full = await print('full-guide');
+  await page.emulateMedia({ media: 'screen', colorScheme: 'light' });
+  await page.getByText('Print options', { exact: true }).click();
+  await page.getByRole('radio', { name: 'Overview and checks', exact: true }).check();
+  assert.equal(await page.getByRole('heading', { name: 'Full preparation checklist', exact: true }).isVisible(), true, 'Print choice must not hide on-screen tasks');
+  await page.screenshot({ path: '.codex-temp/visual/document-print-options.png' });
+  await page.emulateMedia({ media: 'print' });
+  assert.equal(await page.getByRole('heading', { name: 'Full preparation checklist', exact: true }).isVisible(), false);
+  const overview = await print('overview');
+  assert.ok(overview.pages < full.pages, 'Overview must use fewer pages than the full reference guide');
+  assert.match(overview.text, /Printed overview/);
+  assert.match(overview.text, /Recorded deadlines/);
+  assert.match(overview.text, /Relational keys practice/, 'A checked preparation task must retain its outstanding submission deadline');
+  assert.match(overview.text, /Confirm the lab room/);
+  assert.doesNotMatch(overview.text, /Full preparation checklist|Course information and coverage|Source quote:/);
+  console.log(JSON.stringify({ directory, fullPages: full.pages, overviewPages: overview.pages }));
   assert.deepEqual(requests, [], 'Reading and printing the document must make no network requests');
   await page.emulateMedia({ media: 'screen', colorScheme: 'light' });
   await page.getByRole('link', { name: 'Double-check before relying on this plan', exact: true }).click();

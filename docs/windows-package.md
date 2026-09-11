@@ -63,8 +63,10 @@ Remaining release checks
 
 - Installer/uninstaller walkthrough and execution on a clean Windows machine.
 - Live tightened UBC login and real course website access in the packaged app.
-- Full-course study-planning quality, representative export layout, and HTML print
-  pagination. The six-page synthetic native Word layout check passes; see
+- Full-course study-planning quality and broader export layout. The two-page
+  synthetic and five-page saved-guide HTML print overviews were visually checked;
+  the full 59-page saved reference printout was not reviewed page by page.
+  The six-page synthetic native Word layout check passes; see
   [Word layout verification](word-layout-check.md).
 - A dedicated application icon, signing identity and distribution destination
   before a polished public release. No installer or update has been published.
@@ -109,3 +111,10 @@ and announcement text from older saved guides as last-known evidence. Full packa
 checks passed, including matching application source and installer payload.
 SHA256: 931263b3abd3e55bfb43fc62b370e32802e17e68c8f6f3d04f6320c8a54f343f.
 This supersedes the earlier artifacts; it was not installed or used for live login.
+
+Print-overview rebuild (2026-09-11): the current installer includes Full guide and
+Overview and checks print choices in the exported HTML. Full package checks passed
+with an isolated profile, matching installer payload and private-state exclusions.
+SHA256: 4668fa6fada8160b58d93021dad29f6ff181dd7aa0b3e86bd740e00eec0f3144.
+This supersedes the earlier artifacts. Desktop refresh/export and connection-panel
+checks also passed with synthetic data. No installation or live account test ran.
