@@ -7,8 +7,13 @@ import { CanvasAudit } from './canvas-audit.js';
 import { CanvasNetwork } from './canvas-network.js';
 import { watchCanvasSession } from './canvas-session-watch.js';
 import { canvasResponseIdentity } from './canvas-identity.js';
+import { CanvasMetadataTransport } from './canvas-metadata-transport.js';
+import { canvasSessionAuthentication } from './canvas-csrf.js';
+import { collectStudentMetadata } from './canvas-student-collection.js';
 
 export class CanvasConnection {
+  #metadataTransport = null;
+  #metadataRunning = false;
   constructor({ directory, settings, onChange, onConnected = () => {} }) {
     this.file = path.join(directory, 'canvas-credential.json');
     this.audit = new CanvasAudit(directory);
@@ -28,7 +33,7 @@ export class CanvasConnection {
     this.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     this.session.on('will-download', event => event.preventDefault());
     this.session.webRequest.onBeforeRequest((details, callback) => {
-      callback({ cancel: !this.network.allows(details) });
+      callback({ cancel: !(this.#metadataTransport?.allows(details) || this.network.allows(details)) });
     });
   }
   get status() { return { connected: Boolean(this.profile), name: this.profile?.name || null, connecting: Boolean(this.loginWindow), error: this.connectionError, collectionIssue: this.client().collectionIssue }; }
@@ -103,6 +108,53 @@ export class CanvasConnection {
         }
         return response;
       }, audit: event => this.audit.write(event) });
+  }
+  async collectMetadata({ signal, onProgress = () => {} } = {}) {
+    // Keep a second hold here: direct callers must not bypass guide:update's
+    // production guard. No watcher, credentials, audit or request starts first.
+    const issue = this.client().collectionIssue;
+    if (issue) throw new Error(issue);
+    if (this.#metadataRunning) throw new Error('A Canvas collection is already running.');
+    const binding = this.capture();
+    if (!binding.courseIds.length) throw new Error('Choose at least one course first.');
+    this.#metadataRunning = true;
+    const run = new AbortController();
+    let watcher;
+    let currentSignal = AbortSignal.any([binding.signal, run.signal, ...(signal ? [signal] : [])]);
+    try {
+      watcher = await this.watchSession(binding, currentSignal);
+      if (watcher) currentSignal = AbortSignal.any([currentSignal, watcher.signal]);
+      const records = [];
+      for (let index = 0; index < binding.courseIds.length; index++) {
+        binding.assertCurrent();
+        currentSignal.throwIfAborted();
+        await watcher?.check();
+        onProgress(`Reading course ${index + 1} of ${binding.courseIds.length}...`);
+        const transport = new CanvasMetadataTransport({ origin: binding.origin, courseId: binding.courseIds[index],
+          studentId: binding.userId, globalUserId: binding.globalUserId, connectionSignal: currentSignal,
+          authentication: () => {
+            binding.assertCurrent();
+            return this.token ? { kind: 'token', value: this.token }
+              : canvasSessionAuthentication({ origin: binding.origin, cookies: this.session.cookies, signal: currentSignal });
+          },
+          fetcher: (url, init) => { binding.assertCurrent(); currentSignal.throwIfAborted(); return this.session.fetch(url, init); },
+          audit: event => this.audit.write(event) });
+        this.#metadataTransport = transport;
+        const record = await collectStudentMetadata({ transport, courseId: binding.courseIds[index], studentId: binding.userId,
+          globalUserId: binding.globalUserId, signal: currentSignal });
+        this.#metadataTransport = null;
+        await watcher?.check();
+        binding.assertCurrent();
+        currentSignal.throwIfAborted();
+        records.push(record);
+      }
+      return records;
+    } finally {
+      run.abort();
+      this.#metadataTransport = null;
+      watcher?.dispose();
+      this.#metadataRunning = false;
+    }
   }
   async verify() {
     const lifetime = this.lifetime;

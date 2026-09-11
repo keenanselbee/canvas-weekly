@@ -27,8 +27,9 @@ collector acceptance criteria. This is an unresolved release requirement.
 An isolated [metadata collector candidate](docs/canvas-metadata-design.md) now has
 fixed, schema-validated queries and a bounded transport tested against local
 HTTPS. Guide reconciliation distinguishes fresh deadlines from last-known
-instructions and unknown submission states. Live authentication wiring and the
-remaining permission review are still pending.
+instructions and unknown submission states. Connection and refresh wiring now
+exist behind the production pause; remaining permission review and institutional
+validation are still pending.
 
 The Electron desktop shell is implemented with This week, Courses and Settings,
 an explicitly labeled sample guide, native output folder selection, and persisted

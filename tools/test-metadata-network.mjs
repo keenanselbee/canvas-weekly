@@ -245,6 +245,12 @@ try {
   assert.equal(records.filter(event => event.operation === 'accountscope' && event.event === 'request').length, 11);
   assert.equal(records.filter(event => event.operation === 'accountscope' && event.event === 'body-read').length, 4);
   assert.doesNotMatch(log, /private-admin-account|accountMembership|90099|per_page/);
+  mode = 'student-only';
+  const beforeBridge = received.length;
+  const bridge = await application.evaluate(() => globalThis.metadataFixture.testConnectionBridge());
+  assert.deepEqual(bridge, { count: 1, pausedBeforeWatch: true, deniedOutsideRun: true, cancelledOnChange: true });
+  assert.deepEqual(received.slice(beforeBridge).map(request => request.method === 'GET' ? 'account' : JSON.parse(request.body).operationName),
+    ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklySubmissionStates']);
   console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, fixed account preflight, paginated metadata/enrollment parsing, foreign-user rejection, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
   console.log('Fixture profile: ' + directory);
 } finally {

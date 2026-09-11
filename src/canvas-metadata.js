@@ -1,5 +1,5 @@
-// Candidate field-level collector. It is deliberately not connected to the
-// production Canvas session until transport and transitive permission review pass.
+// Candidate field-level collector. CanvasConnection can run it only after its
+// production hold is removed following the complete admission review.
 const queries = Object.freeze({
   assignments: `query CanvasWeeklyAssignments($courseId: ID!, $after: String) {
   course(id: $courseId) {

@@ -1,7 +1,7 @@
 import { collectEnrollmentScope, enrollmentScopeRequest } from './canvas-enrollment-scope.js';
 import { collectMetadata, metadataRecord } from './canvas-metadata.js';
 
-// Isolated orchestration only. Production does not import this module. Supply
+// Candidate orchestration behind CanvasConnection's production hold. Supply
 // one fresh CanvasMetadataTransport bound to this course/account/connection so
 // every stage shares response identity, cancellation, audit and byte budgets.
 export async function collectStudentMetadata({ transport, courseId, studentId, globalUserId, signal } = {}) {

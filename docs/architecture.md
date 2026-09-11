@@ -40,7 +40,7 @@ flowchart TD
   Guide --> Export[Versioned weekly exports]
 ```
 
-The Canvas adapter permits only a finite set of GET endpoints and validated
+The legacy Canvas adapter permits only a finite set of GET endpoints and validated
 parameters. It does not accept arbitrary URLs from the AI. Resolve pagination only
 inside the same Canvas origin and endpoint. Disable automatic redirects and
 validate any explicitly followed redirect. Set auto_mark_as_read=false for Inbox
@@ -50,12 +50,26 @@ insufficient: some reads mutate state.
 
 Live guide refresh is currently paused. The main IPC handler checks the client's
 collectionIssue before verification or storage changes, and CanvasClient.collect
-itself refuses all scans. The UI disables Update guide and explains the hold.
+itself refuses all scans. The replacement CanvasConnection.collectMetadata method
+also checks the hold before any watcher, transport or request is created. The
+refresh coordinator calls that guarded method. The UI disables Update guide and
+explains the hold.
 Assignments, quizzes and pages are removed from the REST operation table; the
 network gate therefore rejects their formerly accepted URLs. Downstream rendering,
 reconciliation and export remain independently testable with supplied records.
 See canvas-read-boundary.md for the transitive permission/serialization audit and
 requirements to restore the full collector. This hold is not the final architecture.
+
+The replacement bridge creates one CanvasMetadataTransport per selected course,
+using the captured local/global identity and connection lifetime. Account and
+enrollment preflights precede the fixed metadata queries. The session's existing
+request listener delegates to the active transport's exact pending-request
+check; it is not a persistent GraphQL permission or a second competing listener.
+The transport is removed on success, failure or cancellation. Concurrent runs
+are rejected. The bridge watches session cookies itself, checks its binding at
+asynchronous boundaries, and discards results after account or course changes.
+The refresh coordinator retains its independent checks before guide persistence.
+Both the IPC handler and bridge enforce the current production pause.
 
 Module/module-item listing is disabled after the safety audit: Canvas can create
 and evaluate student progression on these reads. Preserve previous module evidence

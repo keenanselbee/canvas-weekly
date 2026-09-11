@@ -455,3 +455,15 @@ Work log
   exports no role evidence. All 112 unit tests and the Electron localhost HTTPS
   fixture pass. Production wiring and institution validation remain pending;
   no live account request, AI request or personal guide change occurred.
+- 2026-09-11: Wired the metadata transport and student preflights through the
+  connection and guide-refresh coordinator behind the existing production hold.
+  A second hold blocks direct connection calls before credentials or requests;
+  active request admission and cookie watchers are cleaned up after each run.
+  The localhost Electron fixture verifies the actual bridge, ordered preflights,
+  concurrent-run rejection, cancellation and denial outside collection. All 112
+  unit tests, connection lifecycle tests and synthetic desktop refresh pass.
+  Rebuilt the Windows preview; packaged source/payload checks, fresh profile,
+  bundled Codex initialization, both themes and restart persistence pass.
+  Installer SHA256: b880f2dd4960ecaffe7900001ced2245996637b382bf44b69dfb4d8c26ad162c.
+  No installer walkthrough, institutional validation or real AI request ran.
+  Production collection remains paused and personal guides remain untouched.

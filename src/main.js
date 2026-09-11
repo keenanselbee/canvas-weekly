@@ -206,7 +206,7 @@ else {
         if (canvas.profile.id !== userId) throw new Error('Canvas account changed. Reconnect and select courses for this account.');
         const previous = await guides.load(binding.origin, userId);
         binding.assertCurrent();
-        const records = await canvas.client({ signal, onProgress: message => { run = { busy: true, message }; publish(); } }).collect(binding.courseIds);
+        const records = await canvas.collectMetadata({ signal, onProgress: message => { run = { busy: true, message }; publish(); } });
         await sessionWatch?.check();
         binding.assertCurrent();
         if (!records.some(record => record.coverage.some(source => ['assignments', 'quizzes', 'assignment metadata'].includes(source.source) && source.status === 'ok'))) throw new Error('No assessment information could be refreshed. Your previous guide has been preserved.');

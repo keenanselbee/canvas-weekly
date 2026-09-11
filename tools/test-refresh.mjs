@@ -70,13 +70,13 @@ try {
   await application.evaluate((_electron, moduleUrl) => {
     const require = process.getBuiltinModule('module').createRequire(moduleUrl);
     const { CanvasClient } = require('./canvas-client.js');
-    globalThis.originalCollectionIssue = Object.getOwnPropertyDescriptor(CanvasClient.prototype, 'collectionIssue');
-    globalThis.originalCollect = CanvasClient.prototype.collect;
     const { CanvasConnection } = require('./canvas-session.js');
+    globalThis.originalCollectionIssue = Object.getOwnPropertyDescriptor(CanvasClient.prototype, 'collectionIssue');
+    globalThis.originalCollect = CanvasConnection.prototype.collectMetadata;
     const capture = CanvasConnection.prototype.capture;
     CanvasConnection.prototype.capture = function (...args) { globalThis.syntheticConnection = this; return capture.apply(this, args); };
     Object.defineProperty(CanvasClient.prototype, 'collectionIssue', { configurable: true, get: () => null });
-    CanvasClient.prototype.collect = async function () { this.signal?.throwIfAborted(); return structuredClone(globalThis.syntheticRecords); };
+    CanvasConnection.prototype.collectMetadata = async function ({ signal } = {}) { signal?.throwIfAborted(); return structuredClone(globalThis.syntheticRecords); };
   }, new URL('../src/canvas-client.js', import.meta.url).href);
   await page.reload();
   await page.getByRole('button', { name: 'Courses', exact: true }).click();
@@ -265,10 +265,10 @@ try {
   for (const change of ['connection', 'cookie']) {
     await application.evaluate((_electron, moduleUrl) => {
       const require = process.getBuiltinModule('module').createRequire(moduleUrl);
-      const { CanvasClient } = require('./canvas-client.js');
+      const { CanvasConnection } = require('./canvas-session.js');
       globalThis.syntheticCollectionEntered = new Promise(resolve => { globalThis.enterCollection = resolve; });
       const hold = new Promise(resolve => { globalThis.releaseCollection = resolve; });
-      CanvasClient.prototype.collect = async function () {
+      CanvasConnection.prototype.collectMetadata = async function () {
         globalThis.enterCollection(); await hold;
         return structuredClone(globalThis.syntheticRecords); // Deliberately ignores cancellation to exercise the consumer guard.
       };
@@ -288,8 +288,9 @@ try {
   await application.evaluate((_electron, moduleUrl) => {
     const require = process.getBuiltinModule('module').createRequire(moduleUrl);
     const { CanvasClient } = require('./canvas-client.js');
+    const { CanvasConnection } = require('./canvas-session.js');
     Object.defineProperty(CanvasClient.prototype, 'collectionIssue', globalThis.originalCollectionIssue);
-    CanvasClient.prototype.collect = globalThis.originalCollect;
+    CanvasConnection.prototype.collectMetadata = globalThis.originalCollect;
   }, new URL('../src/canvas-client.js', import.meta.url).href);
   await page.reload();
   await page.getByRole('heading', { name: 'Canvas refresh paused', exact: true }).waitFor();

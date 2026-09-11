@@ -1,9 +1,9 @@
 Candidate Canvas metadata collector
 ===================================
 
-Status: isolated query/parser and network components are implemented in
-canvas-metadata.js and canvas-metadata-transport.js. Neither is connected to the
-production Canvas client or enabled in its session gate.
+Status: query/parser and network components are implemented in canvas-metadata.js
+and canvas-metadata-transport.js. The CanvasConnection bridge and refresh handler
+are wired behind the production hold; no transport is created while it is paused.
 Live guide refresh remains paused. This is a component of the replacement collector,
 not a completed restoration of automatic collection.
 
@@ -240,8 +240,8 @@ is rejected before starting does not invalidate the already-running read.
 
 Successful output contains only the bound local/global user IDs and
 accountMembership: none, frozen in memory. It is not proof of student enrollment,
-date-effective access or permission to start collection. The production session
-does not instantiate this transport or admit this GET. The stock serializer's
+date-effective access or permission to start collection. The production hold
+prevents transport construction and admission of this GET. The stock serializer's
 extension registration inventory is complete in the permission review; remaining
 enrollment/permission paths and institution-specific dependencies retain the hold.
 
@@ -341,7 +341,7 @@ Integration work still required
 canvas-student-collection.js now composes the isolated steps in a fixed order:
 account membership, complete self-enrollment pagination, supported role checks,
 then assignment/submission metadata. It requires a supplied transport bound to
-one verified course/account/connection; production does not import it. Account
+one verified course/account/connection; the connection bridge is paused. Account
 evidence must match both the local student and global response identity. Every
 enrollment must have raw StudentEnrollment type and the exact reserved built-in
 role name, with at least one active row. No conflicting row is discarded. A
@@ -355,15 +355,26 @@ page two, and completes metadata only for its synthetic student-only response.
 These are orchestration tests, not proof of live enrollment, authentication or
 institutional compatibility. The full production hold remains in force.
 
+CanvasConnection.collectMetadata now connects these components to the existing
+session and guide-update handler behind that hold. It captures its own binding,
+watches the stock session cookie, admits only the currently pending transport
+request and removes admission in finally. Its second hold check prevents direct
+calls from bypassing the IPC handler. The localhost fixture exercises this actual
+bridge with a synthetic profile and Electron cookie jar, verifies the six-request
+account/enrollment/metadata order, rejects an outside-run POST, rejects concurrent
+collection and cancels after connection invalidation. Cookie listeners return to
+their original count. Only the test process replaces the hold getter; there is
+no production setting or IPC switch for doing so.
+
 1. Finish the permission/controller review for the revised selection. Confirm
    the direct stored-date getter and remaining authorization paths; the removed
    assignment override selection and Planner calendar route are not admitted.
-2. Integrate the isolated transport only after the remaining permission review.
-   Supply a verified connection/enrollment binding and connect the tested cookie helper;
+2. Admit the guarded connection bridge only after the remaining permission review.
+   The verified connection binding, preflight sequence and cookie helper are wired;
    CanvasConnection now invalidates local clients on account, course-scope and
    credential transitions, and guide runs retain an immutable local binding.
-   Enrollment-role evidence and integration of the reviewed transport remain
-   required before this can admit metadata requests. Cookie changes and returned
+   The bridge gathers fresh enrollment-role evidence before metadata requests,
+   but its production hold still prevents any request from starting. Cookie changes and returned
    global account identities now have independent guards as described above. The
    [enrollment-scope review](canvas-enrollment-scope.md) explains why the filtered
    course list is insufficient and provides a schema-validated field-query candidate.
@@ -374,7 +385,7 @@ institutional compatibility. The full production hold remains in force.
    for broader permissions. GraphQL uses POST, so method alone cannot enforce
    the mutation boundary. Apply the additional identity, envelope and CSRF checks
    recorded in the permission review.
-3. Wire completed live results through metadataRecord and the tested reconciliation
+3. Validate live results through metadataRecord and the wired reconciliation
    path, preserving its field-specific ages and coverage gaps. Combine additional
    reviewed course sources without presenting missing instructions as refreshed.
    Keep quiz-only metadata and course materials coverage explicit. A partial

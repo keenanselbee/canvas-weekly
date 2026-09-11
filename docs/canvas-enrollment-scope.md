@@ -243,8 +243,9 @@ single-use byte gate. The same origin, identity, cookie/token, redirect, timeout
 and streaming limits apply. Enrollment pages share its 200-request/16-MiB budget
 with metadata reads when the same instance is used. CanvasAudit records the
 distinct metadataenrollments operation and body hash; it omits role records,
-cursor values and credentials. This operation is not registered with the
-production session and does not itself authorize later metadata operations.
+cursor values and credentials. The guarded connection bridge installs admission only during a metadata run;
+the production hold prevents that run from starting. Enrollment reads alone do
+not authorize later metadata operations.
 
 Four additional enrollment unit cases cover the exact request boundary, complete
 pagination, early failure/budget exhaustion and cancellation; the original seven

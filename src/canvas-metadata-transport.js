@@ -47,8 +47,8 @@ function requireEmptyAccountPage(data, headers, origin) {
   }
 }
 
-// Candidate transport only. CanvasConnection does not instantiate this class or
-// install its admission callback. The production refresh hold remains in force.
+// CanvasConnection creates this transport only inside its guarded metadata run.
+// The production refresh hold remains in force before any transport is created.
 // Create one instance per course collection using a verified account binding.
 export class CanvasMetadataTransport {
   #origin;
