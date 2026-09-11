@@ -1,4 +1,4 @@
-import { blockedAssessmentUrl, permittedRead } from './canvas-client.js';
+import { blockedAssessmentUrl, blockedCanvasFileRead, permittedRead } from './canvas-client.js';
 
 export class CanvasNetwork {
   constructor({ origin, loginContentsId, fetcher }) {
@@ -23,7 +23,7 @@ export class CanvasNetwork {
   allows(details) {
     try {
       const url = new URL(details.url);
-      if (url.protocol !== 'https:' || url.username || url.password || blockedAssessmentUrl(url.href)) return false;
+      if (url.protocol !== 'https:' || url.username || url.password || blockedAssessmentUrl(url.href) || blockedCanvasFileRead(url.href)) return false;
       // A browser page cannot borrow a pending main-process API request.
       if (!details.webContentsId && details.method === 'GET' && this.pending.has(url.href)
         && permittedRead(url.href, this.origin())) return true;

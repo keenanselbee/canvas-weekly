@@ -15,6 +15,7 @@ const html = body => ({ status: 200, headers: { 'content-type': 'text/html; char
 test('website scopes reject assessment actions, cross-scope redirects and private network addresses', async () => {
   const scope = siteScope(site.url);
   for (const value of ['https://elsewhere.example/data311/', '../other/', 'quiz/take', 'resume.html', 'api/user', 'page.html?token=secret', '%252fapi', '/data311-other/']) assert.equal(siteUrl(value, scope), null, value);
+  for (const value of ['https://files.example/files/2/download', 'https://files.example/courses/1/files/2', 'https://files.example/courses/1/file_contents/notes.pdf']) assert.throws(() => siteScope(value));
   for (const value of ['http://course.example/data311/', 'https://student:secret@course.example/data311/', 'https://127.0.0.1/', 'https://canvas.example./courses/1', 'https://course.example/data311/login']) assert.throws(() => siteScope(value));
   for (const address of ['127.0.0.1', '10.1.2.3', '169.254.169.254', '192.168.1.1', '100.64.1.2', '198.19.0.1', '::1', '::ffff:127.0.0.1', 'fc00::1', '2001:db8::1', '2001:20::1', '2002:7f00:1::1']) assert.equal(publicAddress(address), false, address);
   assert.equal(publicAddress('8.8.8.8'), true);

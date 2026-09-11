@@ -39,6 +39,9 @@ test('login permits authentication and assets but rejects Canvas APIs, writes an
   assert.equal(gate.allows({ ...details, url: origin + '/login' }), true);
   assert.equal(gate.allows({ ...details, url: origin + '/login/saml', method: 'POST' }), true);
   assert.equal(gate.allows({ ...details, url: 'https://identity.example/sso', method: 'POST' }), true);
+  for (const route of ['/files/2/download', '/courses/1/files/2/preview', '/api/v1/files/2/public_url', '/courses/1/file_contents/notes.pdf']) {
+    assert.equal(gate.allows({ ...details, url: 'https://files.example' + route }), false, 'File-host navigation is not an identity-provider login');
+  }
   assert.equal(gate.allows({ ...details, url: origin + '/dist/app.js', resourceType: 'script' }), true);
   for (const route of ['/api/v1/conversations/7', '/api/v1/users/self/profile', '/api/v1/courses/1/modules', '/courses/1/pages/read-me', '/logout']) {
     assert.equal(gate.allows({ ...details, url: origin + route, resourceType: 'image' }), false, route);

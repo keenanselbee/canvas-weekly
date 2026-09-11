@@ -201,3 +201,13 @@ Work log
   pass. Rebuilt the installer and verified both readers within the actual packaged
   app alongside prior package checks. No real course site or Canvas was read.
   Canvas-hosted file downloads, browser login, OCR and Word render QA remain open.
+- 2026-09-10: Reviewed Canvas file-content access before enabling it. Upstream
+  standard downloads/previews can update module view progress. Kept those routes
+  disabled and added explicit guards across login/file-host and website boundaries.
+  File names and original links remain in the guide with a new file-content safety
+  gap. Documented the alternative storage-access review still required in
+  canvas-file-access.md. Forty-eight unit tests and the actual Electron/local HTTPS
+  network fixture pass. Rebuilt the unsigned installer and passed packaged source,
+  payload, first-run, Codex, theme and document-reader checks. No authenticated
+  Canvas or storage request was made. Alternative storage access and local imports
+  remain implementation work; the historical account-state limitation is unchanged.

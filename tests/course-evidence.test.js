@@ -58,3 +58,16 @@ test('disabled module collection preserves historical requirements as stale with
   assert.match(module.body, /Introduction/);
   assert.match(renderMarkdown(guide), /Disabled because reading can update learning progress/);
 });
+
+test('Canvas file references explain the progress boundary without exposing signed download URLs', () => {
+  const current = record();
+  current.sources.files = [{ id: 21, display_name: 'Lecture.pdf', url: 'https://files.example/files/21/download?verifier=private-file-secret' }, { id: 22, display_name: 'Later.pdf', locked_for_user: true }];
+  current.coverage.push({ source: 'fileContents', status: 'unsupported', message: 'Standard downloads can update module progress.' });
+  const guide = buildGuide(reconcile([current], null, context));
+  const markdown = renderMarkdown(guide);
+  assert.match(markdown, /Contents not collected: Canvas file views and downloads can update module progress/);
+  assert.match(markdown, /https:\/\/canvas.example\/courses\/1\/files\/21/);
+  assert.match(markdown, /File is locked/);
+  assert.doesNotMatch(JSON.stringify(guide), /private-file-secret|files.example/);
+  assert.match(JSON.stringify(planningEvidence(guide)), /downloads can update module progress/);
+});

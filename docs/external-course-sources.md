@@ -6,6 +6,9 @@ with synthetic fixtures. The actual DATA 311 site has not been collected by this
 adapter yet. PDF/DOCX text extraction is now implemented for documents linked
 inside connected website scopes. Browser-login adapters and Canvas-hosted file
 downloads remain pending.
+Canvas-style file routes are rejected even on a separate hostname: they may update
+module progress. They cannot be enabled by adding a website connection. See the
+[file access review](canvas-file-access.md).
 Canvas often supplies only the submission deadlines while a separate course
 website contains the syllabus, reading schedule, lecture slides and lab directions.
 Treat both as sources for the same course, with independent access and coverage.

@@ -30,7 +30,8 @@ details now feed both the factual guide and optional AI evidence. Public and
 password-protected HTTP Basic course websites can now be connected under Courses.
 Linked PDF and DOCX text is collected within connected course websites, with
 explicit extraction limitations. Browser-login websites and Canvas-hosted file
-contents remain pending; see
+contents remain pending. Standard Canvas file downloads can update module progress,
+so they remain blocked; see [file access review](docs/canvas-file-access.md) and
 [external course sources](docs/external-course-sources.md).
 
 Safety audit follow-up: module and module-item reads are now disabled because

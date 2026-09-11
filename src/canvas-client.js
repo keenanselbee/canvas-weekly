@@ -72,6 +72,17 @@ export function blockedAssessmentUrl(value) {
   } catch { return true; }
 }
 
+// File previews/downloads can satisfy Canvas module view requirements. This is
+// separate from reference links: a student may deliberately open the original.
+export function blockedCanvasFileRead(value) {
+  try {
+    const route = decodeURIComponent(new URL(value).pathname).toLowerCase();
+    return /%|\\/.test(route)
+      || /^\/(?:api\/v1\/)?(?:(?:courses|users|groups|accounts)\/\d+\/)?files\/\d+(?:[/.]|$)/.test(route)
+      || /^\/(?:courses|users|groups|accounts)\/\d+\/file_contents(?:\/|$)/.test(route);
+  } catch { return true; }
+}
+
 export class CanvasClient {
   constructor({ origin, fetcher, token, signal, onProgress = () => {}, audit = async () => {} }) {
     this.origin = new URL(origin).origin;
@@ -192,6 +203,9 @@ export class CanvasClient {
         const unavailable = record.sources.pages.filter(page => typeof page.body !== 'string').length;
         record.coverage.push({ source: 'pageBodies', status: unavailable ? 'partial' : 'ok', message: unavailable ? `${unavailable} page bodies unavailable (locked, unsupported, or omitted by Canvas).` : undefined, checkedAt: new Date().toISOString() });
       }
+      if (record.sources.files?.length) record.coverage.push({ source: 'fileContents', status: 'unsupported',
+        message: 'Canvas file names are collected, but contents are not downloaded: standard Canvas file views and downloads can update module progress. Check the listed files yourself. A separate storage access method still needs safety validation.',
+        checkedAt: new Date().toISOString() });
       courses.push(record);
     }
     return courses;

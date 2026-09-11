@@ -44,6 +44,12 @@ Findings and repair status
    External HTTPS identity-provider traffic is restricted to the login window;
    individual institutional SSO hosts are not yet configured as an allowlist.
    Actual UBC sign-in with the tightened asset/API restrictions needs validation.
+4. High for future attachment support: standard Canvas file downloads and previews
+   can satisfy module view requirements. They were not enabled in the collector.
+   Added an explicit file-route guard to the login and website boundaries, plus
+   file-content coverage warnings. Metadata and student-clicked source links remain
+   available. Alternate storage access is still under review; see
+   [file access review](canvas-file-access.md). No live requests were made for this review.
 
 The finite collector contains no operation that starts/resumes a quiz, fetches
 attempt questions, submits work, sends messages, or edits account settings.
@@ -82,7 +88,7 @@ The earlier saved factual guide was an evidence list. The application now builds
 source-linked preparation tasks, suggested dates distinct from deadlines, local
 completion tracking and concrete verification prompts. Local task completion and
 Open guide have synthetic desktop tests confirming no Canvas fetches. Word
-output and full-course quality review remain. AI steps now use validated
+output is implemented; Word page rendering and full-course quality review remain. AI steps now use validated
 source IDs and matching quotes for required/optional interpretations; these do not
 prove that the interpretation is correct. A live model turn using synthetic
 evidence and the app's saved ChatGPT connection passed with the official CLI

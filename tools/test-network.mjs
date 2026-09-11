@@ -54,6 +54,8 @@ try {
       ['/api/v1/users/self/profile?per_page=100', 'GET'],
       ['/api/v1/courses/1/modules', 'GET'],
       ['/api/v1/conversations/7', 'GET'],
+      ['/files/2/download', 'GET'],
+      ['/api/v1/files/2/public_url', 'GET'],
       ['/api/v1/courses/1/quizzes/2/submissions', 'POST'],
     ]) {
       try { await connection.session.fetch(origin + route, { method }); results.push(false); }
@@ -73,7 +75,7 @@ try {
   const page = await application.firstWindow();
   const browserDenied = await page.evaluate(async () => {
     const results = [];
-    for (const route of ['/api/v1/conversations/7', '/api/v1/courses/1/modules', '/api/v1/users/self/profile?per_page=100']) {
+    for (const route of ['/api/v1/conversations/7', '/api/v1/courses/1/modules', '/api/v1/users/self/profile?per_page=100', '/files/2/download', '/courses/1/files/2/preview']) {
       try { await fetch(route); results.push(false); } catch { results.push(true); }
     }
     return results;
@@ -89,7 +91,7 @@ try {
   assert.deepEqual(received.map(request => request.route), [
     '/api/v1/users/self/profile', '/api/v1/courses/1/quizzes', '/login', '/api/v1/users/self/profile',
   ]);
-  console.log('Network checks passed: real Electron interception, approved reads, denied writes/module/message reads, manual redirects, and login/collector separation on local HTTPS.');
+  console.log('Network checks passed: real Electron interception, approved reads, denied writes/module/message/file-content reads, manual redirects, and login/collector separation on local HTTPS.');
 } finally {
   if (application) await application.close();
   server.closeAllConnections();

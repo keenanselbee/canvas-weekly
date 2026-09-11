@@ -4,6 +4,7 @@ import net from 'node:net';
 import crypto from 'node:crypto';
 import { extractDocument, referenceUrl } from './content.js';
 import { readDocument } from './document-reader.js';
+import { blockedCanvasFileRead } from './canvas-client.js';
 
 const actionRoute = /(?:^|\/)(?:quiz(?:zes)?|assessments?|login|signin|logout|signout|admin|api|take|resume|submit|attempts?|delete|edit|launch|complete|mark|enroll|register)(?:[/.\-_]|$)/i;
 
@@ -27,6 +28,7 @@ export function siteUrl(value, scope) {
     if (url.origin !== scope.origin || url.username || url.password || url.search || /%|\\/.test(route)
       || !(url.pathname.startsWith(scope.prefix) || url.pathname === scope.prefix.slice(0, -1))
       || !referenceUrl(url.href, scope.origin)
+      || blockedCanvasFileRead(url.href)
       || actionRoute.test(route)) return null;
     return url;
   } catch { return null; }

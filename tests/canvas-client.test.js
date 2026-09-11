@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CanvasClient, requestUrl, validateNextPage, blockedAssessmentUrl } from '../src/canvas-client.js';
+import { CanvasClient, requestUrl, validateNextPage, blockedAssessmentUrl, blockedCanvasFileRead } from '../src/canvas-client.js';
 
 const json = (body, headers = {}) => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json', ...headers } });
 
@@ -79,4 +79,21 @@ test('module progress routes are denied in the login browser as well as the coll
   for (const route of ['/api/v1/courses/1/modules', '/api/v1/courses/1/modules/2/items', '/courses/1/modules', '/courses/1/modules/2', '/courses/1/modules/items/3']) {
     assert.equal(blockedAssessmentUrl('https://canvas.example' + route), true, route);
   }
+});
+
+test('file content routes are distinct from metadata and never followed during collection', async () => {
+  for (const route of ['/files/2', '/files/2/download?preview=1', '/courses/1/files/2/preview', '/api/v1/files/2/public_url', '/api/v1/courses/1/files/2?view=true', '/courses/1/file_contents/lecture.pdf', '/courses/1/%66iles/2/download', '/courses/1/%2566iles/2/download', '/courses/1/%2566iles%252f2/download']) {
+    assert.equal(blockedCanvasFileRead('https://files.example' + route), true, route);
+  }
+  for (const route of ['/api/v1/courses/1/files', '/data311/files/lecture.pdf', '/login/saml']) assert.equal(blockedCanvasFileRead('https://canvas.example' + route), false, route);
+  const requests = [];
+  const client = new CanvasClient({ origin: 'https://canvas.example', fetcher: async address => {
+    const url = new URL(address); requests.push(url.pathname);
+    assert.equal(blockedCanvasFileRead(address), false);
+    return json(url.pathname.endsWith('/files') ? [{ id: 2, display_name: 'Syllabus.pdf', url: 'https://files.example/files/2/download?verifier=fixture-secret' }] : url.pathname === '/api/v1/courses/1' ? { id: 1 } : []);
+  } });
+  const [result] = await client.collect(['1']);
+  assert.equal(requests.length, 9);
+  assert.equal(result.sources.files[0].display_name, 'Syllabus.pdf');
+  assert.match(result.coverage.find(source => source.source === 'fileContents').message, /update module progress/);
 });

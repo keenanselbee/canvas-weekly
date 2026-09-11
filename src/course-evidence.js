@@ -69,7 +69,7 @@ export function courseEvidence(record, previous, origin, now) {
   }
   for (const file of record.sources.files || []) {
     const url = base + `/files/${file.id}`;
-    references.set(url, { title: String(file.display_name || file.filename || 'Course file'), sourceUrl: url, foundOn: base + '/files', status: file.locked_for_user ? 'File is locked' : 'File contents not collected' });
+    references.set(url, { title: String(file.display_name || file.filename || 'Course file'), sourceUrl: url, foundOn: base + '/files', status: file.locked_for_user ? 'File is locked' : 'Contents not collected: Canvas file views and downloads can update module progress. Check the original yourself.' });
   }
   for (const website of record.sources.websites || []) {
     for (const page of website.pages) add('website', page.id, page.title, '', page.sourceUrl, {
