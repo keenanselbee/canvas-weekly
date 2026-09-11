@@ -172,7 +172,7 @@ These boundaries apply to the implemented collector and all future adapters.
   or tasks, change settings, join groups, or mark items read/done.
 - Use explicit allowlists of supported read operations, including their exact
   paths and parameters. GET alone is not proof of absence of side effects.
-- Conversation details must explicitly use `auto_mark_as_read=false`.
+- Conversation REST reads are disabled: `auto_mark_as_read=false` does not prevent attachment permission/lock serialization. See [the message replacement review](docs/canvas-message-review.md).
 - Browser fallback must reject assessment attempt routes and unapproved external
   launches, including redirects and generic module Next/Previous navigation.
   A list of forbidden button labels is only a supplemental guard.

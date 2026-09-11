@@ -530,3 +530,16 @@ Work log
   Live UBC compatibility and automatic Canvas instructions/materials/messages
   remain incomplete; the broader goal is active. Fixture profiles/logs/screenshots
   remain in ignored .codex-temp for inspection, and dist contains the local build.
+- 2026-09-11: Reviewed course-message reads and found that the old REST detail
+  serializer expands attachments through file lock/permission checks despite
+  auto_mark_as_read=false. Removed both conversation REST operations from the
+  request/network allowlist. Added isolated fixed GraphQL conversation discovery
+  and text query/parsers with bound course/user/context validation, duplicate and
+  changed-thread rejection, credential-line redaction and no transport admission.
+  Both queries validate against the pinned schema. All 125 unit tests, actual
+  Electron network rejection tests and the rebuilt Windows package checks pass.
+  Installer SHA256: 1afc716b910dfec92a4f8ce428883e2eefa753f2d3bdc6a3e5c0913acd6a95fd.
+  The enabled metadata refresh is unchanged; message model-hook review, bound
+  transport/pagination and guide integration remain next. No real Canvas/AI
+  requests, installer walkthrough or personal-guide changes ran. Ignored review
+  sources, test profiles/logs and local dist artifacts remain for inspection.

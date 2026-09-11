@@ -15,6 +15,12 @@ prove the absence of historical account changes. No authenticated Canvas request
 were issued for this audit.
 
 
+Message follow-up, 2026-09-11: the old conversation REST operations are now also
+removed from request/network admission. The false read flag protects only the
+explicit mark-read statement; message attachment serialization can reach the
+withdrawn file-lock path. The isolated [message query candidate](canvas-message-review.md)
+is not admitted to the live transport. The enabled metadata refresh is unchanged.
+
 Findings and repair status
 -------------------------
 

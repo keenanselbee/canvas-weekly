@@ -48,8 +48,8 @@ test('audit failure prevents a request and failed response logging cancels its b
 test('network failure is recorded separately without serializing sensitive exception text', async () => {
   const events = [];
   const client = new CanvasClient({ origin: 'https://canvas.example', audit: async event => events.push(event), fetcher: async () => { throw new Error('private-network-detail'); } });
-  await assert.rejects(client.read('conversation', { conversationId: 7 }), /private-network-detail/);
+  await assert.rejects(client.read('profile'), /private-network-detail/);
   assert.deepEqual(events.map(event => event.event), ['request', 'network-error']);
-  assert.equal(events[0].preservesUnread, true);
+  assert.equal(events[0].preservesUnread, false);
   assert.doesNotMatch(JSON.stringify(events), /private-network-detail/);
 });

@@ -15,8 +15,8 @@ const operations = {
   files: args => [`/api/v1/courses/${id(args.courseId)}/files`, { 'only[]': 'names' }],
   groups: args => [`/api/v1/courses/${id(args.courseId)}/assignment_groups`, {}],
   announcements: args => ['/api/v1/announcements', { 'context_codes[]': `course_${id(args.courseId)}`, start_date: '1970-01-01', active_only: 'true' }],
-  conversations: args => ['/api/v1/conversations', { 'filter[]': `course_${id(args.courseId)}` }],
-  conversation: args => [`/api/v1/conversations/${id(args.conversationId)}`, { auto_mark_as_read: 'false' }],
+  // Conversation REST serialization expands attachments and permission checks.
+  // auto_mark_as_read=false is insufficient to admit the complete response.
   calendar: args => ['/api/v1/calendar_events', { 'context_codes[]': `course_${id(args.courseId)}`, all_events: 'true', type: 'event' }],
 };
 
@@ -49,7 +49,6 @@ export function permittedRead(value, origin) {
     const context = url.searchParams.get('context_codes[]') || url.searchParams.get('filter[]') || '';
     const args = {
       courseId: url.pathname.match(/^\/api\/v1\/courses\/(\d+)(?:\/|$)/)?.[1] || context.match(/^course_(\d+)$/)?.[1],
-      conversationId: url.pathname.match(/^\/api\/v1\/conversations\/(\d+)$/)?.[1],
     };
     const count = url.searchParams.get('per_page');
     if (count !== null && (!/^\d+$/.test(count) || Number(count) < 1 || Number(count) > 100)) return false;

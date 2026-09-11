@@ -5,10 +5,10 @@ import { requestUrl, permittedRead } from '../src/canvas-client.js';
 
 test('network admission requires exact reviewed paths and parameters', () => {
   const origin = 'https://canvas.example';
-  for (const operation of ['profile', 'courses', 'course', 'files', 'groups', 'announcements', 'conversations', 'conversation', 'calendar']) {
+  for (const operation of ['profile', 'courses', 'course', 'files', 'groups', 'announcements', 'calendar']) {
     assert.equal(permittedRead(requestUrl(origin, operation, { courseId: 1, conversationId: 7 }), origin), true, operation);
   }
-  for (const route of ['/api/v1/courses/1/assignments?include[]=submission&override_assignment_dates=true', '/api/v1/courses/1/quizzes', '/api/v1/courses/1/pages?include[]=body', '/api/v1/courses/1/files', '/api/v1/courses/1/files?only[]=names&only[]=names', '/api/v1/conversations/7', '/api/v1/conversations/7?auto_mark_as_read=true', '/api/v1/courses/1/modules', '/api/v1/courses/1/assignments?include[]=submission', '/api/v1/users/self/profile?delete=true', '/api/v1/users/self/profile?per_page=1000']) {
+  for (const route of ['/api/v1/conversations?filter[]=course_1', '/api/v1/conversations/7?auto_mark_as_read=false', '/api/v1/courses/1/assignments?include[]=submission&override_assignment_dates=true', '/api/v1/courses/1/quizzes', '/api/v1/courses/1/pages?include[]=body', '/api/v1/courses/1/files', '/api/v1/courses/1/files?only[]=names&only[]=names', '/api/v1/conversations/7', '/api/v1/conversations/7?auto_mark_as_read=true', '/api/v1/courses/1/modules', '/api/v1/courses/1/assignments?include[]=submission', '/api/v1/users/self/profile?delete=true', '/api/v1/users/self/profile?per_page=1000']) {
     assert.equal(permittedRead(origin + route, origin), false, route);
   }
 });

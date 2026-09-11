@@ -88,3 +88,9 @@ SHA256: f54168ce809d939b4d17e56ad045b5056bda28108eec16809dc0b5effa54cba1
 This build enables only the reviewed Canvas metadata refresh. It does not restore
 withdrawn instruction/module/assessment/file-content reads. See the
 [admission decision](canvas-metadata-admission.md) for the exact supported scope.
+
+Message-boundary rebuild (2026-09-11): test:package passed after removal of the
+unused conversation REST routes and addition of the non-admitted message query
+candidate. Enabled metadata behavior is unchanged. The current installer SHA256
+is 1afc716b910dfec92a4f8ce428883e2eefa753f2d3bdc6a3e5c0913acd6a95fd. This supersedes
+the prior build hash above; installation and live account behavior were not tested.

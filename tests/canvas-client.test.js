@@ -4,10 +4,8 @@ import { CanvasClient, requestUrl, validateNextPage, blockedAssessmentUrl, block
 
 const json = (body, headers = {}) => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json', ...headers } });
 
-test('collector exposes metadata reads only and explicitly preserves Inbox read state', () => {
-  const url = requestUrl('https://canvas.example', 'conversation', { conversationId: 7 });
-  assert.equal(url.searchParams.get('auto_mark_as_read'), 'false');
-  for (const operation of ['take', 'resume', 'questions', 'submissions', 'assignments', 'quizzes', 'pages', 'modules', 'moduleItems', 'constructor', '__proto__']) {
+test('collector excludes assessment actions and withdrawn conversation serializers', () => {
+  for (const operation of ['conversations', 'conversation', 'take', 'resume', 'questions', 'submissions', 'assignments', 'quizzes', 'pages', 'modules', 'moduleItems', 'constructor', '__proto__']) {
     assert.throws(() => requestUrl('https://canvas.example', operation));
   }
   assert.throws(() => requestUrl('https://canvas.example', 'files', { courseId: '../7' }));
@@ -18,8 +16,8 @@ test('collector exposes metadata reads only and explicitly preserves Inbox read 
 });
 
 test('pagination rejects other origins, routes, credentials and changed read flags', () => {
-  const initial = requestUrl('https://canvas.example', 'conversation', { conversationId: 7 });
-  for (const next of ['https://evil.example/api/v1/conversations/7', 'https://canvas.example/api/v1/conversations/7?auto_mark_as_read=true', 'https://canvas.example/api/v1/conversations/7?auto_mark_as_read=false&delete=true', 'https://user:password@canvas.example/api/v1/conversations/7', 'https://canvas.example/api/v1/quizzes/7/take']) {
+  const initial = requestUrl('https://canvas.example', 'files', { courseId: 7 });
+  for (const next of ['https://evil.example/api/v1/conversations/7', 'https://canvas.example/api/v1/courses/7/files?only[]=names&only[]=body', 'https://canvas.example/api/v1/conversations/7?auto_mark_as_read=false&delete=true', 'https://user:password@canvas.example/api/v1/conversations/7', 'https://canvas.example/api/v1/quizzes/7/take']) {
     assert.throws(() => validateNextPage(next, initial));
   }
 });

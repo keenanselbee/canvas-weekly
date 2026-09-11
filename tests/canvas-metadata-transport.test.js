@@ -7,6 +7,7 @@ import { CanvasAudit } from '../src/canvas-audit.js';
 import { metadataRequest } from '../src/canvas-metadata.js';
 import { enrollmentScopeRequest } from '../src/canvas-enrollment-scope.js';
 import { ownSubmissionRequest } from '../src/canvas-own-submission.js';
+import { courseConversationsRequest, conversationTextRequest } from '../src/canvas-message-candidate.js';
 
 const request = () => metadataRequest('assignments', '1', '99');
 const response = () => new Response('{"data":{"course":null}}', { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
@@ -76,6 +77,7 @@ test('foreign assignment pages cannot extend the direct submission scope', async
 test('metadata transport rejects altered requests before authentication, audit or network', async () => {
   const setup = fixture({ authentication: () => assert.fail('Invalid requests must not load authentication') });
   for (const altered of [null, {}, { ...request(), operationName: 'CreateSubmission' }, metadataRequest('assignments', '2', '99'),
+    courseConversationsRequest('1', '99'), conversationTextRequest('10'),
     { ...request(), operationName: 'CanvasWeeklySubmissionStates' }, { ...request(), query: 'mutation { submitAssignment }' }, { ...request(), session_token: 'x' },
     enrollmentScopeRequest('2', '99'), enrollmentScopeRequest('1', '100'),
     { ...enrollmentScopeRequest('1', '99'), query: enrollmentScopeRequest('1', '99').query.replace('excludeConcluded: false', 'excludeConcluded: true') }]) {
