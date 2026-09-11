@@ -137,3 +137,25 @@ export async function collectMetadata({ request, courseId, studentId, signal }) 
   }
   return result;
 }
+
+// Convert a completed collectMetadata result into the guide's course record.
+// Keep this source distinct from full REST assignments: it contains no newly
+// read instructions, syllabus, quiz configuration or course materials.
+export function metadataRecord(metadata) {
+  if (!validId(metadata?.course?.id) || !Array.isArray(metadata.assignments) || !Array.isArray(metadata.submissions)
+    || metadata.assignments.some(item => item.courseId !== metadata.course.id)) throw new Error('Invalid completed course metadata.');
+  const assignments = new Set(metadata.assignments.map(item => item.id));
+  const statuses = new Set(metadata.submissions.map(item => item.assignmentId));
+  if (assignments.size !== metadata.assignments.length || statuses.size !== metadata.submissions.length) throw new Error('Ambiguous completed course metadata.');
+  const unknown = new Set(metadata.submissions.filter(item => item.state === 'ungraded').map(item => item.assignmentId));
+  const missing = metadata.assignments.filter(item => !statuses.has(item.id) || unknown.has(item.id)).length;
+  const unmatched = metadata.submissions.some(item => !assignments.has(item.assignmentId));
+  return { id: metadata.course.id, sources: { metadata: structuredClone(metadata) }, coverage: [
+    { source: 'assignment metadata', status: 'ok' },
+    { source: 'submission states', status: missing || unmatched ? 'partial' : 'ok',
+      ...(missing || unmatched ? { message: `${missing ? `Submission status needs confirmation for ${missing} listed item${missing === 1 ? '' : 's'}. ` : ''}${unmatched ? 'Some submission records could not be matched to listed work. ' : ''}Check uncertain status in Canvas.` } : {}) },
+    { source: 'assignment instructions', status: 'unsupported', message: 'Instructions were not read by the metadata collector. Saved instructions are kept as last-known information.' },
+    { source: 'quiz details', status: 'unsupported', message: 'Question counts, time limits and attempt allowances were not refreshed. No quiz was started or resumed.' },
+    { source: 'course materials', status: 'unsupported', message: 'This metadata source does not collect readings, schedules, announcements or message contents.' },
+  ] };
+}

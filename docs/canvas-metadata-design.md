@@ -131,6 +131,43 @@ received byte limits, GraphQL errors and connection cancellation. It uses an
 ephemeral test certificate and isolated profile, with no real account or Canvas
 host. These results do not complete the source permission review.
 
+Merging metadata into a saved guide
+----------------------------------
+
+metadataRecord converts a completed, validated metadata collection into a course
+record with a distinct sources.metadata field. It never pretends that assignment
+descriptions, a syllabus or quiz configuration were read. Coverage separately
+reports assignment metadata, uncertain submission states, missing instructions,
+quiz details and course materials.
+
+reconcile updates names, dates, points and available submission states from that
+source. A fresh null date replaces a prior date. Missing or ungraded submission
+states become unknown, including when the previous record said submitted.
+Unmatched status records cannot create assignments. Items missing from the new
+assignment list remain last-known records, without being treated as cancelled.
+
+Saved instructions and quiz details retain their original observation times and
+gain instructionsStale/quizDetailsStale flags. A legacy item without field-specific
+times uses its original observedAt; an explicitly unknown field time stays unknown.
+Repeated metadata updates cannot advance those copy ages. An old quiz-only record
+with a matching assignment ID keeps its item/task identity. Course metadata alone
+does not overwrite the saved syllabus or make old course evidence current.
+
+The app, Markdown, HTML and Word exports label retained instructions as last-known.
+Study checks and AI evidence carry the distinction between current metadata and
+older requirements. Suggested steps based on these records stay conditional on
+verification. New verification needs can reopen a local preparation task; repeated
+unchanged metadata preserves completion and does not invent content changes.
+The schemaVersion remains 1 because these fields are additive and old guides are
+read without migrating or rewriting the user's source snapshot.
+
+Eight reconciliation tests cover fresh/null dates, field ages, missing statuses,
+legacy identities, source gaps, AI/export warnings, local progress and later full
+instruction reads. The desktop fixture also refreshes synthetic metadata through
+the update pipeline and verifies retained copy times and displayed warnings.
+The production refresh hold still runs before any collector/profile request.
+This is integration of the data model, not admission of live metadata requests.
+
 Integration work still required
 -------------------------------
 
@@ -144,10 +181,9 @@ Integration work still required
    for broader permissions. GraphQL uses POST, so method alone cannot enforce
    the mutation boundary. Apply the additional identity, envelope and CSRF checks
    recorded in the permission review.
-3. Merge fresh metadata with saved instructions without erasing them or claiming
-   that their contents were refreshed. Display field-specific age and source gaps.
-   Match status records only to the current assignment list; an absent status row
-   remains unknown, and unmatched rows must not invent assignments.
+3. Wire completed live results through metadataRecord and the tested reconciliation
+   path, preserving its field-specific ages and coverage gaps. Combine additional
+   reviewed course sources without presenting missing instructions as refreshed.
    Keep quiz-only metadata and course materials coverage explicit. A partial
    metadata stage must not be presented as the full collection objective achieved.
 4. Restore useful automatic collection only after the complete supported path is

@@ -270,3 +270,16 @@ Work log
   Windows package checks pass. Production refresh remains paused and no actual
   Canvas account was contacted. Verified live authentication, remaining source
   review and reconciliation with saved instructions are still required.
+- 2026-09-10: Added metadata-to-guide reconciliation that updates dates and points
+  while preserving instruction and quiz-detail observation times. Missing or
+  ungraded submission states remain unknown; unmatched status rows create no work.
+  App/export notices and study/AI evidence identify old requirements separately
+  from fresh metadata, and unchanged refreshes preserve local completion. Eight
+  new reconciliation tests bring the unit suite to 74 passing tests. The synthetic
+  desktop update/export pipeline passes, including repeated refreshes and visually
+  reviewed light/dark instruction notices. The rebuilt Windows package matches
+  current source and passes installer-payload, isolated first-run, reader-worker,
+  Codex initialization, theme and restart checks. Production refresh remains paused;
+  no actual Canvas, course-site or AI account request was made, and the user's saved
+  guide was not rewritten. Live authentication and the remaining permission/source
+  review are still required before enabling collection.

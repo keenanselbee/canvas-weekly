@@ -10,9 +10,14 @@ const dateOrNull = value => value && Number.isFinite(Date.parse(value)) ? new Da
 const numberOrNull = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
 
 function normalizeItems(record, origin, now) {
-  const courseName = record.sources.course?.course_code || record.sources.course?.name || `Course ${record.id}`;
+  const metadata = record.sources.metadata;
+  const courseName = metadata?.course.code || record.sources.course?.course_code || metadata?.course.name || record.sources.course?.name || `Course ${record.id}`;
   const entries = new Map();
-  for (const assignment of record.sources.assignments || []) {
+  const statuses = new Map((metadata?.submissions || []).map(item => [item.assignmentId, item.state]));
+  const assignments = metadata ? metadata.assignments.map(item => ({ id: item.id, name: item.name, due_at: item.dueAt,
+    lock_at: item.closesAt, unlock_at: item.opensAt, points_possible: item.points, submission_types: item.submissionTypes,
+    is_quiz_assignment: item.submissionTypes.includes('online_quiz'), submission: { workflow_state: statuses.get(item.id) } })) : record.sources.assignments || [];
+  for (const assignment of assignments) {
     if (!/^\d+$/.test(String(assignment.id))) continue;
     const submission = assignment.submission || {};
     entries.set(String(assignment.id), {
@@ -21,6 +26,8 @@ function normalizeItems(record, origin, now) {
       title: String(assignment.name || 'Untitled assignment'), type: assignment.is_quiz_assignment || assignment.quiz_id ? 'quiz' : 'assignment',
       dueAt: dateOrNull(assignment.due_at), closesAt: dateOrNull(assignment.lock_at), opensAt: dateOrNull(assignment.unlock_at),
       points: numberOrNull(assignment.points_possible), instructions: plainText(assignment.description),
+      instructionsObservedAt: typeof assignment.description === 'string' ? now : null, instructionsStale: false,
+      ...(metadata ? { metadataOnly: true } : {}),
       submissionTypes: Array.isArray(assignment.submission_types) ? assignment.submission_types.map(String) : [],
       status: ['submitted', 'graded', 'pending_review'].includes(submission.workflow_state) ? 'submitted' : submission.workflow_state === 'unsubmitted' ? 'not-submitted' : 'unknown',
       sourceUrl: sourceUrl(assignment.html_url, origin, `/courses/${record.id}/assignments/${assignment.id}`),
@@ -34,10 +41,15 @@ function normalizeItems(record, origin, now) {
       id: `${record.id}:quiz:${quiz.id}`, courseId: record.id, courseName, assignmentId: quiz.assignment_id ? String(quiz.assignment_id) : null,
       title: String(quiz.title || 'Untitled quiz'), type: 'quiz', dueAt: dateOrNull(quiz.due_at), closesAt: dateOrNull(quiz.lock_at), opensAt: dateOrNull(quiz.unlock_at),
       points: numberOrNull(quiz.points_possible), instructions: plainText(quiz.description), submissionTypes: ['online_quiz'], status: 'unknown',
+      instructionsObservedAt: typeof quiz.description === 'string' ? now : null, instructionsStale: false,
       sourceUrl: sourceUrl(quiz.html_url, origin, `/courses/${record.id}/quizzes/${quiz.id}`), observedAt: now, stale: false,
     };
-    Object.assign(item, { quizId: String(quiz.id), questionCount: numberOrNull(quiz.question_count), timeLimitMinutes: numberOrNull(quiz.time_limit), allowedAttempts: numberOrNull(quiz.allowed_attempts) });
-    if (!item.instructions) item.instructions = plainText(quiz.description);
+    Object.assign(item, { quizId: String(quiz.id), questionCount: numberOrNull(quiz.question_count), timeLimitMinutes: numberOrNull(quiz.time_limit), allowedAttempts: numberOrNull(quiz.allowed_attempts), quizDetailsObservedAt: now, quizDetailsStale: false });
+    if (!item.instructions) {
+      item.instructions = plainText(quiz.description);
+      item.instructionsObservedAt = typeof quiz.description === 'string' ? now : null;
+      item.instructionsStale = false;
+    }
     if (!assignment) entries.set(`quiz:${quiz.id}`, item);
   }
   return [...entries.values()];
@@ -56,8 +68,8 @@ export function reconcile(records, previous, { origin, now, timeZone }) {
       const prior = priorCourse?.evidence?.find(old => old.id === source.id);
       if (!prior || ['body', 'title', 'startsAt', 'endsAt'].some(field => prior[field] !== source[field])) changes.push({ itemId: source.id, title: source.title, courseName: source.courseName, field: prior ? 'course-information' : 'new', sourceUrl: source.sourceUrl });
     }
-    courses.push({ id: record.id, name: details?.name || priorCourse?.name || `Course ${record.id}`,
-      code: details?.course_code || priorCourse?.code || `Course ${record.id}`,
+    courses.push({ id: record.id, name: record.sources.metadata?.course.name || details?.name || priorCourse?.name || `Course ${record.id}`,
+      code: record.sources.metadata?.course.code || details?.course_code || priorCourse?.code || `Course ${record.id}`,
       syllabus: details ? plainText(details.syllabus_body) : priorCourse?.syllabus || '',
       sourceUrl: `${origin}/courses/${record.id}`, coverage: record.coverage,
       announcements: evidence.evidence.filter(item => item.kind === 'announcement'),
@@ -67,10 +79,21 @@ export function reconcile(records, previous, { origin, now, timeZone }) {
     const priorItems = previous?.items.filter(item => item.courseId === record.id) || [];
     const assigned = new Set();
     for (const item of current) {
-      const prior = priorItems.find(old => old.id === item.id || (item.quizId && old.quizId === item.quizId));
+      const prior = priorItems.find(old => old.id === item.id || (item.quizId && old.quizId === item.quizId)
+        || (item.assignmentId && old.assignmentId === item.assignmentId));
       if (prior) {
         assigned.add(prior.id);
-        if (prior.assignmentId && !record.sources.assignments) {
+        if (item.metadataOnly) {
+          // Fresh dates/status never certify an older instruction body or quiz
+          // configuration. Carry the original observation time across repeats.
+          item.id = prior.id;
+          if (prior.instructions && !item.instructionsObservedAt) Object.assign(item, { instructions: prior.instructions, instructionsStale: true,
+            instructionsObservedAt: Object.hasOwn(prior, 'instructionsObservedAt') ? prior.instructionsObservedAt : prior.observedAt || null });
+          if (item.type === 'quiz' && prior.quizId && !item.quizDetailsObservedAt) Object.assign(item, { quizId: prior.quizId,
+            questionCount: prior.questionCount, timeLimitMinutes: prior.timeLimitMinutes, allowedAttempts: prior.allowedAttempts,
+            quizDetailsStale: true, quizDetailsObservedAt: Object.hasOwn(prior, 'quizDetailsObservedAt') ? prior.quizDetailsObservedAt : prior.observedAt || null });
+        }
+        if (prior.assignmentId && !record.sources.assignments && !record.sources.metadata) {
           // Quiz defaults cannot overwrite a previously observed student-specific assignment override.
           Object.assign(item, { id: prior.id, assignmentId: prior.assignmentId, dueAt: prior.dueAt, closesAt: prior.closesAt, opensAt: prior.opensAt, status: prior.status, stale: true });
         }
@@ -164,12 +187,14 @@ export function renderMarkdown(guide) {
   if (guide.planningNote) lines.push(`AI suggestions unavailable: ${md(guide.planningNote)}`, '');
   lines.push('## This week and overdue', '');
   const itemLines = item => [
-    `### ${md(item.title)}`, '', `**${md(item.courseName)}** · ${md(item.type)} · ${item.stale ? 'Last known information — needs recheck' : 'Observed in Canvas'}`, '',
+    `### ${md(item.title)}`, '', `**${md(item.courseName)}** · ${md(item.type)} · ${item.stale ? 'Last known information — needs recheck' : item.metadataOnly ? 'Assignment metadata refreshed; instructions not rechecked' : 'Observed in Canvas'}`, '',
     `- Due: ${formatDate(item.dueAt, guide.timeZone)}`,
     `- Available until: ${formatDate(item.closesAt, guide.timeZone)}`,
     `- Submission status: ${md(item.status)}${item.status === 'unknown' ? ' — check Canvas' : ''}`,
     `- Points: ${item.points ?? 'Not supplied'} (not necessarily course weight)`,
     ...(item.quizId ? [`- Questions: ${item.questionCount ?? 'Not supplied'}; time limit: ${item.timeLimitMinutes == null || item.timeLimitMinutes === 0 ? 'None supplied' : `${item.timeLimitMinutes} minutes`}; allowed attempts: ${item.allowedAttempts === -1 ? 'Unlimited' : item.allowedAttempts ?? 'Not supplied'}`] : []),
+    ...(item.instructionsStale ? [`- Instructions are last-known information, observed ${formatDate(item.instructionsObservedAt, guide.timeZone)}. Recheck the current instructions.`] : []),
+    ...(item.quizDetailsStale ? [`- Quiz details are last-known information, observed ${formatDate(item.quizDetailsObservedAt, guide.timeZone)}. Recheck the current quiz information without starting or resuming it.`] : []),
     `- [Open source](<${item.sourceUrl}>)`, '', ...(item.instructions ? [md(item.instructions), ''] : ['Instructions not supplied in the collected metadata.', '']),
   ];
   if (!guide.inWeek.length) lines.push('No outstanding dated items were identified for this week in the collected information.', '');

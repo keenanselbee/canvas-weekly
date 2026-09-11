@@ -202,8 +202,12 @@ function renderGuide() {
       const task = node('div', 'task');
       const content = node('div', 'task-content');
       content.append(node('h3', '', item.title), node('p', '', `${item.courseName}${item.stale ? ' · Last known information — recheck Canvas' : ''}`));
+      if (item.metadataOnly && !item.stale) content.append(node('p', 'muted', 'Assignment metadata refreshed; instructions not rechecked.'));
       const detail = node('details');
-      detail.append(node('summary', '', 'Instructions and details'), node('p', '', item.instructions || 'No instructions supplied.'), node('p', '', `Submission: ${item.status}. Available until: ${format(item.closesAt)}.`));
+      detail.append(node('summary', '', 'Instructions and details'));
+      if (item.instructionsStale) detail.append(node('p', 'muted', `Last-known instructions, observed ${format(item.instructionsObservedAt)}. Recheck the current source.`));
+      if (item.quizDetailsStale) detail.append(node('p', 'muted', `Quiz details were last observed ${format(item.quizDetailsObservedAt)} and were not refreshed.`));
+      detail.append(node('p', '', item.instructions || 'No instructions supplied.'), node('p', '', `Submission: ${item.status}. Available until: ${format(item.closesAt)}.`));
       detail.append(button('Open source', () => api.openSource(item.id), 'link'));
       content.append(detail);
       task.append(node('span', 'task-marker'), content, node('time', '', format(item.dueAt)));

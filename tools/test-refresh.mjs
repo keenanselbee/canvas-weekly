@@ -217,6 +217,37 @@ try {
   assert.match(await fs.readFile(first.guide.outputPath, 'utf8'), /Optional \(AI interpretation\)/);
   await page.evaluate(() => window.canvasWeekly.setAIEnabled(false));
   await page.evaluate(id => window.canvasWeekly.removeWebsite(id), websiteId);
+  const beforeMetadata = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
+  await application.evaluate((_electron, moduleUrl) => {
+    const require = process.getBuiltinModule('module').createRequire(moduleUrl);
+    const { metadataRecord } = require('./canvas-metadata.js');
+    globalThis.syntheticRecords = [metadataRecord({ course: { id: '1', name: 'Example course', code: 'DEMO 101' },
+      assignments: [{ id: '10', courseId: '1', name: 'Example assignment', state: 'published', points: 5,
+        dueAt: new Date(Date.now() + 7 * 86400000).toISOString(), closesAt: null, opensAt: null, submissionTypes: ['online_upload'] },
+      { id: '11', courseId: '1', name: 'Practice exam 2020', state: 'published', points: null,
+        dueAt: null, closesAt: null, opensAt: null, submissionTypes: ['online_upload'] }], submissions: [] })];
+  }, new URL('../src/canvas-metadata.js', import.meta.url).href);
+  await page.evaluate(() => window.canvasWeekly.updateGuide());
+  const mixed = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
+  assert.equal(mixed.items.length, 2);
+  assert.equal(mixed.items[0].status, 'unknown');
+  assert.equal(mixed.items[0].instructionsStale, true);
+  assert.equal(mixed.items[0].instructionsObservedAt, beforeMetadata.items[0].instructionsObservedAt);
+  assert.equal(mixed.courses[0].syllabus, beforeMetadata.courses[0].syllabus);
+  assert.match(await fs.readFile(mixed.outputPath, 'utf8'), /Instructions are last-known information/);
+  assert.match(await fs.readFile(mixed.documentPath, 'utf8'), /Assignment metadata refreshed; instructions not rechecked/);
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(theme => window.canvasWeekly.setTheme(theme), theme);
+    await page.locator(`html[data-theme="${theme}"]`).waitFor();
+    const mixedItem = page.locator('.task').filter({ has: page.getByRole('heading', { name: 'Example assignment', exact: true }) });
+    if (!await mixedItem.locator('details').evaluate(element => element.open)) await mixedItem.getByText('Instructions and details', { exact: true }).click();
+    await mixedItem.getByText(/Last-known instructions, observed/).waitFor();
+    await mixedItem.screenshot({ path: `.codex-temp/visual/metadata-instructions-${theme}.png` });
+  }
+  await page.evaluate(() => window.canvasWeekly.updateGuide());
+  const repeatedMetadata = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
+  assert.equal(repeatedMetadata.items[0].instructionsObservedAt, mixed.items[0].instructionsObservedAt);
+  assert.equal(repeatedMetadata.changes.length, 0);
   await application.evaluate((_electron, moduleUrl) => {
     const require = process.getBuiltinModule('module').createRequire(moduleUrl);
     const { CanvasClient } = require('./canvas-client.js');
