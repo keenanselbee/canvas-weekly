@@ -17,6 +17,7 @@
     "playwright": "1.63.0"
   },
   "dependencies": {
+    "@openai/codex": "0.154.0",
     "parse5": "8.0.1"
   }
 }

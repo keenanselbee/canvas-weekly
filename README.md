@@ -19,8 +19,8 @@ connection, course selection and a restricted API collector are implemented.
 A live four-course collection has saved 65 assessment records with explicit
 source gaps. Factual Markdown guides, in-app reading, same-week
 updates, revisions, separate student notes and change reporting are implemented.
-Optional ChatGPT sign-in and study suggestions use the installed official Codex
-runtime. Page bodies, calendar events and course message
+Optional ChatGPT sign-in and study suggestions use the pinned official Codex CLI
+runtime included as a dependency. Page bodies, calendar events and course message
 details now feed both the factual guide and optional AI evidence. External website
 connections, linked file contents and Word export remain in progress; see
 [external course sources](docs/external-course-sources.md).
@@ -67,12 +67,15 @@ Run `npm run test:refresh` for a synthetic desktop collection/export/update test
 it uses isolated test storage and temporary output, never your Canvas account.
 
 For AI suggestions, open Settings, connect ChatGPT through the official browser
-flow, then enable Study suggestions. If Codex cannot be found, choose the installed
+flow, then enable Study suggestions. ChatGPT can refine up to twelve priorities
+with preparation steps, suggested days and checks. Required/optional claims include
+matching source quotes and remain labeled AI interpretations. If Codex cannot be found, choose the installed
 codex.exe under ChatGPT connection options. The app keeps its Codex credentials
 separate from your existing setup and does not inherit API keys as a paid fallback.
 AI receives bounded selected course text, with no Canvas credentials. Failed
 planning falls back to a factual guide. Real runtime initialization is verified;
-real ChatGPT login and a live planning turn still require account validation.
+real ChatGPT account restoration and a planning turn using synthetic course evidence
+are now verified. Full real-course planning quality still needs review.
 
 Requires Node.js 22.12 or later for development. Run `npm ci`, then `npm start`.
 Run `npm test` for settings validation and `npm run test:desktop` for Electron UI

@@ -32,7 +32,7 @@ export function buildStudyPlan(guide, progress = {}) {
         : item.stale || item.status === 'unknown' ? 'The available record needs verification before you rely on it.'
         : 'Start preparation before the recorded deadline; use the source for the actual requirements.',
       suggestedDate: verify ? today : shiftDate(today, tasks.length % availableDays),
-      dueAt: item.dueAt, closesAt: item.closesAt, ai: false,
+      dueAt: item.dueAt, closesAt: item.closesAt, ai: false, needsVerification: verify,
       steps: verify ? ['Check the current instructions, availability and your submission status in Canvas.', 'Record any confirmed next step in your student notes.']
         : ['Read the instructions and linked course materials.', 'Work through the relevant notes or practice, then identify what you still need to understand.', 'Check the deliverable and submission instructions before completing the work yourself.'],
     };
@@ -60,13 +60,30 @@ export function buildStudyPlan(guide, progress = {}) {
       }
     }
   }
-  // Older AI priorities remain useful, but never replace recorded deadline fields.
+  const sourceMap = new Map(guideSources(guide).map(source => [source.id, source]));
+  // AI may refine preparation; recorded deadlines and verification-first tasks
+  // remain controlled by source data. Quotes are verified before export/storage.
   for (const priority of guide.priorities || []) {
-    const task = tasks.find(task => task.sourceId === priority.sourceId);
-    if (task) Object.assign(task, { title: priority.action, reason: priority.reason, ai: true });
+    const source = sourceMap.get(priority.sourceId);
+    if (!source) continue;
+    for (const question of priority.checks || []) check(priority.sourceId, `ChatGPT suggests checking: ${source.title}`, question);
+    let task = tasks.find(task => task.sourceId === priority.sourceId);
+    if (source.stale) continue;
+    const steps = priority.steps?.map(step => ({ ...step }));
+    if (task?.needsVerification) {
+      if (steps?.length) { task.steps.push(...steps.map(step => ({ ...step, conditional: true }))); task.ai = true; }
+      continue;
+    }
+    if (!task) {
+      task = { id: `${priority.sourceId}:ai-preparation`, sourceId: priority.sourceId, courseName: source.courseName, dueAt: null, closesAt: null, steps: [], suggestedDate: today };
+      tasks.push(task);
+    }
+    Object.assign(task, { title: priority.action, reason: priority.reason, ai: true });
+    if (priority.suggestedDate) task.suggestedDate = priority.suggestedDate;
+    if (steps?.length) task.steps = steps;
   }
   for (const task of tasks) {
-    const source = guideSources(guide).find(source => source.id === task.sourceId);
+    const source = sourceMap.get(task.sourceId);
     task.fingerprint = createHash('sha256').update(JSON.stringify([task.title, task.steps, task.dueAt, task.closesAt, source?.instructions || source?.body || '', source?.stale || false])).digest('hex');
     const saved = progress[task.id];
     task.done = saved?.done === true && saved.fingerprint === task.fingerprint;

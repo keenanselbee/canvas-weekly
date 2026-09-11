@@ -15,7 +15,7 @@ Milestone ledger
 | M1 | Native desktop shell, navigation, appearance and saved settings | App launches; system/light/dark work; folder picker; light/dark visual QA | Complete: 49a892d |
 | M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Safety repairs implemented and local HTTPS interception tested; tightened UBC login flow still needs account validation |
 | M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Complete: ddd9975; synthetic end-to-end verified |
-| M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Real login and account restoration verified; model planning turn pending |
+| M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Live account restoration and validated synthetic planning verified with pinned CLI; full-course quality review pending |
 | M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Canvas evidence expanded; external-site adapters and Word output pending |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Pending |
 
@@ -127,3 +127,13 @@ Work log
   requirements change. Open guide exports checkmarks without Canvas or AI access.
   Thirty unit tests and synthetic desktop refresh/progress checks pass; inspected
   light and dark study-plan renderings. Richer AI planning and document output remain.
+- 2026-09-10: Expanded AI output to source-specific steps, suggested dates and
+  verification checks. Required/optional labels require a matching source quote
+  and remain explicit AI interpretations. Windows denied execution of the CLI
+  inside the Store app; added the official @openai/codex 0.154.0 package and default
+  Windows runtime resolution. The app's saved ChatGPT account restored and returned
+  a validated synthetic lab plan with required reading, optional practice and
+  missing-information checks. No Canvas request or real course prompt was used.
+  Thirty-three unit tests and the synthetic desktop refresh pass, including AI
+  step rendering, unchanged deadlines, local progress reopening after changes,
+  and offline export. Inspected the AI plan in dark mode with collapsible quotes.

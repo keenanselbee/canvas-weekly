@@ -5,6 +5,7 @@ import path from 'node:path';
 import { reconcile, buildGuide, renderMarkdown } from '../src/guide.js';
 import { GuideStore } from '../src/guide-store.js';
 import { localDate } from '../src/dates.js';
+import { buildStudyPlan } from '../src/study-plan.js';
 
 const options = { origin: 'https://canvas.example', now: '2026-09-10T18:00:00Z', timeZone: 'America/Vancouver' };
 const record = () => ({ id: '1', coverage: [{ source: 'modules', status: 'unsupported', message: 'Module reads disabled.' }], sources: {
@@ -42,6 +43,17 @@ test('no assignments still produces a weekly materials check without claiming no
   assert.match(guide.studyPlan.tasks[0].reason, /even when Canvas lists no deadline/);
   const next = buildGuide(reconcile([course], null, { ...options, now: '2026-09-14T18:00:00Z' }));
   assert.notEqual(guide.studyPlan.tasks[0].id, next.studyPlan.tasks[0].id, 'Weekly materials checks must renew each week');
+});
+
+test('AI steps enrich supported preparation while verification tasks and recorded dates remain intact', () => {
+  const guide = buildGuide(reconcile([record()], null, options));
+  const priority = { sourceId: '1:assignment:1', action: 'Practice identifying keys', reason: 'Prepare for the lab.', suggestedDate: '2026-09-11', checks: ['Confirm the assigned chapter.'], steps: [{ text: 'Review your key examples.', kind: 'suggested', quote: '' }] };
+  guide.priorities = [priority, { ...priority, sourceId: '1:assignment:3', action: 'Take the closed quiz' }];
+  const plan = buildStudyPlan(guide);
+  assert.equal(plan.tasks.find(task => task.sourceId === priority.sourceId).title, priority.action);
+  assert.equal(plan.tasks.find(task => task.sourceId === priority.sourceId).dueAt, '2026-09-18T18:00:00.000Z');
+  assert.match(plan.tasks.find(task => task.sourceId === '1:assignment:3').title, /Check the next step/);
+  assert.ok(plan.checks.some(check => check.detail === 'Confirm the assigned chapter.'));
 });
 
 test('local completion survives refresh and restart, reopens on changed requirements, and stays account isolated', async () => {

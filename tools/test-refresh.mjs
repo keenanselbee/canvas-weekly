@@ -22,7 +22,7 @@ try {
       if (url.pathname.endsWith('/users/self/profile')) data = { id: 999, name: 'Example Student' };
       else if (url.pathname === '/api/v1/courses') data = [{ id: 1, name: 'Example course', course_code: 'DEMO 101' }];
       else if (url.pathname === '/api/v1/courses/1') data = { id: 1, name: 'Example course', course_code: 'DEMO 101', syllabus_body: '<p>Read the notes first.</p>' };
-      else if (url.pathname.endsWith('/assignments')) data = [{ id: 10, name: 'Example assignment', due_at: deadline, description: '<p>Complete the practice.</p>', submission: { workflow_state: 'unsubmitted' } }];
+      else if (url.pathname.endsWith('/assignments')) data = [{ id: 10, name: 'Example assignment', due_at: deadline, description: '<p>Complete the practice. Extra examples are optional.</p>', submission: { workflow_state: 'unsubmitted' } }];
       else if (url.pathname.endsWith('/pages')) data = [{ page_id: 2, url: 'course-site', title: 'Course website', body: '<p>Read the external syllabus.</p><p>Password: example-password</p>' }];
       return new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
     };
@@ -93,6 +93,31 @@ try {
   await page.evaluate(() => window.canvasWeekly.setTheme('dark'));
   await page.locator('html[data-theme="dark"]').waitFor();
   await page.screenshot({ path: '.codex-temp/visual/factual-guide.png' });
+  await application.evaluate(async (_electron, urls) => {
+    const require = process.getBuiltinModule('module').createRequire(urls.client);
+    const { CodexClient } = require('./codex-client.js');
+    const { validatePriorities } = require('./planning-output.js');
+    CodexClient.prototype.plan = async evidence => validatePriorities({ priorities: [{
+      sourceId: '1:assignment:10', action: 'Prepare the practice', reason: 'Use the required work to identify gaps.', suggestedDate: evidence.week.today,
+      checks: ['Confirm whether any extension applies.'], steps: [
+        { text: 'Complete the practice.', kind: 'required', quote: 'Complete the practice.' },
+        { text: 'Use extra examples if helpful.', kind: 'optional', quote: 'Extra examples are optional.' },
+      ],
+    }] }, evidence);
+  }, { client: new URL('../src/codex-client.js', import.meta.url).href, output: new URL('../src/planning-output.js', import.meta.url).href });
+  await page.evaluate(async () => { await window.canvasWeekly.setAIEnabled(true); await window.canvasWeekly.updateGuide(); });
+  const planned = await page.evaluate(() => window.canvasWeekly.getState());
+  const plannedTask = planned.guide.studyPlan.tasks.find(task => task.id === taskId);
+  assert.equal(plannedTask.ai, true);
+  assert.equal(plannedTask.changedSinceDone, true);
+  assert.equal(plannedTask.dueAt, first.guide.items[0].dueAt);
+  await page.getByText(/ChatGPT refined 1 preparation task/).waitFor();
+  await page.getByText('Preparation steps', { exact: true }).first().click();
+  await page.getByText(/Required \(AI interpretation\)/).first().waitFor();
+  await page.locator('#notice').waitFor({ state: 'hidden', timeout: 6500 });
+  await page.screenshot({ path: '.codex-temp/visual/study-plan-ai.png' });
+  assert.match(await fs.readFile(first.guide.outputPath, 'utf8'), /Optional \(AI interpretation\)/);
+  await page.evaluate(() => window.canvasWeekly.setAIEnabled(false));
   await application.evaluate(({ session }) => {
     session.fromPartition('persist:canvas').fetch = async () => new Response('', { status: 401 });
   });

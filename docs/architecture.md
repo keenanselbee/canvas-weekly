@@ -117,8 +117,9 @@ retain prior state on failed/cancelled runs. No sample data is exported as live.
 Codex connection
 ----------------
 
-Use the official local Codex app-server JSON-RPC protocol over stdio. Discover an
-installed executable and allow explicit executable selection if absent. Launch
+Use the official local Codex app-server JSON-RPC protocol over stdio. On Windows,
+resolve the pinned @openai/codex runtime dependency first; an explicit executable
+selection overrides it. Package native runtime files outside app.asar. Launch
 without shell interpolation or a visible console; use a separate application
 Codex home so app credentials and configuration do not overwrite the user's setup.
 
@@ -130,7 +131,9 @@ usage errors honestly; no automatic paid fallback.
 
 Planner receives bounded course evidence, not Canvas secrets. Use a read-only
 agent environment, prohibit tool-based Canvas access and validate structured
-output against the allowed source IDs. AI interpretation is optional: fall back
+output against the allowed source IDs, bounded preparation steps, suggested dates
+and source quotes for required/optional claims. Quotes support review but cannot
+prove semantic correctness. AI interpretation is optional: fall back
 to a clearly labeled factual guide on connection, quota, or parsing failure.
 
 Claude/Gemini are later adapters with provider-specific supported authentication.
@@ -157,6 +160,7 @@ References
 - [Electron dark mode](https://www.electronjs.org/docs/latest/tutorial/dark-mode)
 - [Electron security](https://www.electronjs.org/docs/latest/tutorial/security)
 - [Codex app server](https://learn.chatgpt.com/docs/app-server)
+- [Official Codex CLI](https://learn.chatgpt.com/docs/codex/cli)
 - [Canvas conversations](https://developerdocs.instructure.com/services/canvas/resources/conversations)
 - [Canvas page listing and body inclusion](https://github.com/instructure/canvas-lms/blob/master/app/controllers/wiki_pages_api_controller.rb)
 - [Canvas module items](https://developerdocs.instructure.com/services/canvas/resources/modules)

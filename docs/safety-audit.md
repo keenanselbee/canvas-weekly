@@ -81,7 +81,9 @@ Guide requirements after safety repairs
 The earlier saved factual guide was an evidence list. The application now builds
 source-linked preparation tasks, suggested dates distinct from deadlines, local
 completion tracking and concrete verification prompts. Local task completion and
-Open guide have synthetic desktop tests confirming no Canvas fetches. Richer AI
-steps, required/optional reading grounded in evidence and polished document output
-remain. ChatGPT connection and enabled study suggestions are separate states;
-a live model planning turn remains untested.
+Open guide have synthetic desktop tests confirming no Canvas fetches. Polished
+document output and full-course quality review remain. AI steps now use validated
+source IDs and matching quotes for required/optional interpretations; these do not
+prove that the interpretation is correct. A live model turn using synthetic
+evidence and the app's saved ChatGPT connection passed with the official CLI
+0.154.0. ChatGPT connection and enabled suggestions remain separate states.

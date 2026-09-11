@@ -17,7 +17,7 @@ function fakeServer(overrides = {}) {
       queueMicrotask(() => {
         child.stdout.write(JSON.stringify({ id: message.id, result }) + '\n');
         if (message.method === 'turn/start') {
-          child.stdout.write(JSON.stringify({ method: 'item/completed', params: { threadId: 'thread1', item: { type: 'agentMessage', text: JSON.stringify({ priorities: [{ sourceId: 'one', action: 'Read the notes', reason: 'Prepare before the deadline' }] }) } } }) + '\n');
+          child.stdout.write(JSON.stringify({ method: 'item/completed', params: { threadId: 'thread1', item: { type: 'agentMessage', text: JSON.stringify({ priorities: [{ sourceId: 'one', action: 'Read the notes', reason: 'Prepare before the deadline', suggestedDate: '2026-09-10', checks: [], steps: [{ text: 'Review the notes.', kind: 'suggested', quote: '' }] }] }) } } }) + '\n');
           child.stdout.write(JSON.stringify({ method: 'turn/completed', params: { threadId: 'thread1', turn: { id: 'turn1', status: 'completed' } } }) + '\n');
         }
       });
@@ -38,7 +38,7 @@ test('Codex transport handles login and structured planning without granting too
     await client.start();
     assert.equal(client.state.connected, true);
     assert.ok((await client.login()).startsWith('https://auth.openai.com/'));
-    assert.equal((await client.plan({ items: [{ id: 'one' }] }))[0].sourceId, 'one');
+    assert.equal((await client.plan({ week: { today: '2026-09-10', end: '2026-09-13' }, timeZone: 'UTC', items: [{ id: 'one' }] }))[0].sourceId, 'one');
     client.receive({ id: 987, method: 'item/commandExecution/requestApproval', params: {} });
     assert.ok(server.requests.find(item => item.id === 987).error);
     const turn = server.requests.find(item => item.method === 'turn/start');

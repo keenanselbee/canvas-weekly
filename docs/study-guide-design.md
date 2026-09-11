@@ -27,10 +27,15 @@ Implemented planning layer
 - Keep preparation steps collapsed in the app. Group tasks by suggested day and
   show exact source links. Render the same plan before source details in Markdown.
 
-The initial deterministic steps are deliberately general preparation advice.
-Existing source-validated ChatGPT priorities can replace matching task titles and
-reasons. Richer source-specific steps and a narrative summary are the next planner
-extension; a connected account alone does not enable Study suggestions.
+The deterministic steps are general preparation advice. ChatGPT can refine up to
+twelve priorities with specific steps, suggested dates and verification questions.
+Validate source IDs, calendar dates, due/closing limits and bounded text. Required
+or optional steps must carry a short quote found in the supplied source. Quote
+matching is not semantic proof: label those steps as AI interpretation and retain
+the quote for review. Stale sources keep verification prompts; unknown/expired/
+undated work retains its verification-first task and conditionally adds AI steps.
+Display how many tasks ChatGPT refined so generic prompts are not mistaken for a
+complete AI interpretation. A connected account alone does not enable suggestions.
 
 
 Local task completion
@@ -55,9 +60,9 @@ use checkboxes in the app and Student Notes.md for editable personal notes.
 Further acceptance work
 -----------------------
 
-1. Rich AI summary, source-specific steps, optional/required distinctions grounded
-   in quoted evidence, and dated suggestions validated against source deadlines.
+1. Evaluate richer planning against the full real-course evidence and improve
+   workload balance using student availability rather than an invented timetable.
 2. Readable standalone document presentation and verified Word output.
 3. External course sites and linked documents with explicit collection coverage.
-4. Live Codex planning and tightened UBC login verification, with no unverified
-   claims about the earlier Canvas account state.
+4. Tightened UBC login verification, with no unverified claims about the earlier
+   Canvas account state. A live Codex planning turn with synthetic evidence passed.

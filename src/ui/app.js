@@ -98,6 +98,8 @@ function renderGuide() {
     const plan = guide.studyPlan;
     const overview = card('Your study plan');
     overview.append(node('p', '', plan.summary), node('p', 'muted', plan.note));
+    const refined = plan.tasks.filter(task => task.ai).length;
+    if (guide.priorities?.length) overview.append(node('p', 'muted', `ChatGPT refined ${refined} preparation task${refined === 1 ? '' : 's'}. Other tasks use basic prompts. Required/optional labels are AI interpretations with source quotes to check.`));
     if (state.ai.connected && !state.settings.aiEnabled) overview.append(node('p', 'muted', 'ChatGPT is connected. Enable Study suggestions in Settings for more specific preparation advice.'));
     const dates = [...new Set(plan.tasks.map(task => task.suggestedDate))];
     for (const date of dates) {
@@ -123,7 +125,19 @@ function renderGuide() {
         const details = node('details');
         details.append(node('summary', '', 'Preparation steps'), node('p', '', task.reason));
         const steps = node('ul');
-        for (const step of task.steps) steps.append(node('li', '', step));
+        for (const step of task.steps) {
+          const item = node('li');
+          if (typeof step === 'string') item.textContent = step;
+          else {
+            item.append(node('span', '', step.text));
+            item.append(node('small', '', `${step.conditional ? 'After confirming applicability · ' : ''}${step.kind === 'suggested' ? 'Suggested preparation' : `${step.kind === 'required' ? 'Required' : 'Optional'} (AI interpretation)`}`));
+            if (step.quote) {
+              const quote = node('details');
+              quote.append(node('summary', '', 'Source quote'), node('p', '', step.quote)); item.append(quote);
+            }
+          }
+          steps.append(item);
+        }
         details.append(steps, button('Open source', () => api.openSource(task.sourceId), 'link'));
         content.append(details); row.append(checkbox, content); day.append(row);
       }
@@ -139,7 +153,7 @@ function renderGuide() {
     }
     main.append(checks);
   }
-  if (guide.priorities?.length) {
+  if (guide.priorities?.length && !guide.studyPlan) {
     const suggestions = card('Suggested focus');
     suggestions.append(node('p', 'muted', 'AI study suggestions based on your collected course information.'));
     for (const priority of guide.priorities) {

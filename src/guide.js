@@ -109,6 +109,8 @@ export function renderMarkdown(guide) {
   const plan = guide.studyPlan || buildStudyPlan(guide);
   const sources = new Map(guideSources(guide).map(source => [source.id, source]));
   lines.push('## Your study plan', '', plan.summary, '', plan.note, '');
+  const refined = plan.tasks.filter(task => task.ai).length;
+  if (guide.priorities?.length) lines.push(`ChatGPT refined ${refined} preparation task${refined === 1 ? '' : 's'}. Other tasks use basic prompts. Required/optional labels are AI interpretations with source quotes to check.`, '');
   let day;
   for (const task of plan.tasks) {
     if (day !== task.suggestedDate) { day = task.suggestedDate; lines.push(`### Suggested start: ${day}`, ''); }
@@ -116,7 +118,13 @@ export function renderMarkdown(guide) {
     lines.push(`- [${task.done ? 'x' : ' '}] **${md(task.title)}** (${md(task.courseName)})${task.ai ? ' - AI suggestion' : ''}`, '', md(task.reason), '');
     if (task.changedSinceDone) lines.push('Source or task changed since you checked it off. Review it again.', '');
     if (task.dueAt) lines.push(`Recorded due time: ${formatDate(task.dueAt, guide.timeZone)}.`, '');
-    for (const step of task.steps) lines.push(`- ${md(step)}`);
+    for (const step of task.steps) {
+      if (typeof step === 'string') lines.push(`- ${md(step)}`);
+      else {
+        lines.push(`- ${step.conditional ? 'After confirming applicability: ' : ''}${step.kind === 'suggested' ? 'Suggested' : `${step.kind === 'required' ? 'Required' : 'Optional'} (AI interpretation)`}: ${md(step.text)}`);
+        if (step.quote) lines.push('', `  Source quote: ${md(step.quote)}`, '');
+      }
+    }
     if (source) lines.push('', `[Source](<${source.sourceUrl}>)`);
     lines.push('');
   }
@@ -127,7 +135,7 @@ export function renderMarkdown(guide) {
   }
   if (!plan.checks.length) lines.push('No specific gaps were identified in the collected records. Course announcements and unpublished requirements can still change.');
   lines.push('');
-  if (guide.priorities?.length) {
+  if (guide.priorities?.length && !guide.studyPlan) {
     lines.push('## Suggested focus', '', 'AI suggestions based on collected evidence; these do not change course requirements.', '');
     for (const priority of guide.priorities) {
       const source = [...guide.items, ...guide.courses.flatMap(course => course.evidence || [])].find(item => item.id === priority.sourceId);
