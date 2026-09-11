@@ -114,7 +114,7 @@ export class CourseWebsites {
     signal?.throwIfAborted();
     Object.assign(site, { status: result.status, realm: result.realm ?? site.realm, checkedAt: new Date().toISOString(), message: result.status === 'ok' ? 'Website connected. Readable pages will be included when you update the guide.' : result.message });
     if (result.status === 'needs-login' && credential) site.authRejected = true;
-    if (login && result.status === 'ok') { site.encrypted = credential.encrypted; site.authRejected = false; }
+    if (login && ['ok', 'partial'].includes(result.status)) { site.encrypted = credential.encrypted; site.authRejected = false; }
     await this.save(account, sites);
     return this.list(account);
   }

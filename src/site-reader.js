@@ -3,6 +3,7 @@ import dns from 'node:dns/promises';
 import net from 'node:net';
 import crypto from 'node:crypto';
 import { extractDocument, referenceUrl } from './content.js';
+import { readDocument } from './document-reader.js';
 
 const actionRoute = /(?:^|\/)(?:quiz(?:zes)?|assessments?|login|signin|logout|signout|admin|api|take|resume|submit|attempts?|delete|edit|launch|complete|mark|enroll|register)(?:[/.\-_]|$)/i;
 
@@ -62,7 +63,7 @@ export async function readHttps(url, { authorization, signal, maxBytes = 2 * 102
   return new Promise((resolve, reject) => {
     const request = https.request(url, {
       method: 'GET', agent: false, signal: deadline,
-      headers: { Accept: 'text/html,text/plain;q=0.8', 'Accept-Encoding': 'identity', 'User-Agent': 'CanvasWeekly/0.1 (course document reader)', ...(authorization ? { Authorization: authorization } : {}) },
+      headers: { Accept: 'text/html,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Accept-Encoding': 'identity', 'User-Agent': 'CanvasWeekly/0.1 (course document reader)', ...(authorization ? { Authorization: authorization } : {}) },
       // Pin this request to the addresses we checked; do not resolve again during connect.
       lookup: (_hostname, options, callback) => options.all ? callback(null, addresses) : callback(null, addresses[0].address, addresses[0].family),
     }, response => {
@@ -77,7 +78,7 @@ export async function readHttps(url, { authorization, signal, maxBytes = 2 * 102
         chunks.push(chunk);
       });
       response.on('error', reject);
-      response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: Buffer.concat(chunks).toString('utf8'), bytes }));
+      response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: Buffer.concat(chunks), bytes }));
     });
     request.on('error', error => reject(new Error(deadline.aborted ? 'Course site read timed out or was cancelled.' : 'The course site could not be reached securely.', { cause: error })));
     request.end();
@@ -135,8 +136,14 @@ export class SiteReader {
       if (response.status !== 200) return { status: 'error', url: url.href, message: `Course website returned HTTP ${response.status}.` };
       const type = String(response.headers['content-type'] || '').toLowerCase();
       if (response.headers['content-encoding'] && response.headers['content-encoding'] !== 'identity') return { status: 'unsupported', url: url.href, message: 'Compressed course page could not be read.' };
+      const format = /^application\/pdf(?:;|$)/.test(type) ? 'pdf' : /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document(?:;|$)/.test(type) ? 'docx' : null;
+      if (format) {
+        const extracted = await readDocument(Buffer.from(response.body), format, this.signal);
+        const content = extractDocument(extracted.text, true);
+        return { ...content, links: extracted.links, status: 'partial', url: url.href, message: extracted.message };
+      }
       if (!/^(text\/html|application\/xhtml\+xml|text\/plain)(;|$)/.test(type)) return { status: 'unsupported', url: url.href, message: 'This linked file type is not supported yet.' };
-      const content = extractDocument(response.body, type.startsWith('text/plain'));
+      const content = extractDocument(Buffer.isBuffer(response.body) ? response.body.toString('utf8') : response.body, type.startsWith('text/plain'));
       if (content.passwordForm) return { status: 'needs-login', url: url.href, message: 'This page contains a website sign-in form. Browser sign-in support is still pending.' };
       if (!content.text.trim()) return { status: 'unsupported', url: url.href, message: 'No readable course text was found. This page may require scripts or another tool.' };
       return { status: 'ok', url: url.href, ...content, bytes: response.bytes ?? Buffer.byteLength(response.body) };
@@ -165,7 +172,7 @@ export class SiteReader {
         const result = await this.page(next.url, scope, credential);
         coverage.push({ source: `website:${site.id}:${next.url}`, status: result.status, message: result.message, checkedAt: new Date().toISOString() });
         if (result.status === 'needs-login') { needsLogin = true; loginRealm = result.realm; break; }
-        if (result.status !== 'ok') continue;
+        if (!['ok', 'partial'].includes(result.status) || !result.text) continue;
         visited.add(result.url);
         if (pages.some(page => page.sourceUrl === result.url)) continue;
         pages.push({ id: `${site.id}:${crypto.createHash('sha256').update(result.url).digest('hex').slice(0, 20)}`, title: result.title || new URL(result.url).pathname, body: result.text, sourceUrl: result.url, observedAt: new Date().toISOString() });
@@ -181,7 +188,7 @@ export class SiteReader {
           if (!reference || actionRoute.test(decodeURIComponent(new URL(reference).pathname))) continue;
           references.set(reference, { title: reference, sourceUrl: reference, foundOn: result.url, status: 'Linked contents not collected' });
           const target = candidate;
-          if (target && /(?:\/|\.html?|\.txt)$/i.test(target.pathname) && !visited.has(target.href) && !queue.some(entry => entry.url === target.href) && next.depth < 2) queue.push({ url: target.href, depth: next.depth + 1 });
+          if (target && /(?:\/|\.html?|\.txt|\.pdf|\.docx)$/i.test(target.pathname) && !visited.has(target.href) && !queue.some(entry => entry.url === target.href) && next.depth < 2) queue.push({ url: target.href, depth: next.depth + 1 });
         }
       } catch (error) {
         originalSignal?.throwIfAborted();

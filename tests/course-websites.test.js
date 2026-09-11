@@ -48,6 +48,7 @@ test('website collection preserves optional/table text and exposes unsupported, 
   const reader = new SiteReader({ transport: async url => {
     fetched.push(url.href);
     if (url.pathname.endsWith('login.html')) throw new Error('Must never fetch action link');
+    if (url.pathname.endsWith('slides.pdf')) return { status: 200, headers: { 'content-type': 'application/pdf' }, body: Buffer.from('Unreadable PDF fixture') };
     if (url.pathname.endsWith('schedule.html')) return html('<main><h1>Tentative schedule</h1><table><tr><th>Topic</th><th>Reading</th></tr><tr><td>Keys</td><td>Supplementary reading is optional.</td></tr></table></main>');
     return html('<title>Course site</title><nav>Unrelated menu</nav><main><h1>Machine learning</h1><p>Read the lecture.</p><a href="schedule.html">Schedule</a><a href="slides.pdf">Slides</a><img src="diagram.png"><a href="login.html">Sign in</a><a href="schedule.html?token=secret">Signed link</a></main><script>fetch("https://elsewhere.example")</script>');
   } });
@@ -58,7 +59,8 @@ test('website collection preserves optional/table text and exposes unsupported, 
   assert.ok(result.references.some(reference => reference.sourceUrl.endsWith('.pdf')));
   assert.ok(result.references.some(reference => reference.sourceUrl.endsWith('diagram.png') && reference.status.includes('media contents not collected')));
   assert.equal(result.references.some(reference => reference.sourceUrl.endsWith('login.html')), false);
-  assert.deepEqual(fetched, [site.url, site.url + 'schedule.html']);
+  assert.deepEqual(fetched, [site.url, site.url + 'schedule.html', site.url + 'slides.pdf']);
+  assert.ok(result.coverage.some(source => source.source.endsWith('slides.pdf') && source.status === 'error'));
   const protectedPage = await new SiteReader({ transport: async () => html('<form><input type="password"></form>') }).page(site.url, siteScope(site.url));
   assert.equal(protectedPage.status, 'needs-login');
   const bounded = new SiteReader({ transport: async () => html('<main><p>Reading</p>' + Array.from({ length: 40 }, (_, i) => `<a href="${i}.html">Lecture ${i}</a>`).join('') + '</main>') });

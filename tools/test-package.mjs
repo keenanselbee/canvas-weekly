@@ -8,6 +8,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
+import { word, pdf } from './document-fixtures.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const packaged = path.join(root, 'dist', 'win-unpacked');
@@ -60,6 +61,13 @@ try {
   assert.equal(state.guide, null);
   assert.equal(state.settings.lastGuideAccount, null);
   assert.equal(state.settings.outputDirectory, null);
+  for (const [type, bytes] of [['pdf', pdf()], ['docx', await word('Supplementary reading is optional.')]]) {
+    const content = await application.evaluate(async ({ app }, { type, bytes }) => {
+      const require = process.getBuiltinModule('module').createRequire(app.getAppPath() + '/src/document-reader.js');
+      return require('./document-reader.js').readDocument(Buffer.from(bytes), type);
+    }, { type, bytes: [...bytes] });
+    assert.match(content.text, /Supplementary reading is optional/);
+  }
   const desktop = await application.evaluate(({ app }) => app.getPath('desktop'));
   assert.equal(state.outputDirectory, path.join(desktop, 'Canvas Weekly'));
   const runtime = await application.evaluate(({ app }) => {
@@ -85,5 +93,5 @@ try {
   const restarted = await application.firstWindow();
   await restarted.locator('html[data-theme="dark"]').waitFor();
   assert.equal((await restarted.evaluate(() => window.canvasWeekly.getState())).settings.theme, 'dark');
-  console.log(JSON.stringify({ result: 'Packaged app passed: source inventory, no private state, matching installer payload, fresh profile, Desktop default, bundled Codex initialization, theme rendering and restart persistence.', profile, installerSHA256: await hash(installer) }));
+  console.log(JSON.stringify({ result: 'Packaged app passed: source inventory, no private state, matching installer payload, PDF/Word reader workers, fresh profile, Desktop default, bundled Codex initialization, theme rendering and restart persistence.', profile, installerSHA256: await hash(installer) }));
 } finally { await application.close(); }

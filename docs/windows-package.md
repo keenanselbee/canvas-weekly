@@ -54,7 +54,9 @@ worktree, reject private-state/development-package paths, and compare the app
 archive, main executable and Codex executable inside the installer to the tested
 unpacked files. They exercise first-run state, the Desktop default, bundled Codex
 initialization without an account, light/dark rendering, and theme persistence
-after restart. Test screenshots and extracted payload checks remain ignored.
+after restart. PDF and DOCX fixture reads also run through workers inside the
+actual packaged app, verifying parser dependency resolution from the archive.
+Test screenshots and extracted payload checks remain ignored.
 
 Remaining release checks
 ------------------------

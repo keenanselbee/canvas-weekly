@@ -16,7 +16,7 @@ Milestone ledger
 | M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Safety repairs implemented and local HTTPS interception tested; tightened UBC login flow still needs account validation |
 | M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Complete: ddd9975; synthetic end-to-end verified |
 | M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Live account restoration and validated synthetic planning verified with pinned CLI; full-course quality review pending |
-| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Canvas evidence, public/Basic websites and Word export implemented; live site validation, browser-login sites, linked documents and Word page rendering pending |
+| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Canvas evidence, public/Basic websites, scoped PDF/DOCX text and Word export implemented; live site validation, browser-login sites, Canvas file downloads and Word page rendering pending |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Unsigned x64 installer built; package inventory, matching installer payload, first-run themes and bundled Codex tested; installation walkthrough and live reconnect pending |
 
 Scheduling, multi-provider support, public distribution and hosted service are
@@ -193,3 +193,11 @@ Work log
   A hidden-window screenshot timed out; making the test window visible resolved
   capture. No real accounts, installer execution, signing or publishing were used.
   Installation/uninstallation and clean-machine acceptance remain open.
+- 2026-09-10: Added PDF/DOCX text readers for in-scope website documents. Binary
+  HTTPS bodies feed cancellable workers; ZIP expansion, PDF page count, text and
+  time limits are enforced. PDF evaluation/font fetching and XML DTDs are disabled.
+  Visual/scan/layout limitations remain partial coverage, with source links and
+  stale retention after failures. Forty-six unit tests and the local HTTPS fixture
+  pass. Rebuilt the installer and verified both readers within the actual packaged
+  app alongside prior package checks. No real course site or Canvas was read.
+  Canvas-hosted file downloads, browser login, OCR and Word render QA remain open.

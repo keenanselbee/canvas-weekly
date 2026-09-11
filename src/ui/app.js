@@ -313,7 +313,7 @@ function renderCourseWebsites(courses) {
     const add = button('Add website', async () => { update(await api.addWebsite(id, address.value)); render(); });
     add.disabled = state.run.busy;
     const fields = node('div', 'actions'); fields.append(address, add);
-    group.append(fields, node('small', 'muted', 'HTML and text pages are supported. Linked PDF/Word files and sites needing browser sign-in remain visible as collection gaps.'));
+    group.append(fields, node('small', 'muted', 'HTML, text, PDF and Word documents are supported within read limits. Figures, scanned pages and sites needing browser sign-in may require checking the original source.'));
     section.append(group);
   }
   main.append(section);

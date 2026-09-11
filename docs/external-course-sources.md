@@ -3,7 +3,9 @@ External course websites
 
 Public HTML/text and HTTP Basic website connections are implemented and tested
 with synthetic fixtures. The actual DATA 311 site has not been collected by this
-adapter yet. Browser-login adapters and PDF/DOCX contents remain pending.
+adapter yet. PDF/DOCX text extraction is now implemented for documents linked
+inside connected website scopes. Browser-login adapters and Canvas-hosted file
+downloads remain pending.
 Canvas often supplies only the submission deadlines while a separate course
 website contains the syllabus, reading schedule, lecture slides and lab directions.
 Treat both as sources for the same course, with independent access and coverage.
@@ -46,7 +48,7 @@ Collection adapter
 2. Fetch HTML with GET using a separate client. Parse content without executing
    JavaScript. Extract headings, paragraphs, ordered steps, tables and links.
    Quarto/Reveal lecture HTML can often provide text without playing slides.
-3. Follow HTML, text and folder links inside the configured scope, up to depth 2,
+3. Follow HTML, text, PDF, DOCX and folder links inside the configured scope, up to depth 2,
    30 queued document reads, 12 MB total response budget, and two minutes per site.
    Each document read allows at most four redirect-loop iterations.
    Individual requests allow up to 2 MB and 20 seconds including DNS lookup.
@@ -56,8 +58,10 @@ Collection adapter
    challenges explicitly. Reject unexpected auth realms, private-network targets,
    unsafe redirects, assessment routes, form actions and external-tool launches.
    Never forward Canvas authorization or external-site credentials elsewhere.
-5. Planned: add typed PDF and DOCX readers for linked documents; retain unsupported media
-   as references. Dynamic/authenticated pages that cannot be read safely remain
+5. Typed PDF/DOCX readers now extract text in a worker, without opening Office or
+   a browser document viewer. MIME types and file signatures must match supported
+   formats; compressed HTTP responses and other document types remain gaps.
+   Dynamic/authenticated pages that cannot be read safely remain
    visible coverage gaps, with the original source link.
    Images and embedded media are listed as uncollected references, never loaded
    automatically or represented as having been understood from nearby text.
@@ -81,6 +85,36 @@ Request intent/outcome records are flushed under course-websites/request-audit;
 they contain no headers, query strings, bodies or exception details. Failed audit
 intent prevents the request. Ordinary website GETs can still create server access
 logs; this is not a guarantee that arbitrary remote servers are side-effect-free.
+
+Document extraction limits
+--------------------------
+
+PDF.js extracts text with page labels; document JavaScript is not executed,
+font rendering and code evaluation are disabled, and no remote document resources are
+requested. PDF figures, reading order, tables and scanned pages require checking
+the original. No OCR is performed. Every extracted PDF reports partial coverage
+with that limitation, including image-only pages explicitly labeled as lacking
+extractable text. Password-protected or malformed PDFs remain failed reads.
+
+DOCX extraction reads main document text, headers/footers and footnotes/endnotes,
+plus hyperlink relationships. No macros, field instructions, embedded objects or
+external entities execute. It reports partial coverage because layout, images,
+comments and tracked changes still need review in Word. DTDs are rejected.
+ZIP entries are read lazily, with entry-size validation, a 1,000-entry cap,
+20 MB total declared expansion cap and 4 MB per selected XML part. No archive is
+extracted to disk. Encrypted archives and duplicate selected parts are rejected.
+
+Both formats retain the site's 2 MB response limit. Extraction allows 100 PDF
+pages, 200,000 text characters, 1,000 links, and 15 seconds per worker. The worker
+has an empty environment, drained private diagnostics and a bounded JavaScript
+heap; cancellation terminates it. These heap limits are not an OS-level cap on
+native allocations. Parser dependencies must stay patched. Oversized or failed
+documents do not replace earlier evidence with empty text. File contents are
+credential-redacted before being stored or provided to the planner.
+
+Collected document links use the same origin/path, authentication, redirect and
+read-budget rules as HTML links. No Canvas authorization is involved. Extraction
+limitations remain in coverage and study-plan checks, alongside original links.
 
 
 Reconciliation

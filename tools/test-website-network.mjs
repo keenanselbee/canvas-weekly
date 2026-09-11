@@ -31,6 +31,7 @@ $fixtureRsa.Dispose()
       response.writeHead(401, { 'www-authenticate': 'Basic realm="course"' }); response.end(); return;
     }
     if (request.url === '/data311/') { response.writeHead(302, { location: 'lecture.html' }); response.end(); return; }
+    if (request.url.endsWith('binary.pdf')) { response.writeHead(200, { 'content-type': 'application/pdf' }); response.end(Buffer.from([0, 127, 128, 255, 13, 10])); return; }
     response.writeHead(200, { 'content-type': 'text/html' }); response.end('<main><h1>Lecture</h1><p>Optional practice.</p></main>');
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -55,6 +56,8 @@ $fixtureRsa.Dispose()
     assert.match(result.text, /Optional practice/);
     assert.deepEqual(received.map(item => [item.path, item.authorized]), [['/data311/', false], ['/data311/', true], ['/data311/lecture.html', false], ['/data311/lecture.html', true]]);
     assert.ok(received.every(item => item.method === 'GET' && !item.cookie));
+    const binary = await readHttps(new URL(scope.seed + 'binary.pdf'), { authorization: 'Basic ' + Buffer.from('student:fixture-password').toString('base64') });
+    assert.deepEqual(binary.body, Buffer.from([0, 127, 128, 255, 13, 10]), 'HTTPS preserves binary document bytes without UTF-8 conversion');
     await assert.rejects(new SiteReader().page('escape.html', scope), /outside/);
     await assert.rejects(readHttps(new URL(scope.seed + 'large.html'), { maxBytes: 64 }), /securely|limit/);
     await assert.rejects(readHttps(new URL(scope.seed + 'slow.html'), { signal: AbortSignal.timeout(30) }), /cancelled|aborted/);

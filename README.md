@@ -28,7 +28,9 @@ Optional ChatGPT sign-in and study suggestions use the pinned official Codex CLI
 runtime included as a dependency. Page bodies, calendar events and course message
 details now feed both the factual guide and optional AI evidence. Public and
 password-protected HTTP Basic course websites can now be connected under Courses.
-Browser-login websites and linked PDF/Word contents remain pending; see
+Linked PDF and DOCX text is collected within connected course websites, with
+explicit extraction limitations. Browser-login websites and Canvas-hosted file
+contents remain pending; see
 [external course sources](docs/external-course-sources.md).
 
 Safety audit follow-up: module and module-item reads are now disabled because
@@ -103,7 +105,7 @@ planning falls back to a factual guide. Real runtime initialization is verified;
 real ChatGPT account restoration and a planning turn using synthetic course evidence
 are now verified. Full real-course planning quality still needs review.
 
-Requires Node.js 22.12 or later for development. Run `npm ci`, then `npm start`.
+Requires Node.js 22.13 or later for development. Run `npm ci`, then `npm start`.
 Run `npm test` for settings validation and `npm run test:desktop` for Electron UI
 checks and light/dark screenshots under `.codex-temp/visual`. Development settings
 live under ignored `.local/app`; UI tests use separate `.local/test-app` storage.

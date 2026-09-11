@@ -89,6 +89,7 @@ Further acceptance work
    structural/content and file-safety tests; LibreOffice is unavailable here.
    Standalone HTML and print styles are visually checked with synthetic evidence.
 3. Validate external course sites with real course access; add browser-login and
-   linked-document support. Public/Basic HTML/text collection and gaps are implemented.
+   Canvas-hosted file downloads. Public/Basic HTML/text and scoped PDF/DOCX text
+   collection are implemented with explicit extraction gaps.
 4. Tightened UBC login verification, with no unverified claims about the earlier
    Canvas account state. A live Codex planning turn with synthetic evidence passed.
