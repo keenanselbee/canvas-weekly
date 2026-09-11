@@ -103,3 +103,9 @@ milestone; SHA256 is
 796c546b2dbe10d04ac9ad442e0f27c59f2b83e6b4550a69294720bec33fcfeb.
 This supersedes the earlier hashes. The later Word layout verification changes
 test tooling and documentation only, so it does not require an application rebuild.
+
+Saved-guide recovery rebuild (2026-09-11): the latest installer restores syllabus
+and announcement text from older saved guides as last-known evidence. Full package
+checks passed, including matching application source and installer payload.
+SHA256: 931263b3abd3e55bfb43fc62b370e32802e17e68c8f6f3d04f6320c8a54f343f.
+This supersedes the earlier artifacts; it was not installed or used for live login.

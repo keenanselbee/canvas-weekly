@@ -258,6 +258,7 @@ function renderGuide() {
     for (const source of course.evidence || []) {
       const detail = node('details');
       detail.append(node('summary', '', `${source.title} · ${source.kind}${source.stale ? ' · Needs recheck' : ''}`));
+      if (source.recovered) detail.append(node('p', 'muted', `Recovered from an older saved guide${source.recoveredFromGuideAt ? ` collected ${format(source.recoveredFromGuideAt)}` : ''}. Original source observation time is unavailable.`));
       if (source.author || source.postedAt) detail.append(node('p', 'muted', `${source.author || ''} ${source.postedAt ? format(source.postedAt) : ''}`));
       if (source.startsAt) detail.append(node('p', '', `${format(source.startsAt)}${source.location ? ' · ' + source.location : ''}`));
       detail.append(node('p', 'source-body', source.body || 'Content not supplied.'), button('Open source', () => api.openSource(source.id), 'link'));

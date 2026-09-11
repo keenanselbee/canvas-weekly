@@ -6,6 +6,7 @@ import { contentHash, renderMarkdown } from './guide.js';
 import { buildStudyPlan } from './study-plan.js';
 import { renderHtml } from './guide-html.js';
 import { renderWord, wordInputHash } from './guide-word.js';
+import { restoreLegacyEvidence } from './course-evidence.js';
 
 const sameBytes = (a, b) => a === undefined || b === undefined ? a === b : a.equals(b);
 
@@ -16,8 +17,9 @@ export class GuideStore {
   }
   async load(origin, userId) {
     try {
-      const result = JSON.parse(await fs.readFile(path.join(this.directory, this.accountKey(origin, userId), 'state.json'), 'utf8'));
+      let result = JSON.parse(await fs.readFile(path.join(this.directory, this.accountKey(origin, userId), 'state.json'), 'utf8'));
       if (result.schemaVersion !== 1 || !Array.isArray(result.items) || !Array.isArray(result.courses)) throw new Error('Unrecognized course state format.');
+      result = restoreLegacyEvidence(result);
       result.studyPlan = buildStudyPlan(result, await this.loadProgress(origin, userId));
       return result;
     } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
@@ -41,6 +43,7 @@ export class GuideStore {
     return guide;
   }
   async export(guide, outputDirectory, userId, signal) {
+    guide = restoreLegacyEvidence(guide);
     guide = { ...guide, studyPlan: buildStudyPlan(guide, await this.loadProgress(guide.origin, userId)) };
     const weekDirectory = path.join(outputDirectory, guide.week.start);
     await fs.mkdir(weekDirectory, { recursive: true });

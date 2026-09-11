@@ -102,6 +102,9 @@ review. See the
 [study guide design](docs/study-guide-design.md). Existing manual
 edits to generated guides block replacement; keep notes in Student Notes.md.
 The latest saved guide is available in the app after restart without reconnecting.
+Older saved syllabus and announcement text is recovered locally with a last-known
+label. Opening a saved guide does not make that information current; recheck its
+sources before relying on it.
 Run `npm run test:refresh` for a synthetic desktop collection/export/update test;
 it uses isolated test storage and temporary output, never your Canvas account.
 Run `npm run test:connection` for delayed-response, account-change, cancellation

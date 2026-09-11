@@ -1,6 +1,36 @@
 import { extractHtml, plainText, sourceUrl, referenceUrl, redactCredentials } from './content.js';
 const timestamp = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
 
+// Early saved guides stored plain syllabus/announcement text without evidence.
+// Recover it locally, without treating an old snapshot as a fresh source read.
+export function restoreLegacyEvidence(guide) {
+  return { ...guide, courses: guide.courses.map(course => {
+    if (Array.isArray(course.evidence)) return course;
+    const evidence = [];
+    const base = `${guide.origin}/courses/${course.id}`;
+    const add = (kind, id, title, body, url, extra = {}) => {
+      if (typeof body !== 'string' || !body.trim()) return;
+      const target = referenceUrl(url, base);
+      if (!target) return;
+      evidence.push({ id: `${course.id}:${kind}:${id}`, courseId: course.id,
+        courseName: course.code || course.name, kind, title: redactCredentials(String(title)),
+        body: redactCredentials(body), sourceUrl: target, stale: true, observedAt: null,
+        recovered: true, recoveredFromGuideAt: timestamp(guide.observedAt), ...extra });
+    };
+    add('syllabus', course.id, 'Course syllabus', course.syllabus, base + '/assignments/syllabus');
+    for (const announcement of course.announcements || []) {
+      if (!/^\d+$/.test(String(announcement.id))) continue;
+      if (evidence.some(source => source.id === `${course.id}:announcement:${announcement.id}`)) continue;
+      add('announcement', announcement.id, announcement.title || 'Course announcement', announcement.body,
+        referenceUrl(announcement.sourceUrl, base) || base + '/announcements', { postedAt: timestamp(announcement.postedAt) });
+    }
+    return { ...course, evidence, coverage: [...course.coverage, ...(evidence.length ? [{
+      source: 'saved course information', status: 'partial',
+      message: 'Recovered from an older saved guide, not refreshed. Original source observation times are unavailable; recheck the current sources.',
+    }] : [])] };
+  }) };
+}
+
 export function courseEvidence(record, previous, origin, now) {
   const courseName = record.sources.metadata?.course.code || record.sources.metadata?.course.name || record.sources.course?.course_code || previous?.code || `Course ${record.id}`;
   const current = [];

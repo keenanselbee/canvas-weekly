@@ -592,3 +592,21 @@ Work log
   checks before content processing in the pinned upstream source. No new Canvas
   operation was enabled. No real Canvas/AI request, personal-guide update or
   production source change ran. Temporary render diagnostics remain ignored.
+- 2026-09-11: Full saved-guide review found that early version-one syllabus text
+  was retained on disk but omitted by the newer evidence reader. Added local
+  recovery for legacy syllabus/announcement fields on load and explicit export,
+  with stable source IDs, safe links, credential-line redaction and stale labels.
+  Preserved guide timestamps and marked individual source ages as unknown.
+  Existing modern evidence stays authoritative; later successful reads replace
+  recovered entries. Three regression tests cover nonmutating load, plain-text
+  fidelity, stale planning evidence, repeated recovery, replacement and export.
+  All 143 unit tests, desktop refresh/progress/export checks, standalone document
+  checks and rebuilt package checks pass. A read-only review of the saved
+  four-course snapshot recovered two syllabus entries and retained 65 assessments;
+  the opening and recovered-text HTML views were inspected with no network calls.
+  Its full reference document prints to 59 pages; every print page has text, but
+  full visual print review and a more concise print experience remain unfinished.
+  The original saved state and personal guide files were not changed. Installer
+  SHA256: 931263b3abd3e55bfb43fc62b370e32802e17e68c8f6f3d04f6320c8a54f343f.
+  No real Canvas/AI request or installer walkthrough ran. Ignored local review
+  artifacts and the rebuilt dist installer remain available for inspection.

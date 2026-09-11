@@ -75,6 +75,17 @@ opens it through Windows. It does not fetch Canvas or call ChatGPT. Unchanged
 exports do not create redundant revisions. Manual edits still block replacement;
 use checkboxes in the app and Student Notes.md for editable personal notes.
 
+Older version-one guides stored plain syllabus and announcement text without an
+evidence array. Loading or exporting those guides now recovers the text into the
+current evidence format. Existing evidence arrays, including empty arrays, remain
+authoritative. Recovery preserves the guide's week and collection time, redacts
+credential lines, retains plain-text angle brackets, and uses safe source links.
+Recovered sources are stale, with unknown individual observation times; the old
+guide's collection date is displayed separately. A coverage note asks the student
+to recheck them. Load does not rewrite disk state; an explicit export persists the
+recovery through the existing revision and manual-edit protections. Subsequent
+successful source reads replace the recovered entries using their stable IDs.
+
 Open guide now selects the standalone Weekly Plan.html document in the browser.
 It includes section navigation, light/dark appearance, a compact navigation menu
 on narrow windows, and print styles. Preparation checkboxes are a disabled
