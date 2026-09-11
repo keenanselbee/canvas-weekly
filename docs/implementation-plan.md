@@ -13,10 +13,10 @@ Milestone ledger
 | --- | --- | --- | --- |
 | M0 | Product, UX, architecture and delivery plan; existing output initializer | Documents agree with the user's boundaries; Desktop/override verified | Complete: 8eb1b63 |
 | M1 | Native desktop shell, navigation, appearance and saved settings | App launches; system/light/dark work; folder picker; light/dark visual QA | Complete: 49a892d |
-| M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Live refresh paused after transitive permission/serializer review; replacement collection and tightened UBC login validation required |
+| M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, assessment metadata, preserved read state tested | Restricted metadata refresh enabled with optional reviewed message/syllabus reads; tightened live UBC login and deployment compatibility still require validation |
 | M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Complete: ddd9975; synthetic end-to-end verified |
 | M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Live account restoration and validated synthetic planning verified with pinned CLI; full-course quality review pending |
-| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Saved Canvas evidence, public/Basic websites, scoped PDF/DOCX text and Word export implemented; live Canvas collection paused; live site validation, browser-login sites, Canvas file downloads and Word page rendering pending |
+| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Reviewed course-message/syllabus reads, public/Basic websites, scoped PDF/DOCX text and Word export implemented; six-page native Word render verified; automatic Canvas instructions/pages/files, live sites and browser-login sites remain incomplete |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Unsigned x64 installer built; package inventory, matching installer payload, first-run themes and bundled Codex tested; installation walkthrough and live reconnect pending |
 
 Scheduling, multi-provider support, public distribution and hosted service are
@@ -51,7 +51,9 @@ Release acceptance scenarios
 5. A Monday rollover creates a new week while preserving overdue work and notes.
 6. Failed or cancelled scans preserve the previous guide and show stale coverage.
 7. Login expiry requests reconnect and never becomes an empty successful result.
-8. A source message is read with auto_mark_as_read=false and no message is sent.
+8. Course-message text uses only the reviewed fixed GraphQL discovery/detail
+   operations, with no read-state update or send operation. REST conversation
+   reads remain disabled because their attachment serializers invoke lock checks.
 9. Theme follows Windows live; manual light/dark overrides survive restart.
 10. Package excludes all developer state and opens correctly from a path with spaces.
 
@@ -578,3 +580,15 @@ Work log
   Canvas page/file contents and live UBC compatibility remain incomplete. The
   broader goal is active. Ignored test profiles, logs, source-review files and dist
   artifacts remain available for inspection.
+- 2026-09-11: Added an optional native Microsoft Word layout check using a
+  synthetic two-course guide. Word 16.0 opened the DOCX read-only, produced six
+  PDF pages and left the original bytes unchanged. Page bounds, running headers
+  and footers, source/verification content and rasterized header pixels pass;
+  inspected every page and independently checked repeated headers with MuPDF.
+  Existing Word content/file-protection tests and connection-panel checks pass.
+  Updated the release ledger to the admitted metadata/message/syllabus scope and
+  removed the obsolete REST message acceptance wording. Announcement message
+  fields remain excluded: DiscussionType.message invokes locked_for? with policy
+  checks before content processing in the pinned upstream source. No new Canvas
+  operation was enabled. No real Canvas/AI request, personal-guide update or
+  production source change ran. Temporary render diagnostics remain ignored.

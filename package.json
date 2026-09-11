@@ -17,6 +17,7 @@
     "test:metadata-network": "node tools/test-metadata-network.mjs",
     "test:connection": "node tools/test-connection.mjs",
     "test:document": "node tools/test-guide-document.mjs",
+    "test:word-layout": "node tools/test-word-layout.mjs",
     "test:websites": "node tools/test-website-network.mjs",
     "build:windows": "node tools/build-windows.mjs",
     "test:package": "node tools/test-package.mjs"

@@ -63,7 +63,9 @@ Remaining release checks
 
 - Installer/uninstaller walkthrough and execution on a clean Windows machine.
 - Live tightened UBC login and real course website access in the packaged app.
-- Full-course study-planning quality and Word page rendering.
+- Full-course study-planning quality, representative export layout, and HTML print
+  pagination. The six-page synthetic native Word layout check passes; see
+  [Word layout verification](word-layout-check.md).
 - A dedicated application icon, signing identity and distribution destination
   before a polished public release. No installer or update has been published.
 
@@ -94,3 +96,10 @@ unused conversation REST routes and addition of the non-admitted message query
 candidate. Enabled metadata behavior is unchanged. The current installer SHA256
 is 1afc716b910dfec92a4f8ce428883e2eefa753f2d3bdc6a3e5c0913acd6a95fd. This supersedes
 the prior build hash above; installation and live account behavior were not tested.
+
+Syllabus/message rebuild (2026-09-11): the current installer also includes reviewed
+course-tagged message text and syllabus text. Package checks passed at that
+milestone; SHA256 is
+796c546b2dbe10d04ac9ad442e0f27c59f2b83e6b4550a69294720bec33fcfeb.
+This supersedes the earlier hashes. The later Word layout verification changes
+test tooling and documentation only, so it does not require an application rebuild.

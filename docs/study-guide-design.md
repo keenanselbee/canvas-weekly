@@ -93,9 +93,11 @@ Further acceptance work
 
 1. Evaluate richer planning against the full real-course evidence and improve
    workload balance using student availability rather than an invented timetable.
-2. Word page rendering and actual PDF pagination review. Word export passes
-   structural/content and file-safety tests; LibreOffice is unavailable here.
-   Standalone HTML and print styles are visually checked with synthetic evidence.
+2. HTML-to-PDF print pagination and representative full-course export review.
+   Word export passes structural/content and file-safety tests; a six-page guide
+   was paginated in Word 16.0 and every rendered page inspected. See the
+   [native Word layout check](word-layout-check.md). This does not establish
+   layout in other Word versions or with arbitrary course content.
 3. Validate external course sites with real course access; add browser-login and
    Canvas-hosted file downloads. Public/Basic HTML/text and scoped PDF/DOCX text
    collection are implemented with explicit extraction gaps.

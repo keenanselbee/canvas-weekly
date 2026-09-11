@@ -109,8 +109,10 @@ and local credential-cleanup checks with synthetic responses in an isolated prof
 Run `npm run test:document` for standalone document checks and light/dark/narrow/
 print screenshots. The HTML includes no scripts or remote resources; source links
 require a click. Word structure, content, safe links and file protection are tested.
-Word page rendering remains unverified because LibreOffice is unavailable in this
-environment; actual PDF pagination also needs separate verification.
+Run `npm run test:word-layout` on Windows with Microsoft Word installed and closed
+for native pagination checks and page previews. The six-page synthetic Word guide
+has been visually reviewed; see the [layout check](docs/word-layout-check.md) for
+scope and prerequisites. HTML-to-PDF print pagination remains a separate check.
 
 Under Courses, expand Course websites, choose a discovered link or enter a course
 site address, then Add website. Enter its separate website login if requested.
