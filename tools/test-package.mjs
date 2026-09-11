@@ -58,6 +58,9 @@ try {
   const state = await page.evaluate(() => window.canvasWeekly.getState());
   assert.equal(state.canvas.connected, false);
   assert.equal(state.ai.connected, false);
+  assert.equal(state.ai.runtime.detected, true);
+  assert.equal(state.ai.runtime.source, 'bundled');
+  assert.equal(state.ai.available, false, 'Runtime detection must not launch it');
   assert.equal(state.guide, null);
   assert.equal(state.canvas.collectionIssue, null);
   assert.match(state.canvas.collectionNotice, /Course messages and syllabus text are checked when available/);

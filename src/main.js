@@ -42,7 +42,7 @@ function snapshot() {
     websites,
     guide,
     run,
-    ai: codex?.state || { connected: false },
+    ai: codex ? { ...codex.state, runtime: codex.runtime } : { connected: false },
   };
 }
 

@@ -84,6 +84,7 @@ p { margin:0 0 14px; }
 .connection-options { padding:12px 0; }
 .connection-options summary { cursor:pointer; color:var(--accent); margin-bottom:12px; }
 .connection-options .actions { margin:10px 0; }
+.connection-options p { overflow-wrap:anywhere; }
 .connection-options input { flex:1; min-width:180px; }
 .setting-row:has(.actions) { flex-wrap:wrap; }
 .timezone-select { max-width:100%; min-width:0; }

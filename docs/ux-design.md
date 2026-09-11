@@ -23,6 +23,10 @@ scrolls to that service and focuses its first connection control. Navigation alo
 does not start authentication or alter the account. The Connections header's
 hover/focus area spans the same width as the sidebar navigation buttons, with
 horizontal padding around the label and arrow.
+ChatGPT connection options distinguishes Codex detected (a runtime file exists),
+Codex ready (the runtime responded), and Codex not detected (manual selection is
+needed). It shows the automatic or manual source and runtime location. Detection
+does not launch Codex, sign in, or enable study suggestions.
 Limited Canvas coverage stays visible when
 connected, with a source-coverage explanation on This week. A future collection
 hold must remain visible even when signed in. Both text and checkmarks convey connection status.

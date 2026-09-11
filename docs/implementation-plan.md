@@ -650,3 +650,11 @@ Work log
   58de590c8153a6d1a9a6e1497cb8c00c6a3470a5cebb57174b7b9787382d2aab.
   No real account actions or personal-guide changes ran. Live login and collection
   acceptance remain outstanding.
+- 2026-09-11: ChatGPT connection options now reports whether Codex is detected,
+  responding, or needs manual executable selection, including its source and path.
+  File discovery is separate from the runtime handshake and does not launch a
+  process or enable AI. Runtime resolver tests and the synthetic status/navigation
+  fixture pass; detected, ready/manual and missing screenshots were inspected.
+  Real Canvas profile/course-list reads succeeded during user testing, but a
+  session-cookie verification failure stopped the guide refresh before collection.
+  The cause remains unconfirmed; this UI milestone does not resolve that failure.

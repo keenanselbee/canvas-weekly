@@ -75,5 +75,20 @@ try {
     }), true);
     assert.equal(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), 1, 'Status navigation must not start authentication');
   }
-  console.log('Connection panel checks passed: both themes, unknown/reported usage, disclosure focus, settings navigation, small window. Synthetic state only.');
+  for (const [runtime, available, title] of [
+    [{ detected: true, source: 'bundled', path: 'C:/Canvas Weekly/codex.exe' }, false, 'Codex detected'],
+    [{ detected: true, source: 'manual', path: 'C:/My tools/codex.exe' }, true, 'Codex ready'],
+    [{ detected: false, source: 'automatic', path: null }, false, 'Codex not detected'],
+  ]) {
+    state.ai = { connected: false, available, runtime };
+    await send(state);
+    const options = page.locator('details').filter({ has: page.getByText('ChatGPT connection options', { exact: true }) });
+    await options.locator('summary').click();
+    await page.getByRole('heading', { name: title, exact: true }).waitFor();
+    if (runtime.source === 'manual') assert.ok((await options.textContent()).includes('manual selection'));
+    if (!runtime.detected) assert.ok((await options.textContent()).includes('Choose codex.exe manually'));
+    await options.scrollIntoViewIfNeeded();
+    await options.screenshot({ path: `.codex-temp/visual/runtime-${runtime.source}.png` });
+  }
+  console.log('Connection panel checks passed: both themes, usage, setup navigation, runtime detection states, small window. Synthetic state only.');
 } finally { await application.close(); }

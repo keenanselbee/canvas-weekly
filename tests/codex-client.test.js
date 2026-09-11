@@ -3,7 +3,27 @@ import assert from 'node:assert/strict';
 import { PassThrough } from 'node:stream';
 import { EventEmitter } from 'node:events';
 import path from 'node:path';
-import { CodexClient, planningEvidence } from '../src/codex-client.js';
+import fs from 'node:fs/promises';
+import { CodexClient, planningEvidence, resolveCodexRuntime } from '../src/codex-client.js';
+
+test('runtime detection distinguishes bundled, PATH, manual and missing files without launching', async () => {
+  const directory = await fs.mkdtemp(path.resolve('.codex-temp/runtime-'));
+  try {
+    const bundled = path.join(directory, 'bundled.exe');
+    const automatic = path.join(directory, process.platform === 'win32' ? 'codex.exe' : 'codex');
+    await fs.writeFile(bundled, 'fixture'); await fs.writeFile(automatic, 'fixture');
+    assert.deepEqual(resolveCodexRuntime('codex', { bundled, searchPath: directory }), { path: bundled, source: 'bundled', detected: true });
+    assert.deepEqual(resolveCodexRuntime('codex', { bundled: null, searchPath: directory }), { path: automatic, source: 'path', detected: true });
+    assert.deepEqual(resolveCodexRuntime(bundled), { path: bundled, source: 'manual', detected: true });
+    assert.equal(resolveCodexRuntime(directory).detected, false, 'A directory is not an executable');
+    assert.deepEqual(resolveCodexRuntime('codex', { bundled: null, searchPath: '' }), { path: null, source: 'automatic', detected: false });
+    const client = new CodexClient({ executable: bundled, directory, spawnProcess: () => { throw Error('Detection must not launch'); } });
+    assert.equal(client.runtime.detected, true);
+    assert.equal(client.state.available, false, 'File detection is not a successful handshake');
+    await fs.unlink(bundled);
+    assert.equal(client.runtime.detected, false, 'Removed manual files are no longer detected');
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});
 
 function fakeServer(overrides = {}, notifications = []) {
   const requests = [];

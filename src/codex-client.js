@@ -4,28 +4,48 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { planningSchema, validatePriorities } from './planning-output.js';
 import { createRequire } from 'node:module';
-import { existsSync } from 'node:fs';
+import { statSync } from 'node:fs';
+
+function runtimeFile(file) {
+  try { return statSync(file).isFile(); } catch { return false; }
+}
 
 function bundledRuntime() {
-  if (process.platform !== 'win32' || !['x64', 'arm64'].includes(process.arch)) return 'codex';
+  if (process.platform !== 'win32' || !['x64', 'arm64'].includes(process.arch)) return null;
   try {
     const root = path.dirname(createRequire(import.meta.url).resolve(`@openai/codex-win32-${process.arch}/package.json`));
     const triple = process.arch === 'arm64' ? 'aarch64-pc-windows-msvc' : 'x86_64-pc-windows-msvc';
     const executable = path.join(root, 'vendor', triple, 'bin', 'codex.exe').replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
-    if (existsSync(executable)) return executable;
+    if (runtimeFile(executable)) return executable;
   } catch { /* Explicit executable selection remains available. */ }
-  return 'codex';
+  return null;
+}
+
+export function resolveCodexRuntime(executable = 'codex', { bundled = bundledRuntime(), searchPath = process.env.PATH || '' } = {}) {
+  if (executable !== 'codex') return { path: executable, source: 'manual', detected: runtimeFile(executable) };
+  if (bundled && runtimeFile(bundled)) return { path: bundled, source: 'bundled', detected: true };
+  for (const entry of searchPath.split(path.delimiter)) {
+    const directory = entry.replace(/^"|"$/g, '');
+    if (!path.isAbsolute(directory)) continue;
+    const candidate = path.join(directory, process.platform === 'win32' ? 'codex.exe' : 'codex');
+    if (runtimeFile(candidate)) return { path: candidate, source: 'path', detected: true };
+  }
+  return { path: null, source: 'automatic', detected: false };
 }
 
 export class CodexClient extends EventEmitter {
   constructor({ executable = 'codex', directory, spawnProcess = spawn }) {
     super();
-    this.executable = executable === 'codex' ? bundledRuntime() : executable;
+    this.runtimeSelection = resolveCodexRuntime(executable);
+    this.executable = this.runtimeSelection.path || executable;
     this.directory = directory;
     this.spawnProcess = spawnProcess;
     this.pending = new Map();
     this.sequence = 0;
     this.state = { available: false, connected: false, connecting: false };
+  }
+  get runtime() {
+    return { ...this.runtimeSelection, detected: this.state.available || Boolean(this.runtimeSelection.path && runtimeFile(this.runtimeSelection.path)) };
   }
   async start() {
     if (this.starting) return this.starting;

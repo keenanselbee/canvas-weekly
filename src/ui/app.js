@@ -30,7 +30,7 @@ function announce(message, persistent = false) {
 function update(next) {
   if (next.canvas.error && next.canvas.error !== state?.canvas.error) announce(next.canvas.error, true);
   const runChanged = state && (state.run?.busy !== next.run?.busy || state.run?.message !== next.run?.message);
-  const connectionChanged = state && (JSON.stringify(state.canvas) !== JSON.stringify(next.canvas) || ['connected', 'connecting', 'error', 'available'].some(key => state.ai[key] !== next.ai[key]));
+  const connectionChanged = state && (JSON.stringify(state.canvas) !== JSON.stringify(next.canvas) || ['connected', 'connecting', 'error', 'available'].some(key => state.ai[key] !== next.ai[key]) || JSON.stringify(state.ai.runtime) !== JSON.stringify(next.ai.runtime));
   state = next;
   document.documentElement.dataset.theme = state.appearance.dark ? 'dark' : 'light';
   renderConnections();
@@ -415,7 +415,14 @@ function renderSettings() {
   aiToggle.addEventListener('change', () => perform(async () => { update(await api.setAIEnabled(aiToggle.checked)); }));
   connections.append(row('Study suggestions', 'When enabled, selected course text is sent to ChatGPT. Factual guides work without it.', aiToggle));
   const aiOptions = node('details', 'connection-options'); aiOptions.append(node('summary', '', 'ChatGPT connection options'));
-  aiOptions.append(node('p', 'muted', state.settings.codexExecutable || 'Uses an installed Codex runtime. If it cannot be found, choose codex.exe.'), button('Choose Codex executable', async () => { update(await api.chooseCodex()); render(); }));
+  const runtime = state.ai.runtime;
+  const runtimeTitle = state.ai.available ? 'Codex ready' : runtime?.detected ? 'Codex detected' : 'Codex not detected';
+  const runtimeDescription = runtime?.detected || state.ai.available
+    ? `${runtime?.source === 'manual' ? 'Using your manual selection.' : runtime?.source === 'bundled' ? 'Detected automatically. Included with Canvas Weekly.' : 'Detected automatically on this computer.'} ${state.ai.available ? 'The runtime is responding.' : state.ai.error ? 'It is not ready. Try reconnecting or choose another executable.' : 'It will start when you connect ChatGPT.'}`
+    : 'Choose codex.exe manually to connect ChatGPT. Factual guides still work without it.';
+  aiOptions.append(node('h3', '', runtimeTitle), node('p', 'muted', runtimeDescription));
+  if (runtime?.path) aiOptions.append(node('p', 'muted', `Runtime location: ${runtime.path}`));
+  aiOptions.append(button('Choose Codex executable', async () => { update(await api.chooseCodex()); render(); }, runtime?.detected || state.ai.available ? '' : 'primary'));
   connections.append(aiOptions);
   const output = card('Weekly files');
   output.append(row('Output folder', state.outputDirectory, button('Change folder', async () => { update(await api.chooseOutput()); render(); })), row('Open your files', 'Weekly guides and your notes stay in the folder you choose.', button('Open folder', () => api.openOutput())));
