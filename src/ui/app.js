@@ -345,15 +345,23 @@ function renderCourseWebsites(courses) {
       const actions = node('div', 'actions');
       actions.append(button('Check website', async () => { update(await api.checkWebsite(site.id)); render(); }),
         button('Remove website', async () => { update(await api.removeWebsite(site.id)); render(); }));
+      if (site.hasCredentials || site.sessionOnly) {
+        connection.append(node('p', 'muted', site.hasCredentials ? 'Login saved with Windows encryption.' : 'Login kept for this app session only.'));
+        actions.append(button('Forget website login', async () => { update(await api.forgetWebsiteLogin(site.id)); render(); }));
+      }
       for (const control of actions.children) control.disabled = state.run.busy;
       connection.append(actions);
       if (site.needsPassword) {
-        connection.append(node('p', 'muted', 'Use the website login supplied by your course, which may differ from your Canvas login. It is encrypted on this Windows computer.'));
+        connection.append(node('p', 'muted', 'Use the website login supplied by your course. Remembered logins are encrypted on this Windows computer.'));
+        const remember = node('input'); remember.type = 'checkbox'; remember.checked = site.remember !== false;
+        remember.setAttribute('aria-label', `Remember login for ${site.url}`);
+        const rememberLabel = node('label', 'remember-login'); rememberLabel.append(remember, document.createTextNode(' Remember on this computer'));
+        connection.append(rememberLabel);
         const username = node('input'); username.autocomplete = 'off'; username.placeholder = 'Website username'; username.setAttribute('aria-label', `Website username for ${site.url}`);
         const password = node('input'); password.type = 'password'; password.autocomplete = 'off'; password.placeholder = 'Website password'; password.setAttribute('aria-label', `Website password for ${site.url}`);
         const login = button('Connect website', async () => {
           const user = username.value; const secret = password.value; password.value = '';
-          update(await api.connectWebsite(site.id, user, secret)); render();
+          update(await api.connectWebsite(site.id, user, secret, remember.checked)); render();
         }, 'primary');
         login.disabled = state.run.busy;
         const fields = node('div', 'actions'); fields.append(username, password, login); connection.append(fields);
@@ -384,13 +392,21 @@ function renderSettings() {
   const connections = card('Connections');
   const canvasActions = node('div', 'actions');
   if (state.canvas.connected) {
-    canvasActions.append(button('Choose courses', () => go('courses')), button('Disconnect', async () => { update(await api.disconnectCanvas()); render(); }));
+    canvasActions.append(button('Choose courses', () => go('courses')));
   } else {
     canvasActions.append(button('Sign in to Canvas', async () => { update(await api.openCanvasLogin()); render(); }, 'primary'), button('Check connection', async () => { announce('Checking Canvas connection…'); update(await api.verifyCanvas()); announce('Canvas connected. Choose your courses.'); go('courses'); }));
   }
+  canvasActions.append(button('Forget Canvas login', async () => { update(await api.disconnectCanvas()); render(); announce('Saved Canvas connection forgotten. Guide files are kept.'); }));
   const canvasSettings = row('Canvas', state.canvas.connected ? `Connected as ${state.canvas.name}` : 'Sign in in the Canvas window, then close it and check the connection.', canvasActions);
   canvasSettings.id = 'canvas-settings';
   connections.append(canvasSettings);
+  const rememberCanvas = node('input'); rememberCanvas.type = 'checkbox'; rememberCanvas.checked = state.settings.rememberCanvas !== false;
+  rememberCanvas.setAttribute('aria-label', 'Remember Canvas on this computer'); rememberCanvas.disabled = state.run.busy || state.canvas.connecting;
+  rememberCanvas.addEventListener('change', () => perform(async () => {
+    try { update(await api.setRememberCanvas(rememberCanvas.checked)); announce('Canvas login preference saved. Sign in to continue.'); }
+    finally { update(await api.getState()); render(); }
+  }));
+  connections.append(row('Remember Canvas on this computer', 'Reuse your session until Canvas requires sign-in. Changing this signs you out locally; your guides are kept.', rememberCanvas));
   const advanced = node('details', 'connection-options');
   advanced.append(node('summary', '', 'Canvas connection options'));
   const origin = node('input'); origin.type = 'url'; origin.value = state.settings.canvasBaseUrl; origin.setAttribute('aria-label', 'Canvas address');
@@ -403,14 +419,21 @@ function renderSettings() {
     announce('Checking Canvas connection…');
     update(await api.connectCanvasToken(value)); announce('Canvas connected. Choose your courses.'); go('courses');
   }));
-  advanced.append(node('p', 'muted', 'Use an API token only if your institution provides one. It is encrypted on this Windows computer.'), addressRow, tokenRow);
+  advanced.append(node('p', 'muted', 'Use an API token only if your institution provides one. Remembered tokens are encrypted on this Windows computer; with Remember off they stay in memory.'), addressRow, tokenRow);
   connections.append(advanced);
   const aiActions = node('div', 'actions');
-  if (state.ai.connected) aiActions.append(button('Disconnect', async () => { update(await api.disconnectChatGPT()); render(); }));
-  else aiActions.append(button(state.ai.connecting ? 'Sign-in open' : 'Connect ChatGPT', async () => { update(await api.connectChatGPT()); render(); }), button('Check sign-in', async () => { update(await api.checkChatGPT()); render(); }));
+  if (!state.ai.connected) aiActions.append(button(state.ai.connecting ? 'Sign-in open' : 'Connect ChatGPT', async () => { update(await api.connectChatGPT()); render(); }), button('Check sign-in', async () => { update(await api.checkChatGPT()); render(); }));
+  aiActions.append(button('Forget ChatGPT login', async () => { update(await api.disconnectChatGPT()); render(); announce('Saved ChatGPT connection forgotten.'); }));
   const aiSettings = row('ChatGPT via Codex', state.ai.connected ? 'Connected. Your account usage limits apply.' : state.ai.error || 'Sign in through the official ChatGPT page to add study suggestions.', aiActions);
   aiSettings.id = 'ai-settings';
   connections.append(aiSettings);
+  const rememberAI = node('input'); rememberAI.type = 'checkbox'; rememberAI.checked = state.settings.rememberChatGPT !== false;
+  rememberAI.setAttribute('aria-label', 'Remember ChatGPT on this computer'); rememberAI.disabled = state.run.busy || state.ai.connecting;
+  rememberAI.addEventListener('change', () => perform(async () => {
+    try { update(await api.setRememberChatGPT(rememberAI.checked)); announce('ChatGPT login preference saved. Sign in to continue.'); }
+    finally { update(await api.getState()); render(); }
+  }));
+  connections.append(row('Remember ChatGPT on this computer', 'Use Windows credential storage. Off keeps authorization in memory for this app session. Changing this signs you out.', rememberAI));
   const aiToggle = node('input'); aiToggle.type = 'checkbox'; aiToggle.checked = Boolean(state.settings.aiEnabled); aiToggle.setAttribute('aria-label', 'Use ChatGPT suggestions');
   aiToggle.addEventListener('change', () => perform(async () => { update(await api.setAIEnabled(aiToggle.checked)); }));
   connections.append(row('Study suggestions', 'When enabled, selected course text is sent to ChatGPT. Factual guides work without it.', aiToggle));

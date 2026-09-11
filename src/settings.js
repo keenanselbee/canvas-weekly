@@ -12,6 +12,8 @@ export const defaults = {
   lastGuideAccount: null,
   codexExecutable: null,
   aiEnabled: false,
+  rememberCanvas: true,
+  rememberChatGPT: true,
 };
 
 export function validateSettings(value) {
@@ -29,6 +31,9 @@ export function validateSettings(value) {
     new Intl.DateTimeFormat('en', { timeZone: value.timeZone }).format();
   } catch { throw new Error('Choose a valid academic timezone, such as America/Vancouver.'); }
   if (value.aiEnabled !== undefined && typeof value.aiEnabled !== 'boolean') throw new Error('Invalid AI preference.');
+  for (const key of ['rememberCanvas', 'rememberChatGPT']) {
+    if (value[key] !== undefined && typeof value[key] !== 'boolean') throw new Error('Invalid remember-login preference.');
+  }
   if (value.codexExecutable != null && (typeof value.codexExecutable !== 'string' || !path.isAbsolute(value.codexExecutable))) throw new Error('Choose an installed Codex executable.');
   if (!Array.isArray(value.selectedCourseIds) || !value.selectedCourseIds.every(id => /^\d+$/.test(id))) {
     throw new Error('Invalid course selection.');

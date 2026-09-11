@@ -671,3 +671,21 @@ Work log
   package passes inventory/payload/private-state and bundled-runtime checks.
   Installer SHA256:
   ad6b17839d266ba189c466a115d353832a0c06ebd9159c5e48a7413ac24bfaeb.
+- 2026-09-11: Added separate Remember/Forget controls for Canvas, ChatGPT and
+  course websites. Remembered Canvas session cookies gain a Windows-encrypted
+  restore copy; off uses an in-memory browser partition and token. Codex uses
+  its strict OS credential store or ephemeral authorization. An older plaintext
+  Codex cache is encrypted before removal and requests a one-time secure sign-in.
+  Website credentials can be session-only or encrypted, with a local Forget action.
+  Connection changes are serialized and blocked during refresh. A runtime exit
+  wait fixes a file-lock race found during the restart test. All 148 unit tests,
+  desktop preference/navigation/layout checks, connection-lifecycle and refresh
+  checks pass. The new test:remember verifies real Windows encryption, cold
+  restoration, expiry, forgetting and Codex keyring/memory behavior with synthetic
+  credentials. Temporary keyring entries from failed fixture runs were cleaned up.
+  Light/dark/minimum-window screenshots were inspected. No personal Canvas request,
+  real AI planning run or personal credential migration ran during this milestone.
+  The user's open window predates this change. Live UBC restoration and the earlier
+  session-verification failure remain outstanding; see remembered-connections.md.
+  Rebuilt package checks pass; installer SHA256:
+  74df0419795b47efe600b67467aac6494af7adeb19ba96249b276ea262b86d7c.

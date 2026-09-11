@@ -16,6 +16,7 @@
     "test:network": "node tools/test-network.mjs",
     "test:metadata-network": "node tools/test-metadata-network.mjs",
     "test:connection": "node tools/test-connection.mjs",
+    "test:remember": "node tools/test-remember.mjs",
     "test:document": "node tools/test-guide-document.mjs",
     "test:word-layout": "node tools/test-word-layout.mjs",
     "test:websites": "node tools/test-website-network.mjs",

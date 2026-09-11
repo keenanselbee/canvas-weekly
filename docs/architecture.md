@@ -103,6 +103,9 @@ results and errors from invalidated lifetimes cannot overwrite the current accou
 an old promise's cleanup cannot clear a newer verification. Local credential writes
 and removals are serialized so a delayed token save cannot undo Disconnect.
 Session verification waits for pending cookie cleanup before issuing a read.
+Remembered connections, Windows encryption, memory-only modes and migration from
+legacy Codex file storage are described in remembered-connections.md. Canvas
+restoration never substitutes for the session and account checks below.
 
 A guide run captures a fixed origin, user ID and immutable course-ID list, checks
 that binding after asynchronous collection stages, and combines its signal with

@@ -13,6 +13,7 @@ export class CourseWebsites {
     this.directory = directory;
     this.secrets = secrets;
     this.transport = transport;
+    this.sessionCredentials = new Map();
   }
   async load(account) {
     try {
@@ -33,7 +34,8 @@ export class CourseWebsites {
     return (await this.load(account)).map(site => ({ id: site.id, courseId: site.courseId, url: site.url,
       scope: siteScope(site.url).origin + siteScope(site.url).prefix, status: site.status,
       message: site.message, checkedAt: site.checkedAt, pageCount: site.pageCount || 0,
-      needsPassword: site.status === 'needs-login' && typeof site.realm === 'string', hasCredentials: Boolean(site.encrypted) }));
+      needsPassword: site.status === 'needs-login' && typeof site.realm === 'string', hasCredentials: Boolean(site.encrypted),
+      sessionOnly: this.sessionCredentials.has(`${accountKey(account)}:${site.id}`), remember: site.remember !== false }));
   }
   async add(account, courseId, value) {
     if (!/^\d+$/.test(courseId) || typeof value !== 'string' || value.length > 2048) throw new Error('Choose a course and its website address.');
@@ -51,9 +53,23 @@ export class CourseWebsites {
     const sites = await this.load(account);
     if (!sites.some(site => site.id === id)) throw new Error('Choose a connected course website.');
     await this.save(account, sites.filter(site => site.id !== id));
+    this.sessionCredentials.delete(`${accountKey(account)}:${id}`);
+  }
+  async forgetLogin(account, id) {
+    const sites = await this.load(account);
+    const site = sites.find(site => site.id === id);
+    if (!site) throw new Error('Choose a connected course website.');
+    delete site.encrypted;
+    site.authRejected = true; site.status = 'needs-login';
+    site.message = 'Saved login forgotten. Enter the website login again when needed.';
+    await this.save(account, sites);
+    this.sessionCredentials.delete(`${accountKey(account)}:${id}`);
   }
   async credential(account, site) {
-    if (!site.encrypted || site.authRejected) return null;
+    if (site.authRejected) return null;
+    const temporary = this.sessionCredentials.get(`${accountKey(account)}:${site.id}`);
+    if (temporary) return temporary;
+    if (!site.encrypted) return null;
     try {
       const value = JSON.parse(await this.secrets.decrypt(Buffer.from(site.encrypted, 'base64')));
       if (value.binding !== `${accountKey(account)}:${site.id}:${site.url}`) throw new Error('Credential scope changed');
@@ -90,13 +106,21 @@ export class CourseWebsites {
     if (!site) throw new Error('Choose a connected course website.');
     let credential;
     if (login) {
+      if (login.remember !== undefined && typeof login.remember !== 'boolean') throw new Error('Choose whether to remember the website login.');
       if (typeof site.realm !== 'string') throw new Error('Check this website first to identify its sign-in method.');
       if (typeof login.username !== 'string' || !login.username || login.username.length > 200 || /[:\r\n\0]/.test(login.username)
         || typeof login.password !== 'string' || !login.password || login.password.length > 1024 || /[\r\n\0]/.test(login.password)) throw new Error('Enter the course website username and password.');
-      credential = { ...login, realm: site.realm, binding: `${accountKey(account)}:${site.id}:${site.url}` };
-      // Confirm encryption availability before transmitting credentials.
-      const encrypted = await this.secrets.encrypt(JSON.stringify(credential));
-      credential.encrypted = encrypted.toString('base64');
+      credential = { username: login.username, password: login.password, realm: site.realm, binding: `${accountKey(account)}:${site.id}:${site.url}` };
+      site.remember = login.remember !== false;
+      if (site.remember) {
+        // Confirm encryption availability before transmitting remembered credentials.
+        const encrypted = await this.secrets.encrypt(JSON.stringify(credential));
+        credential.encrypted = encrypted.toString('base64');
+      } else {
+        delete site.encrypted;
+        this.sessionCredentials.delete(`${accountKey(account)}:${site.id}`);
+        await this.save(account, sites);
+      }
     } else {
       try { credential = await this.credential(account, site); }
       catch {
@@ -114,7 +138,11 @@ export class CourseWebsites {
     signal?.throwIfAborted();
     Object.assign(site, { status: result.status, realm: result.realm ?? site.realm, checkedAt: new Date().toISOString(), message: result.status === 'ok' ? 'Website connected. Readable pages will be included when you update the guide.' : result.message });
     if (result.status === 'needs-login' && credential) site.authRejected = true;
-    if (login && ['ok', 'partial'].includes(result.status)) { site.encrypted = credential.encrypted; site.authRejected = false; }
+    if (login && ['ok', 'partial'].includes(result.status)) {
+      site.encrypted = credential.encrypted; site.authRejected = false;
+      if (!site.remember) this.sessionCredentials.set(`${accountKey(account)}:${site.id}`, credential);
+      else this.sessionCredentials.delete(`${accountKey(account)}:${site.id}`);
+    }
     await this.save(account, sites);
     return this.list(account);
   }

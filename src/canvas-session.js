@@ -11,12 +11,20 @@ import { CanvasMetadataTransport } from './canvas-metadata-transport.js';
 import { canvasSessionAuthentication } from './canvas-csrf.js';
 import { collectStudentMetadata } from './canvas-student-collection.js';
 import { METADATA_NOTICE } from './canvas-metadata.js';
+import { EncryptedFile } from './encrypted-file.js';
 
 export class CanvasConnection {
   #metadataTransport = null;
   #metadataRunning = false;
   constructor({ directory, settings, onChange, onConnected = () => {} }) {
     this.file = path.join(directory, 'canvas-credential.json');
+    this.savedSession = new EncryptedFile(path.join(directory, 'canvas-session.encrypted.json'), {
+      encrypt: value => {
+        if (!safeStorage.isEncryptionAvailable()) throw new Error();
+        return safeStorage.encryptString(value);
+      },
+      decrypt: value => safeStorage.decryptString(value),
+    });
     this.audit = new CanvasAudit(directory);
     this.settings = settings;
     this.onChange = onChange;
@@ -27,7 +35,10 @@ export class CanvasConnection {
     this.connectionError = null;
     this.lifetime = new AbortController();
     this.credentialWrites = Promise.resolve();
-    this.session = session.fromPartition('persist:canvas');
+    this.attachSession();
+  }
+  attachSession() {
+    this.session = session.fromPartition(this.settings.value.rememberCanvas === false ? 'canvas-private' : 'persist:canvas');
     this.network = new CanvasNetwork({ origin: () => new URL(this.settings.value.canvasBaseUrl).origin,
       loginContentsId: () => this.loginWindow?.webContents.id,
       fetcher: (url, init) => this.session.fetch(url, init) });
@@ -69,6 +80,14 @@ export class CanvasConnection {
   }
   async restore() {
     const { signal } = this.lifetime;
+    if (this.settings.value.rememberCanvas === false) {
+      await this.writeCredential(async () => {
+        await fs.rm(this.file, { force: true });
+        await this.savedSession.remove();
+        await session.fromPartition('persist:canvas').clearStorageData();
+      });
+      return;
+    }
     try {
       const credential = JSON.parse(await fs.readFile(this.file, 'utf8'));
       signal.throwIfAborted();
@@ -76,6 +95,54 @@ export class CanvasConnection {
         this.token = safeStorage.decryptString(Buffer.from(credential.encrypted, 'base64'));
       }
     } catch (error) { if (error.code !== 'ENOENT') this.restoreError = 'Saved Canvas connection could not be restored. Reconnect Canvas.'; }
+    if (this.token) return;
+    try {
+      const saved = await this.savedSession.read();
+      if (!saved) return;
+      if (saved.origin !== this.settings.value.canvasBaseUrl || !Number.isFinite(saved.until) || saved.until <= Date.now()) {
+        if (saved.origin === this.settings.value.canvasBaseUrl) this.restoreError = 'Saved Canvas sign-in expired. Sign in again.';
+        await this.savedSession.remove(); return;
+      }
+      if (!Array.isArray(saved.cookies) || saved.cookies.length > 100) throw new Error();
+      // Never overwrite a newer live/browser-persisted cookie with a snapshot.
+      const current = await this.session.cookies.get({ url: saved.origin });
+      for (const cookie of saved.cookies) {
+        signal.throwIfAborted();
+        if (!['_normandy_session', '_csrf_token'].includes(cookie.name) || cookie.url !== saved.origin
+          || cookie.path !== '/' || cookie.secure !== true || cookie.domain !== undefined
+          || typeof cookie.value !== 'string' || cookie.value.length > 16384) throw new Error();
+        if (cookie.expirationDate !== undefined && (!Number.isFinite(cookie.expirationDate) || cookie.expirationDate <= Date.now() / 1000)) {
+          if (cookie.name === '_normandy_session') this.restoreError = 'Saved Canvas sign-in expired. Sign in again.';
+          continue;
+        }
+        if (!current.some(item => item.name === cookie.name)) await this.session.cookies.set(cookie);
+      }
+    } catch { this.restoreError = 'Saved Canvas session could not be restored. Sign in again.'; }
+    finally { if (this.restoreError) this.connectionError = this.restoreError; }
+  }
+  async rememberSession(signal) {
+    if (this.settings.value.rememberCanvas === false || this.token) return;
+    const origin = this.settings.value.canvasBaseUrl;
+    const cookies = (await this.session.cookies.get({ url: origin })).filter(cookie =>
+      ['_normandy_session', '_csrf_token'].includes(cookie.name) && cookie.path === '/' && cookie.secure
+      && cookie.hostOnly && cookie.domain === new URL(origin).hostname).map(cookie => ({
+        url: origin, name: cookie.name, value: cookie.value, path: cookie.path, secure: cookie.secure,
+        httpOnly: cookie.httpOnly, sameSite: cookie.sameSite,
+        ...(cookie.session ? {} : { expirationDate: cookie.expirationDate }),
+      }));
+    if (!cookies.some(cookie => cookie.name === '_normandy_session')) return;
+    await this.writeCredential(async () => {
+      signal.throwIfAborted();
+      await this.savedSession.write({ origin, until: Date.now() + 7 * 86400000, cookies });
+    });
+  }
+  async setRemember(remember) {
+    if (typeof remember !== 'boolean') throw new Error('Choose whether to remember Canvas.');
+    if (this.loginWindow) throw new Error('Finish Canvas sign-in before changing this setting.');
+    if (remember === (this.settings.value.rememberCanvas !== false)) return;
+    await this.disconnect();
+    await this.settings.update({ rememberCanvas: remember });
+    this.attachSession();
   }
   async watchSession(binding, signal) {
     binding.assertCurrent();
@@ -178,6 +245,7 @@ export class CanvasConnection {
         if (!/^[1-9]\d{0,31}$/.test(userId) || (typeof profile.id === 'number' && !Number.isSafeInteger(profile.id))) throw new Error('Canvas did not return a valid account profile.');
         if (!identity) throw new Error('Canvas did not confirm the account identity. Reconnect Canvas before continuing.');
         await this.session.cookies.flushStore();
+        await this.rememberSession(lifetime.signal);
         lifetime.signal.throwIfAborted();
         if ((previousId && previousId !== userId) || (previousGlobalId && previousGlobalId !== identity.globalUserId)) this.invalidate();
         this.profile = { id: userId, globalId: identity.globalUserId, name: String(profile.name || 'Canvas account') };
@@ -196,7 +264,7 @@ export class CanvasConnection {
   }
   async connectToken(value) {
     if (typeof value !== 'string' || value.trim().length < 10 || value.length > 4096 || /[\r\n]/.test(value)) throw new Error('Enter a valid institution-issued Canvas API token.');
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows credential encryption is unavailable. Use browser sign-in instead.');
+    if (this.settings.value.rememberCanvas !== false && !safeStorage.isEncryptionAvailable()) throw new Error('Windows credential encryption is unavailable. Turn off Remember Canvas to connect for this session.');
     const previous = this.token;
     this.invalidate();
     const { signal } = this.lifetime;
@@ -205,8 +273,10 @@ export class CanvasConnection {
     try {
       await this.verify();
       signal.throwIfAborted();
-      const credential = { origin: this.settings.value.canvasBaseUrl, encrypted: safeStorage.encryptString(this.token).toString('base64') };
-      await this.writeCredential(async () => { signal.throwIfAborted(); await atomicJson(this.file, credential); });
+      if (this.settings.value.rememberCanvas !== false) {
+        const credential = { origin: this.settings.value.canvasBaseUrl, encrypted: safeStorage.encryptString(this.token).toString('base64') };
+        await this.writeCredential(async () => { signal.throwIfAborted(); await atomicJson(this.file, credential); });
+      }
       signal.throwIfAborted();
     } catch (error) { if (!signal.aborted) { this.invalidate(); this.token = previous; this.profile = null; } throw error; }
     return this.status;
@@ -219,7 +289,7 @@ export class CanvasConnection {
     this.token = null;
     this.profile = null;
     this.connectionError = null;
-    await this.writeCredential(() => fs.rm(this.file, { force: true }));
+    await this.writeCredential(async () => { await fs.rm(this.file, { force: true }); await this.savedSession.remove(); });
     lifetime.signal.throwIfAborted();
     this.loginWindow = new BrowserWindow({ width: 1000, height: 800, title: 'Sign in to Canvas · Close this window when finished',
       webPreferences: { session: this.session, nodeIntegration: false, contextIsolation: true, sandbox: true } });
@@ -258,6 +328,7 @@ export class CanvasConnection {
     this.connectionError = null;
     await this.writeCredential(async () => {
       await fs.rm(this.file, { force: true });
+      await this.savedSession.remove();
       await this.session.clearStorageData();
     });
     this.onChange();

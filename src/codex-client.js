@@ -5,6 +5,8 @@ import path from 'node:path';
 import { planningSchema, validatePriorities } from './planning-output.js';
 import { createRequire } from 'node:module';
 import { statSync } from 'node:fs';
+import { EncryptedFile } from './encrypted-file.js';
+import { atomicJson } from './settings.js';
 
 function runtimeFile(file) {
   try { return statSync(file).isFile(); } catch { return false; }
@@ -34,11 +36,15 @@ export function resolveCodexRuntime(executable = 'codex', { bundled = bundledRun
 }
 
 export class CodexClient extends EventEmitter {
-  constructor({ executable = 'codex', directory, spawnProcess = spawn }) {
+  constructor({ executable = 'codex', directory, spawnProcess = spawn, remember = true, secrets }) {
     super();
     this.runtimeSelection = resolveCodexRuntime(executable);
     this.executable = this.runtimeSelection.path || executable;
     this.directory = directory;
+    this.remember = remember;
+    this.authMarker = path.join(directory, 'remembered-login.json');
+    this.legacyAuth = path.join(directory, 'codex-home/auth.json');
+    this.legacyBackup = new EncryptedFile(path.join(directory, 'legacy-login.encrypted.json'), secrets);
     this.spawnProcess = spawnProcess;
     this.pending = new Map();
     this.sequence = 0;
@@ -46,6 +52,20 @@ export class CodexClient extends EventEmitter {
   }
   get runtime() {
     return { ...this.runtimeSelection, detected: this.state.available || Boolean(this.runtimeSelection.path && runtimeFile(this.runtimeSelection.path)) };
+  }
+  async hasSavedLogin() {
+    return this.remember && (runtimeFile(this.authMarker) || runtimeFile(this.legacyAuth) || runtimeFile(this.legacyBackup.file));
+  }
+  async protectLegacyLogin() {
+    try {
+      const value = await fs.readFile(this.legacyAuth, 'utf8');
+      if (!this.remember) { await fs.rm(this.legacyAuth); return; }
+      // Preserve an encrypted recovery copy before retiring the old plaintext
+      // cache. Reauthentication lets Codex populate its own OS credential store.
+      await this.legacyBackup.write(value);
+      await fs.rm(this.legacyAuth);
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    this.needsSecureLogin = runtimeFile(this.legacyBackup.file);
   }
   async start() {
     if (this.starting) return this.starting;
@@ -55,10 +75,12 @@ export class CodexClient extends EventEmitter {
   async launch() {
     await fs.mkdir(path.join(this.directory, 'workspace'), { recursive: true });
     await fs.mkdir(path.join(this.directory, 'codex-home'), { recursive: true });
+    await this.protectLegacyLogin();
     const environment = { ...process.env, CODEX_HOME: path.join(this.directory, 'codex-home') };
     // Do not inherit unrelated API secrets as an implicit paid fallback.
     for (const name of ['OPENAI_API_KEY', 'CODEX_API_KEY', 'CODEX_ACCESS_TOKEN', 'ELECTRON_RUN_AS_NODE', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY']) delete environment[name];
     const args = ['app-server', '--listen', 'stdio://'];
+    args.push('-c', `cli_auth_credentials_store="${this.remember ? 'keyring' : 'ephemeral'}"`);
     for (const feature of ['shell_tool', 'browser_use', 'computer_use', 'multi_agent', 'hooks', 'plugins', 'apps', 'code_mode_host', 'image_generation', 'view_image', 'skill_search']) args.push('--disable', feature);
     args.push('--enable', 'skip_host_skill_discovery', '-c', 'web_search="disabled"');
     this.process = this.spawnProcess(this.executable, args, { cwd: path.join(this.directory, 'workspace'), env: environment, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, shell: false });
@@ -119,6 +141,15 @@ export class CodexClient extends EventEmitter {
   async readAccount() {
     const { account } = await this.request('account/read', { refreshToken: false });
     this.state = { available: true, connected: Boolean(account), connecting: false, accountType: account?.type || null };
+    if (account && this.remember) {
+      await atomicJson(this.authMarker, { version: 1 });
+      await this.legacyBackup.remove();
+      this.needsSecureLogin = false;
+    } else if (!account && this.needsSecureLogin) {
+      this.state.error = 'Sign in once to finish moving this connection to Windows credential storage.';
+    } else if (!account && runtimeFile(this.authMarker)) {
+      this.state.error = 'Saved ChatGPT sign-in is unavailable or expired. Sign in again.';
+    }
     this.emit('state', this.state);
     return this.state;
   }
@@ -132,7 +163,15 @@ export class CodexClient extends EventEmitter {
     return url.href;
   }
   async logout() {
-    if (this.process) await this.request('account/logout', {});
+    // Forgetting must also work when a legacy cache cannot be decrypted/migrated.
+    await fs.rm(this.legacyAuth, { force: true });
+    await this.legacyBackup.remove();
+    await this.start();
+    await this.request('account/logout', {});
+    await fs.rm(this.legacyAuth, { force: true });
+    await this.legacyBackup.remove();
+    await fs.rm(this.authMarker, { force: true });
+    this.needsSecureLogin = false;
     this.state = { available: Boolean(this.process), connected: false, connecting: false };
     this.emit('state', this.state);
   }
@@ -146,6 +185,15 @@ export class CodexClient extends EventEmitter {
     this.process?.kill();
     this.process = null;
     this.starting = null;
+  }
+  async stop() {
+    const child = this.process;
+    if (!child) return;
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Codex has not finished closing. Restart Canvas Weekly before reconnecting.')), 5000);
+      child.once('exit', () => { clearTimeout(timer); resolve(); });
+      this.close();
+    });
   }
   async plan(evidence, signal) {
     await this.start();

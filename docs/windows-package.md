@@ -140,3 +140,12 @@ Unit, status, desktop refresh and isolated package checks pass. Latest SHA256:
 ad6b17839d266ba189c466a115d353832a0c06ebd9159c5e48a7413ac24bfaeb.
 This supersedes the connection-navigation artifact. The installer has not been
 installed; live UBC refresh is still blocked pending the specific session error.
+
+Remembered-connections rebuild (2026-09-11): separate remember/forget controls,
+Windows-encrypted Canvas restoration, Codex OS credential storage and memory-only
+website logins are included. Isolated package checks pass with matching source
+and installer payload and no private-state inclusion. Latest installer SHA256:
+74df0419795b47efe600b67467aac6494af7adeb19ba96249b276ea262b86d7c.
+This supersedes the diagnostics build. It has not been installed or used for live
+UBC restoration. Existing ChatGPT file-based authorization needs a one-time sign-in
+after its local cache is protected; see remembered-connections.md.

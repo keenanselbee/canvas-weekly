@@ -293,6 +293,8 @@ try {
     await page.evaluate(() => { window.changedConnectionResult = window.canvasWeekly.updateGuide().then(() => 'unexpected success', error => error.message); });
     await application.evaluate(async () => { await globalThis.syntheticCollectionEntered; });
     await assert.rejects(page.evaluate(() => window.canvasWeekly.setTimeZone('UTC')), /current refresh/);
+    await assert.rejects(page.evaluate(() => window.canvasWeekly.setRememberCanvas(false)), /current refresh/);
+    await assert.rejects(page.evaluate(() => window.canvasWeekly.setRememberChatGPT(false)), /current refresh/);
     assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).settings.timeZone, first.settings.timeZone);
     await application.evaluate(async (_electron, change) => {
       await globalThis.syntheticCollectionEntered;

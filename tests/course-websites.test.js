@@ -148,6 +148,37 @@ test('website connections isolate accounts, protect credentials, audit reads and
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });
 
+test('website memory-only login disappears on restart and forgetting removes saved credentials without a request', async () => {
+  const directory = await fs.mkdtemp(path.resolve('.codex-temp/website-memory-'));
+  const sealed = new Map();
+  const secrets = { encrypt: text => { const key = crypto.randomUUID(); sealed.set(key, text); return Buffer.from(key); }, decrypt: buffer => sealed.get(buffer.toString()) };
+  let requests = 0;
+  const transport = async (_url, init) => {
+    requests++;
+    return init.authorization ? html('<main>Course readings</main>') : { status: 401, headers: { 'www-authenticate': 'Basic realm="course"' }, body: '' };
+  };
+  try {
+    const store = new CourseWebsites({ directory, secrets, transport });
+    const id = await store.add(account, '1', site.url);
+    await store.probe(account, id);
+    await store.probe(account, id, { username: 'student', password: 'private-memory-fixture', remember: false });
+    assert.equal((await store.list(account))[0].sessionOnly, true);
+    assert.equal((await store.load(account))[0].encrypted, undefined);
+    assert.equal((await store.probe(account, id))[0].status, 'ok');
+    const restarted = new CourseWebsites({ directory, secrets, transport });
+    assert.equal((await restarted.probe(account, id))[0].status, 'needs-login');
+    await restarted.probe(account, id, { username: 'student', password: 'private-saved-fixture', remember: true });
+    assert.equal((await restarted.list(account))[0].hasCredentials, true);
+    const before = requests;
+    await restarted.forgetLogin(account, id);
+    assert.equal(requests, before);
+    assert.equal((await restarted.list(account))[0].hasCredentials, false);
+    assert.equal((await restarted.load(account))[0].encrypted, undefined);
+    await store.forgetLogin(account, id);
+    assert.equal((await store.list(account))[0].sessionOnly, false);
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});
+
 test('collection stops at the first failed website login instead of retrying every queued page', async () => {
   const requests = [];
   const reader = new SiteReader({ transport: async url => {

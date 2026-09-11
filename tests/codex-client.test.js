@@ -52,6 +52,7 @@ test('Codex transport handles login and structured planning without granting too
   const client = new CodexClient({ directory: path.resolve('.codex-temp/codex-test'), spawnProcess: (_command, args, options) => {
     assert.equal(options.shell, false);
     assert.ok(args.includes('shell_tool'));
+    assert.ok(args.includes('cli_auth_credentials_store="keyring"'));
     assert.equal(options.env.OPENAI_API_KEY, undefined);
     return server.child;
   } });

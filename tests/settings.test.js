@@ -27,6 +27,9 @@ test('settings reject credential-bearing origins and relative output paths', () 
     assert.throws(() => validateSettings({ ...defaults, canvasBaseUrl }));
   }
   assert.throws(() => validateSettings({ ...defaults, outputDirectory: '../outside' }));
+  for (const key of ['rememberCanvas', 'rememberChatGPT']) {
+    for (const value of [null, 'false', 0]) assert.throws(() => validateSettings({ ...defaults, [key]: value }), /remember-login/);
+  }
 });
 
 await fs.mkdir('.codex-temp', { recursive: true });

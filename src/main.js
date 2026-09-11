@@ -73,7 +73,14 @@ else {
       decrypt: value => safeStorage.decryptString(value),
     } });
     const createCodex = () => {
-      const client = new CodexClient({ executable: store.value.codexExecutable || 'codex', directory: path.join(app.getPath('userData'), 'planner') });
+      const client = new CodexClient({ executable: store.value.codexExecutable || 'codex', directory: path.join(app.getPath('userData'), 'planner'),
+        remember: store.value.rememberChatGPT !== false, secrets: {
+          encrypt: value => {
+            if (process.platform !== 'win32' || !safeStorage.isEncryptionAvailable()) throw new Error('Windows encryption unavailable.');
+            return safeStorage.encryptString(value);
+          },
+          decrypt: value => safeStorage.decryptString(value),
+        } });
       client.on('state', publish);
       return client;
     };
@@ -121,6 +128,13 @@ else {
     window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     handle('state:get', snapshot);
     const requireIdle = () => { if (run.busy) throw new Error('Wait for the current refresh or cancel it first.'); };
+    const connectionChange = async callback => {
+      requireIdle();
+      run = { busy: true, message: 'Updating saved connection...' }; publish();
+      try { await callback(); run = { busy: false, message: '' }; return snapshot(); }
+      catch (error) { run = { busy: false, message: error.message }; throw error; }
+      finally { publish(); }
+    };
     handle('canvas:login', async () => { requireIdle(); guide = null; websites = []; await canvas.openLogin(); return snapshot(); });
     handle('canvas:verify', async () => {
       requireIdle(); guide = null; websites = [];
@@ -136,7 +150,10 @@ else {
       await loadCourses();
       return snapshot();
     });
-    handle('canvas:disconnect', async () => { requireIdle(); await canvas.disconnect(); await store.update({ lastGuideAccount: null }); courses = []; guide = null; websites = []; return snapshot(); });
+    handle('canvas:disconnect', () => connectionChange(async () => { await canvas.disconnect(); await store.update({ lastGuideAccount: null }); courses = []; guide = null; websites = []; }));
+    handle('settings:remember-canvas', remember => connectionChange(async () => {
+      await canvas.setRemember(remember); courses = [];
+    }));
     handle('settings:canvas', async origin => {
       requireIdle();
       validateSettings({ ...store.value, canvasBaseUrl: origin });
@@ -181,7 +198,8 @@ else {
       await websiteStore.probe(account, id, null, signal);
     }));
     handle('website:check', id => websiteAction((account, signal) => websiteStore.probe(account, id, null, signal)));
-    handle('website:login', (id, username, password) => websiteAction((account, signal) => websiteStore.probe(account, id, { username, password }, signal)));
+    handle('website:login', (id, username, password, remember = true) => websiteAction((account, signal) => websiteStore.probe(account, id, { username, password, remember }, signal)));
+    handle('website:forget', id => websiteAction(account => websiteStore.forgetLogin(account, id)));
     handle('website:remove', id => websiteAction(account => websiteStore.remove(account, id)));
     handle('guide:update', async () => {
       requireIdle();
@@ -277,14 +295,23 @@ else {
     });
     handle('ai:login', async () => { requireIdle(); await shell.openExternal(await codex.login()); return snapshot(); });
     handle('ai:check', async () => { requireIdle(); await codex.start(); await codex.readAccount(); return snapshot(); });
-    handle('ai:logout', async () => { requireIdle(); await codex.logout(); await store.update({ aiEnabled: false }); return snapshot(); });
+    handle('ai:logout', () => connectionChange(async () => { await codex.logout(); await store.update({ aiEnabled: false }); }));
+    handle('settings:remember-chatgpt', remember => connectionChange(async () => {
+      if (typeof remember !== 'boolean') throw new Error('Choose whether to remember ChatGPT.');
+      if (codex.state.connecting) throw new Error('Finish ChatGPT sign-in before changing this setting.');
+      if (remember === (store.value.rememberChatGPT !== false)) return;
+      if (codex.process || await codex.hasSavedLogin()) await codex.logout();
+      await codex.stop();
+      await store.update({ rememberChatGPT: remember, aiEnabled: false });
+      codex = createCodex();
+    }));
     handle('settings:ai', async enabled => { requireIdle(); await store.update({ aiEnabled: enabled }); return snapshot(); });
     handle('settings:codex', async () => {
       requireIdle();
       const result = await dialog.showOpenDialog(window, { title: 'Choose installed Codex', properties: ['openFile'], filters: [{ name: 'Codex executable', extensions: ['exe'] }] });
       if (!result.canceled) {
         await store.update({ codexExecutable: result.filePaths[0] });
-        codex.close(); codex = createCodex();
+        await codex.stop(); codex = createCodex();
       }
       return snapshot();
     });
@@ -317,8 +344,7 @@ else {
     if (!testMode) { window.show(); window.focus(); }
     if (!testMode) {
       try {
-        await fs.access(path.join(app.getPath('userData'), 'planner/codex-home/auth.json'));
-        await codex.start();
+        if (await codex.hasSavedLogin()) await codex.start();
       } catch { /* Factual guides stay available if the saved AI connection cannot be restored. */ }
       publish();
     }

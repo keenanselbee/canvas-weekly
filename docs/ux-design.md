@@ -27,6 +27,10 @@ ChatGPT connection options distinguishes Codex detected (a runtime file exists),
 Codex ready (the runtime responded), and Codex not detected (manual selection is
 needed). It shows the automatic or manual source and runtime location. Detection
 does not launch Codex, sign in, or enable study suggestions.
+Each service has a Remember on this computer checkbox and an explicit Forget
+login action. Changing the preference signs out locally; guide files stay intact.
+Course websites expose the same remember/forget choice next to their login form.
+See remembered-connections.md for encrypted storage and one-time migration behavior.
 Limited Canvas coverage stays visible when
 connected, with a source-coverage explanation on This week. A future collection
 hold must remain visible even when signed in. Both text and checkmarks convey connection status.
