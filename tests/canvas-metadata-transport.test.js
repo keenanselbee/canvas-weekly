@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { CanvasMetadataTransport } from '../src/canvas-metadata-transport.js';
+import { CanvasMetadataTransport, CanvasCollectionStoppedError } from '../src/canvas-metadata-transport.js';
 import { CanvasAudit } from '../src/canvas-audit.js';
 import { metadataRequest } from '../src/canvas-metadata.js';
 import { enrollmentScopeRequest } from '../src/canvas-enrollment-scope.js';
@@ -433,4 +433,67 @@ test('raw response byte budget is shared across assignment and direct submission
   assert.equal(calls, 16);
   await assert.rejects(setup.transport.readOwnSubmission('10'), /collection limit/);
   assert.equal(calls, 16, 'Exhausted byte budget must stop before another request');
+});
+
+
+test('message transport admits only freshly observed threads and isolates returned objects from its authority', async () => {
+  const thread = { _id: '40', contextType: 'Course', contextId: '1', subject: 'Course update', updatedAt: '2026-09-10T18:00:00Z' };
+  let value = { data: { user: { _id: '99', conversationsConnection: {
+    nodes: [{ _id: '140', userId: '99', workflowState: 'unread', conversation: thread }],
+    pageInfo: { hasNextPage: false, endCursor: null },
+  } } } };
+  let authCalls = 0;
+  const setup = fixture({ authentication: () => { authCalls++; return { kind: 'session', value: 'fixture-csrf' }; },
+    fetcher: async (_url, init) => {
+      assert.ok(setup.transport.allows(setup.details(init)));
+      return new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
+    } });
+  await assert.rejects(setup.transport.readConversationText('40'), /Read this thread/);
+  assert.equal(authCalls, 0);
+  const page = await setup.transport.readCourseConversations('inbox');
+  page.nodes[0].subject = 'Forged subject';
+  page.nodes[0].id = '41';
+  await assert.rejects(setup.transport.readConversationText('41'), /Read this thread/);
+  value = { data: { legacyNode: { ...thread, conversationMessagesConnection: {
+    nodes: [{ _id: '50', conversationId: '40', body: 'Read chapter 2.', createdAt: null }],
+    pageInfo: { hasNextPage: false, endCursor: null },
+  } } } };
+  assert.equal((await setup.transport.readConversationText('40')).messages[0].body, 'Read chapter 2.');
+  assert.equal(setup.transport.remainingRequests, 198);
+  assert.deepEqual(setup.events.filter(event => event.event === 'body-read').map(event => event.operation), ['courseconversations', 'conversationtext']);
+  setup.connection.abort();
+  await assert.rejects(setup.transport.readConversationText('40'), { name: 'AbortError' });
+  assert.equal(authCalls, 2);
+});
+
+
+test('optional sources can distinguish connection and audit failures from unavailable content', async () => {
+  for (const scenario of ['authentication', 'identity', 'identity-denied', 'expired', 'redirect', 'interception', 'audit-intent', 'audit-response', 'audit-body']) {
+    const context = fixture({
+      authentication: async () => {
+        if (scenario === 'authentication') throw new Error('private-authentication-detail');
+        return { kind: 'session', value: 'fixture-csrf' };
+      },
+      audit: async event => {
+        if (scenario === `audit-${{ request: 'intent', response: 'response', 'body-read': 'body' }[event.event]}`) throw new Error('private-audit-detail');
+      },
+      fetcher: async (_url, init) => {
+        if (scenario !== 'interception') assert.equal(context.transport.allows(context.details(init)), true);
+        return new Response('{}', { status: scenario === 'identity-denied' ? 403 : scenario === 'expired' ? 401 : scenario === 'redirect' ? 302 : 200,
+          headers: { 'content-type': 'application/json', 'x-canvas-user-id': scenario.startsWith('identity') ? '90098' : '90099' } });
+      },
+    });
+    await assert.rejects(context.transport.request(request()), error => {
+      assert.ok(error instanceof CanvasCollectionStoppedError, scenario);
+      assert.doesNotMatch(error.message, /private-/);
+      return true;
+    });
+  }
+  for (const status of [403, 404, 429, 500]) {
+    const context = fixture({ fetcher: async (_url, init) => {
+      assert.equal(context.transport.allows(context.details(init)), true);
+      return new Response('{}', { status });
+    } });
+    await assert.rejects(context.transport.request(request()), error => !(error instanceof CanvasCollectionStoppedError));
+  }
 });

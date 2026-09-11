@@ -30,8 +30,10 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
   request.on('end', () => {
     received.push({ method: request.method, route: request.url, headers: request.headers, body: Buffer.concat(chunks).toString() });
     if (mode === 'redirect') { response.writeHead(307, { location: '/quizzes/1/take' }); response.end(); return; }
-    response.writeHead(mode === 'account-denied' ? 403 : 200, { 'content-type': 'application/json',
-      ...(mode === 'missing-identity' ? {} : { 'x-canvas-user-id': mode === 'other-identity' ? '90100' : '90099' }),
+    const input = request.method === 'POST' ? JSON.parse(Buffer.concat(chunks)) : null;
+    const messageFailure = mode.startsWith('message-') && input?.operationName === 'CanvasWeeklyConversationText' && input.variables.after === 'message-next';
+    response.writeHead(messageFailure && mode === 'message-expired' ? 401 : mode === 'account-denied' ? 403 : 200, { 'content-type': 'application/json',
+      ...(mode === 'missing-identity' ? {} : { 'x-canvas-user-id': mode === 'other-identity' || (messageFailure && mode === 'message-identity') ? '90100' : '90099' }),
       ...(mode === 'account-next' ? { link: `<https://${request.headers.host}/api/v1/accounts?per_page=1&page=2>; rel="next"` } : {}),
       ...(mode === 'impersonated-identity' ? { 'x-canvas-real-user-id': '90100' } : {}) });
     if (mode === 'large') { response.end('"' + 'x'.repeat(2 * 1024 * 1024) + '"'); return; }
@@ -44,7 +46,29 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
       response.end(mode === 'account-present' ? '[{"id":1,"name":"private-admin-account"}]' : '[]');
       return;
     }
-    const input = JSON.parse(Buffer.concat(chunks));
+    if (messageFailure) { response.end(JSON.stringify({ errors: [{ message: 'private-message-fixture-error' }] })); return; }
+    const thread = id => ({ _id: id, contextType: 'Course', contextId: '1', subject: 'Course thread ' + id, updatedAt: '2026-09-10T18:00:00Z' });
+    if (input.operationName === 'CanvasWeeklyCourseConversations') {
+      assert.equal(input.variables.studentId, '99');
+      assert.deepEqual(input.variables.filter, ['course_1']);
+      assert.ok(['inbox', 'archived', 'sent'].includes(input.variables.scope));
+      const scope = input.variables.scope;
+      const id = input.variables.after === null ? '40' : '41';
+      const next = scope === 'inbox' && input.variables.after === null ? 'thread-next' : null;
+      const nodes = scope === 'archived' ? [] : [{ _id: String(+id + 100), userId: '99', workflowState: 'unread', conversation: thread(id) }];
+      response.end(JSON.stringify({ data: { user: { _id: '99', conversationsConnection: { nodes, pageInfo: { hasNextPage: !!next, endCursor: next } } } } }));
+      return;
+    }
+    if (input.operationName === 'CanvasWeeklyConversationText') {
+      assert.ok(['40', '41'].includes(input.variables.conversationId));
+      const id = input.variables.conversationId;
+      const next = id === '40' && input.variables.after === null ? 'message-next' : null;
+      response.end(JSON.stringify({ data: { legacyNode: { ...thread(id), conversationMessagesConnection: {
+        nodes: [{ _id: id === '41' ? '52' : next ? '50' : '51', conversationId: id, body: 'Private fixture reading update.', createdAt: null }],
+        pageInfo: { hasNextPage: !!next, endCursor: next },
+      } } } }));
+      return;
+    }
     if (input.operationName === 'CanvasWeeklyOwnSubmission') {
       assert.equal(input.variables.studentId, '99');
       assert.ok(['10', '11'].includes(input.variables.assignmentId));
@@ -60,7 +84,7 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
       const node = { _id: next ? '31' : '32', userId: '99', course: { _id: '1' },
         type: next ? 'StudentEnrollment' : 'TeacherEnrollment', state: next ? 'active' : 'completed',
         courseSectionId: '2', limitPrivilegesToCourseSection: false, role: { _id: next ? '3' : '4', name: next ? 'StudentEnrollment' : 'TeacherEnrollment' } };
-      if (mode === 'student-only') Object.assign(node, { type: 'StudentEnrollment', state: 'active', role: { _id: '3', name: 'StudentEnrollment' } });
+      if (mode === 'student-only' || mode.startsWith('message-')) Object.assign(node, { type: 'StudentEnrollment', state: 'active', role: { _id: '3', name: 'StudentEnrollment' } });
       response.end(JSON.stringify({ data: { user: { _id: mode === 'foreign-enrollment' ? '100' : '99',
         enrollmentsConnection: { nodes: [node], pageInfo: { hasNextPage: next !== null, endCursor: next } } } } }));
       return;
@@ -236,7 +260,9 @@ try {
     }
     const operations = received.slice(start).map(request => request.method === 'GET' ? 'account' : JSON.parse(request.body).operationName);
     const expected = ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope'];
-    if (scenario === 'student-only') expected.push('CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyOwnSubmission');
+    if (scenario === 'student-only') expected.push('CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyOwnSubmission',
+      'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations',
+      'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText');
     assert.deepEqual(operations, expected, 'Every enrollment page must pass before the first assignment request');
   }
   const logFiles = await fs.readdir(path.join(directory, 'canvas-audit'));
@@ -259,7 +285,9 @@ try {
   const bridge = await application.evaluate(() => globalThis.metadataFixture.testConnectionBridge());
   assert.deepEqual(bridge, { count: 1, holdBeforeWatch: true, deniedOutsideRun: true, cancelledOnChange: true });
   assert.deepEqual(received.slice(beforeBridge).map(request => request.method === 'GET' ? 'account' : JSON.parse(request.body).operationName),
-    ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyOwnSubmission']);
+    ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyOwnSubmission',
+      'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations',
+      'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText']);
   const beforeOwn = received.length;
   const ownAuditDirectory = path.join(directory, 'canvas-audit');
   const beforeOwnLog = (await Promise.all((await fs.readdir(ownAuditDirectory)).map(file => fs.readFile(path.join(ownAuditDirectory, file), 'utf8')))).join('');
@@ -281,7 +309,33 @@ try {
   const ownAudit = (await Promise.all((await fs.readdir(auditDirectory)).map(file => fs.readFile(path.join(auditDirectory, file), 'utf8')))).join('');
   assert.doesNotMatch(ownAudit, /own-submission-private-body|CanvasWeeklyOwnSubmission/);
   assert.equal(ownReadCount(ownAudit) - beforeOwnReads, 3);
-  console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, fixed account preflight, paginated metadata/enrollment parsing, foreign-user rejection, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
+  const beforeMessages = received.length;
+  await application.evaluate(() => globalThis.metadataFixture.reset('session'));
+  await assert.rejects(application.evaluate(() => globalThis.metadataFixture.transport.readConversationText('40')), /Read this thread/);
+  const messageSource = await application.evaluate(() => globalThis.metadataFixture.collectMessages());
+  assert.equal(messageSource.conversation.length, 2);
+  assert.equal(messageSource.conversation[0].data.messages.length, 2);
+  assert.equal(messageSource.conversation[1].data.messages.length, 1);
+  assert.deepEqual(received.slice(beforeMessages).map(request => JSON.parse(request.body).operationName),
+    [...Array(4).fill('CanvasWeeklyCourseConversations'), ...Array(3).fill('CanvasWeeklyConversationText')]);
+  const finalAudit = (await Promise.all((await fs.readdir(auditDirectory)).map(file => fs.readFile(path.join(auditDirectory, file), 'utf8')))).join('');
+  assert.doesNotMatch(finalAudit, /Private fixture reading update|thread-next|message-next|Course thread/);
+  const messageEvents = finalAudit.split('\n').filter(Boolean).map(line => JSON.parse(line));
+  assert.equal(messageEvents.filter(event => event.operation === 'conversationtext' && event.event === 'body-read').length, 9);
+  for (const scenario of ['message-unavailable', 'message-identity', 'message-expired']) {
+    mode = scenario;
+    await application.evaluate(() => globalThis.metadataFixture.reset('session'));
+    if (scenario === 'message-unavailable') {
+      const record = await application.evaluate(() => globalThis.metadataFixture.collectStudent());
+      assert.equal(record.sources.metadata.assignments.length, 2);
+      assert.equal(record.sources.conversation, undefined, 'A failed second message page must discard the first');
+      assert.equal(record.coverage.find(source => source.source === 'course messages').status, 'error');
+      assert.doesNotMatch(JSON.stringify(record), /private-message-fixture/);
+    } else {
+      await assert.rejects(application.evaluate(() => globalThis.metadataFixture.collectStudent()), /Reconnect Canvas/);
+    }
+  }
+  console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, fixed account preflight, paginated metadata/enrollment/messages, optional-source recovery, fatal-message identity/login rejection, foreign-user rejection, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
   console.log('Fixture profile: ' + directory);
 } finally {
   if (application) await application.close();

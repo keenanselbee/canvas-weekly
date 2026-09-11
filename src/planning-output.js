@@ -35,6 +35,7 @@ export function validatePriorities(result, evidence) {
     const body = normalize(source.instructions || source.body);
     for (const step of item.steps) {
       if (!text(step.text, 500) || !['suggested', 'required', 'optional'].includes(step.kind) || typeof step.quote !== 'string' || step.quote.length > 300) throw new Error('ChatGPT returned an invalid preparation step.');
+      if (source.authorUnverified && step.kind !== 'suggested') throw new Error('ChatGPT treated an unverified message as a course requirement.');
       if (step.kind !== 'suggested' && (normalize(step.quote).length < 12 || !body.includes(normalize(step.quote)))) throw new Error('ChatGPT labeled a course requirement without a matching source quote.');
       if (step.kind === 'suggested' && step.quote !== '') throw new Error('ChatGPT mixed suggested preparation with a source claim.');
     }

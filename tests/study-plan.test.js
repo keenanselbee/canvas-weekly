@@ -28,7 +28,7 @@ test('study plan includes preparation, honest uncertainties and suggested days w
   assert.equal(guide.items.find(item => item.assignmentId === '1').dueAt, '2026-09-18T18:00:00.000Z');
   assert.ok(plan.tasks.filter(task => !task.unscheduled).every(task => task.suggestedDate >= guide.week.today && task.suggestedDate <= guide.week.end));
   assert.ok(plan.tasks.filter(task => task.dueAt && Date.parse(task.dueAt) > Date.parse(options.now)).every(task => task.suggestedDate <= localDate(task.dueAt, options.timeZone)));
-  assert.ok(plan.checks.some(check => check.title.startsWith('Compare instructor update')));
+  assert.ok(plan.checks.some(check => check.title.startsWith('Compare course update')));
   assert.ok(plan.checks.some(check => check.detail.includes('Module reads disabled')));
   const markdown = renderMarkdown(guide);
   assert.ok(markdown.indexOf('Your study plan') < markdown.indexOf('This week and overdue'));

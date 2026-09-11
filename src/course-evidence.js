@@ -2,7 +2,7 @@ import { extractHtml, plainText, sourceUrl, referenceUrl, redactCredentials } fr
 const timestamp = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
 
 export function courseEvidence(record, previous, origin, now) {
-  const courseName = record.sources.course?.course_code || previous?.code || `Course ${record.id}`;
+  const courseName = record.sources.metadata?.course.code || record.sources.metadata?.course.name || record.sources.course?.course_code || previous?.code || `Course ${record.id}`;
   const current = [];
   const references = new Map();
   const base = `${origin}/courses/${record.id}`;
@@ -51,7 +51,7 @@ export function courseEvidence(record, previous, origin, now) {
       const author = conversation.participants?.find(person => String(person.id) === String(message.author_id));
       // Store only the message author, never the whole participant/recipient roster.
       add('message', `${entry.id}:${message.id}`, conversation.subject, '', `${origin}/conversations`, {
-        body: redactCredentials(message.body || ''), author: String(author?.name || 'Author not supplied'), postedAt: timestamp(message.created_at),
+        body: redactCredentials(message.body || ''), author: String(author?.name || 'Author not supplied'), authorUnverified: !author?.name, postedAt: timestamp(message.created_at),
       });
     }
   }

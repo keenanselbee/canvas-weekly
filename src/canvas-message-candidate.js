@@ -1,8 +1,8 @@
 import { parseMetadataDate } from './canvas-metadata.js';
 import { redactCredentials } from './content.js';
 
-// Isolated candidate: no fetch, credential access or transport admission. The
-// selected model hooks and generated-message getter still need final review.
+// Fixed message selections and parsers. Transport authority comes only from
+// validated discovery in the current course run; see canvas-message-review.md.
 const listQuery = `query CanvasWeeklyCourseConversations($studentId: ID!, $filter: [String!], $scope: String!, $after: String) {
   user(id: $studentId) {
     _id

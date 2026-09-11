@@ -1,3 +1,6 @@
+import { CanvasCollectionStoppedError } from '../src/canvas-metadata-transport.js';
+import { reconcile, buildGuide, renderMarkdown } from '../src/guide.js';
+import { planningEvidence } from '../src/codex-client.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseMetadataPage } from '../src/canvas-metadata.js';
@@ -10,6 +13,8 @@ function fixture({ account = { accountMembership: 'none', studentId: binding.stu
   const calls = [];
   const transport = {
     remainingRequests: 197,
+    async readCourseConversations(scope) { calls.push('messages:' + scope); return { nodes: [], next: null }; },
+    async readConversationText() { throw new Error('No threads discovered'); },
     async readAssignmentPage() {
       calls.push('CanvasWeeklyAssignments');
       return parseMetadataPage({ data: { course: { _id: '1', name: 'Example course', courseCode: 'EX 1', assignmentsConnection: {
@@ -40,7 +45,7 @@ function fixture({ account = { accountMembership: 'none', studentId: binding.stu
 test('student collection completes both preflights before metadata and exports no role evidence', async () => {
   const { calls, transport } = fixture();
   const record = await collectStudentMetadata({ ...binding, transport });
-  const order = ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScopesecond', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission'];
+  const order = ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScopesecond', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'messages:inbox', 'messages:archived', 'messages:sent'];
   assert.deepEqual(calls, order);
   assert.equal(record.sources.metadata.submissions[0].cachedDueDate, '2026-09-18T18:00:00.000Z');
   assert.doesNotMatch(JSON.stringify(record), /enrollments|StudentEnrollment|accountMembership|10000000000099/);
@@ -93,5 +98,41 @@ test('cancellation after preflight or metadata discards late results and prevent
     }
     await assert.rejects(collectStudentMetadata({ ...binding, transport, signal: controller.signal }), { name: 'AbortError' });
     assert.equal(calls.at(-1), stopAt);
+  }
+});
+
+
+test('message evidence reaches the guide without replacing deadlines and a failed refresh retains its original age', async () => {
+  const { transport } = fixture();
+  transport.readCourseConversations = async scope => ({ nodes: scope === 'inbox' ? [{ id: '40', participantId: '140', courseId: '1', userId: '99', subject: 'Deadline update' }] : [], next: null });
+  transport.readConversationText = async () => ({ messages: [{ id: '50', conversationId: '40', body: 'The deadline has moved to Thursday.', createdAt: '2026-09-10T18:00:00Z' }], next: null });
+  const options = { origin: 'https://canvas.example', timeZone: 'UTC', now: '2026-09-11T18:00:00Z' };
+  const record = await collectStudentMetadata({ ...binding, transport });
+  const snapshot = reconcile([record], null, options);
+  const guide = buildGuide(snapshot, options.now);
+  const message = guide.courses[0].evidence.find(source => source.kind === 'message');
+  assert.equal(message.courseName, 'EX 1');
+  assert.equal(message.authorUnverified, true);
+  assert.equal(guide.upcoming[0].dueAt, '2026-09-18T18:00:00.000Z');
+  assert.match(renderMarkdown(guide), /Confirm message sender/);
+  assert.equal(planningEvidence(guide).sources.find(source => source.kind === 'message').authorUnverified, true);
+  transport.readConversationText = async () => { throw new Error('private-response-body'); };
+  const failed = await collectStudentMetadata({ ...binding, transport });
+  assert.equal(failed.sources.conversation, undefined);
+  assert.equal(failed.coverage.find(source => source.source === 'course messages').status, 'error');
+  assert.doesNotMatch(JSON.stringify(failed), /private-response-body/);
+  const refreshed = reconcile([failed], snapshot, { ...options, now: '2026-09-12T18:00:00Z' });
+  const old = refreshed.courses[0].evidence.find(source => source.kind === 'message');
+  assert.equal(old.stale, true);
+  assert.equal(old.observedAt, options.now);
+  assert.equal(old.body, message.body);
+  assert.equal(refreshed.items[0].stale, false);
+});
+
+test('optional message coverage never absorbs fatal transport errors or cancellation', async () => {
+  for (const error of [new CanvasCollectionStoppedError('Connection check failed.'), new DOMException('Cancelled', 'AbortError')]) {
+    const { transport } = fixture();
+    transport.readCourseConversations = async () => { throw error; };
+    await assert.rejects(collectStudentMetadata({ ...binding, transport }), caught => caught === error);
   }
 });

@@ -25,3 +25,14 @@ test('invalid calendar dates are rejected even when lexically between week bound
   const bad = result(); bad.priorities[0].suggestedDate = '2026-09-99';
   assert.throws(() => validatePriorities(bad, { ...evidence, week: { today: '2026-09-30', end: '2026-10-04' } }), /day outside/);
 });
+
+
+test('unverified message senders cannot establish required or optional course steps', () => {
+  const unverified = { ...evidence, items: evidence.items.map(item => ({ ...item, kind: 'message', authorUnverified: true })) };
+  for (const kind of ['required', 'optional']) {
+    const output = result(); output.priorities[0].steps = [{ text: 'Read chapter 1.', kind, quote: 'Read chapter 1 before the lab.' }];
+    assert.throws(() => validatePriorities(output, unverified), /unverified message/);
+  }
+  const suggestion = result(); suggestion.priorities[0].steps = [{ text: 'Confirm the sender and deadline in Canvas.', kind: 'suggested', quote: '' }];
+  assert.equal(validatePriorities(suggestion, unverified).length, 1);
+});

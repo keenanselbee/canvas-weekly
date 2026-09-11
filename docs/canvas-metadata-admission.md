@@ -6,7 +6,9 @@ refreshes. The course-wide submission query was removed in 999c0ad and cannot be
 constructed, collected or admitted by the current transport. The replacement
 reads existing submissions for freshly observed assignments and the bound user.
 This decision restores assignment metadata, stored student deadlines and status;
-it does not complete or authorize automatic instruction/material/message reads.
+it does not authorize automatic instruction/material reads. The subsequent
+[message admission](canvas-message-review.md) adds the two fixed course-message
+queries after metadata using the same bound transport.
 
 Integrated evidence and boundary
 --------------------------------
@@ -18,7 +20,7 @@ Integrated evidence and boundary
 | CanvasWeeklyEnrollmentScope | Self-user lookup, selected permission dispatch and preflight model review; complete enrollment pagination | Bound self/course IDs and stock StudentEnrollment roles; reject mixed/custom/test-student roles |
 | CanvasWeeklyAssignments | Selected course permission preload, differentiated visibility SQL, model/scalar getters, controller hooks and analyzers | Published assignment identity/name/points/type only; no override dates, descriptions or lock information |
 | CanvasWeeklyOwnSubmission | Existing-row loader and fallback policy/anonymity review below | Bound assignment/user; ID, assignment ID, stored state and cachedDueDate only |
-| Collection and persistence | Exact pending-request admission, response identity, shared budgets, cancellation, atomic guide export and account binding | Failures stop the update; null records remain unknown with last-known dates and verification tasks |
+| Collection and persistence | Exact pending-request admission, response identity, shared budgets, cancellation, atomic guide export and account binding | Metadata and fatal connection/audit failures stop the update; optional message-source failures retain old evidence as stale; null submission records remain unknown |
 
 The selected paths were reviewed against upstream revision
 1c9f0bb8013ed69c4f2efe11fd483025469b7e6c, including the production special-account
@@ -206,7 +208,9 @@ Fallback source references:
 - [Unposted anonymity lookup](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/abstract_assignment.rb#L1986)
 - [Participating student association](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/course.rb#L109)
 
-The requested automatic instructions/materials/messages remain separate work.
+Automatic instructions/materials remain separate work. Course-message text is
+now covered by the subsequent message admission; sender identities and attachments
+are not collected.
 A deadlines-only replacement is not the final personal study-guide objective.
 Authentication/access bookkeeping and server caches can still persist; neither
 this decision nor the earlier review proves historical account invariance.

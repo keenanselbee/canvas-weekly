@@ -3,7 +3,9 @@ Canvas collection safety audit
 
 Current status, 2026-09-11: the fixed assignment/direct-submission metadata
 collector is admitted for manual refreshes under the
-[bounded admission decision](canvas-metadata-admission.md). Legacy REST body,
+[bounded admission decision](canvas-metadata-admission.md). The subsequent
+[message decision](canvas-message-review.md) admits fixed course-tagged discovery
+and text queries with fatal-error propagation and optional-source coverage. Legacy REST body,
 module, quiz and Canvas file-content reads remain disabled. Historical pause
 references below describe earlier repair stages; they do not certify the old
 collector or establish unchanged account history. Full content collection and
@@ -18,8 +20,9 @@ were issued for this audit.
 Message follow-up, 2026-09-11: the old conversation REST operations are now also
 removed from request/network admission. The false read flag protects only the
 explicit mark-read statement; message attachment serialization can reach the
-withdrawn file-lock path. The isolated [message query candidate](canvas-message-review.md)
-is not admitted to the live transport. The enabled metadata refresh is unchanged.
+withdrawn file-lock path. The replacement [fixed message queries](canvas-message-review.md) now run after
+metadata. They omit attachment serialization, use fresh thread discovery and
+retain unknown-sender and incomplete-source checks in the guide.
 
 Findings and repair status
 -------------------------

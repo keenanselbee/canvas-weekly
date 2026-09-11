@@ -60,7 +60,8 @@ try {
   assert.equal(state.ai.connected, false);
   assert.equal(state.guide, null);
   assert.equal(state.canvas.collectionIssue, null);
-  assert.match(state.canvas.collectionNotice, /instructions and messages are not refreshed/);
+  assert.match(state.canvas.collectionNotice, /Course messages are checked when available/);
+  assert.match(state.canvas.collectionNotice, /Instructions and materials remain incomplete/);
   await assert.rejects(page.evaluate(() => window.canvasWeekly.updateGuide()), /Connect Canvas/);
   assert.equal(state.settings.lastGuideAccount, null);
   assert.equal(state.settings.outputDirectory, null);

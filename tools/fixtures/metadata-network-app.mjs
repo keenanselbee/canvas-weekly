@@ -4,6 +4,7 @@ import { CanvasAudit } from '../../src/canvas-audit.js';
 import { metadataRequest, collectMetadata } from '../../src/canvas-metadata.js';
 import { canvasSessionAuthentication } from '../../src/canvas-csrf.js';
 import { collectEnrollmentScope } from '../../src/canvas-enrollment-scope.js';
+import { collectCourseMessages } from '../../src/canvas-message-collection.js';
 import { collectStudentMetadata } from '../../src/canvas-student-collection.js';
 import { CanvasConnection } from '../../src/canvas-session.js';
 import assert from 'node:assert/strict';
@@ -34,6 +35,7 @@ globalThis.metadataFixtureReady = app.whenReady().then(async () => {
       } });
   };
   state.read = () => state.transport.request(metadataRequest('assignments', '1', '99'));
+  state.collectMessages = () => collectCourseMessages({ transport: state.transport, courseId: '1', studentId: '99', signal: state.connection.signal });
   state.accounts = () => state.transport.checkAccountMembership();
   state.collect = () => collectMetadata({ courseId: '1', studentId: '99', transport: state.transport, signal: state.connection.signal });
   state.collectStudent = () => collectStudentMetadata({ courseId: '1', studentId: '99', globalUserId: '90099',
@@ -63,6 +65,9 @@ globalThis.metadataFixtureReady = app.whenReady().then(async () => {
       const records = await connection.collectMetadata();
       assert.equal(records.length, 1);
       assert.equal(records[0].sources.metadata.assignments.length, 2);
+      assert.equal(records[0].sources.conversation.length, 2);
+      assert.equal(records[0].sources.conversation[0].data.messages.length, 2);
+      assert.equal(records[0].coverage.find(item => item.source === 'course messages').status, 'ok');
       assert.equal(connection.session.cookies.listenerCount('changed'), cookieListeners, 'Cookie watcher must be disposed');
       await assert.rejects(connection.session.fetch(origin + '/api/graphql', { method: 'POST', body: JSON.stringify(state.canonical) }));
       let concurrent;

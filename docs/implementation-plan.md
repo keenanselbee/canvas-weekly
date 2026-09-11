@@ -543,3 +543,21 @@ Work log
   transport/pagination and guide integration remain next. No real Canvas/AI
   requests, installer walkthrough or personal-guide changes ran. Ignored review
   sources, test profiles/logs and local dist artifacts remain for inspection.
+- 2026-09-11: Completed the selected message-model/generated-event review and
+  integrated course-tagged message text into manual guide refresh after metadata.
+  Fixed named methods register threads from current course discovery, paginate
+  inbox/archived/sent and text pages, and use shared account/cookie/audit/budget
+  controls. Optional source errors discard partial messages and preserve older
+  evidence as stale; typed authentication/identity/interception/audit failures
+  stop the complete update. Added sender verification to factual/AI planning;
+  message wording never overwrites a structured deadline. Both query hashes are
+  pinned and validate against the reviewed schema. All 134 unit tests, real local
+  Electron metadata/message tests (including production connection orchestration,
+  later-page failure and fatal identity/login failures), synthetic desktop refresh
+  and the rebuilt package tests pass. The package assertion was updated to the
+  new coverage notice. Installer SHA256:
+  ee7099ab55a883ecf1b866b6d00f82267bb56ef26976f787e8f4dc7d3ed4dc04.
+  Tests used synthetic data; no real Canvas/AI request or personal-guide update ran.
+  Sender identities/attachments, automatic Canvas instructions/materials and live
+  UBC compatibility remain unfinished. Ignored fixture profiles/logs/review sources
+  and the local dist build remain for inspection. The broader goal remains active.

@@ -1,10 +1,12 @@
 Canvas course-message replacement
 =================================
 
-Status, 2026-09-11: fixed query/parser candidate only. The enabled metadata
-collector is unchanged. Neither new message operation is accepted by the live
-transport or exported to the planner. The old conversation list/detail REST
-operations have been removed from request construction and network admission.
+Decision, 2026-09-11: admit the two fixed message queries after the existing
+student preflights and assignment/status scan during manual guide refresh. This
+restores course-tagged message text, not attachments, author identities, Canvas
+pages or assessment instructions. The old conversation REST operations remain
+removed. Local fixtures pass; UBC's deployed revision and live compatibility are
+not verified. This decision does not prove historical account invariance.
 
 Why auto_mark_as_read=false is insufficient
 -----------------------------------------
@@ -34,16 +36,16 @@ Sources:
 - [Attachment lock dependency](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/attachment.rb#L1606)
 - [Previously reviewed module-lock path](canvas-read-boundary.md)
 
-Candidate selections
---------------------
+Admitted selections
+-------------------
 
 canvas-message-candidate.js has no fetcher, credentials, session or transport.
 
 1. CanvasWeeklyCourseConversations selects the verified user's course-filtered
    conversation-participant rows: participant/user IDs, stored workflow state,
    conversation ID/context/subject/update time. Inbox, archived and sent are
-   explicit supported scopes. The future collector must enumerate them, dedupe
-   overlaps and report incomplete scopes; using only unread messages would miss
+   explicit supported scopes. The collector enumerates them, dedupes
+   overlaps and reports incomplete scopes; using only unread messages would miss
    previously read deadline changes. The course filter is fixed to course_ID.
 2. CanvasWeeklyConversationText reads a previously discovered Conversation through
    legacyNode and selects message ID, conversation ID, body and creation time.
@@ -61,11 +63,30 @@ workflow-state participant matching that user. None of those selected methods
 calls the REST show action or its mark-read update.
 
 Message body is not always a raw column: ConversationMessage.body formats generated
-users-added events by reading user names. Direct model declarations show create/
-save/update/destroy callbacks; included concerns and the generated formatter must
-be included in the final review, not dismissed because the requested field is
-called body. In particular LinkedAttachmentHandler registers an after_save hook;
-that is not the attachment serialization path used by the rejected REST response.
+users-added events. The selected getter parses the stored event, reads user names
+and passes them to EventFormatter.users_added. That formatter chooses an I18n
+translation and formats names; it does not invoke send/broadcast or save paths.
+Unknown event formats can fail the selected response and become unavailable data.
+
+Reviewed the selected Conversation, ConversationParticipant, ConversationMessage
+and ConversationMessageParticipant model declarations and their included concerns.
+Direct callbacks attach to create/save/update/destroy, not find/initialize.
+LinkedAttachmentHandler registers after_save attachment association updates;
+SendToStream's registered lifecycle callbacks likewise require writes. SimpleTags
+listing dispatch uses its registered course SQL filter, not its tag-writing methods.
+Conversation's default relation extension overrides delete_all only; selecting the
+relation does not call that method. ConversationHelper defines root-account
+attribute helpers without a find hook. HtmlTextHelper, TextHelper and
+ConversationsHelper provide formatting/helper methods; their inclusion does not
+register a model read callback. ModelCache, Workflow and shared model/permission
+concerns retain the previously documented bounded review in the metadata admission.
+
+No selected call in this pinned stock source was found to mark messages read,
+start/resume an attempt, submit work, send messages or evaluate module progress.
+Controller operation hooks for CreateSubmission/CreateDiscussionEntry do not
+match these fixed operation names. Authentication/access logs, caches and generic
+GraphQL telemetry remain possible writes, as previously documented. Institutional
+extensions and different deployed versions are outside this source-level finding.
 
 Server cost is another limit: conversationMessagesConnection loads messages and
 participant associations before filtering/pagination. first=100 limits the
@@ -79,12 +100,14 @@ Source references:
 - [Conversation membership loader](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/graphql_node_loader.rb#L276)
 - [Message visibility and pagination resolver](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/types/conversation_type.rb#L44)
 - [Selected message fields](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/types/conversation_message_type.rb#L21)
+- [Generated event formatter](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/conversation_message.rb#L413)
+- [Attachment concern callbacks](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/linked_attachment_handler.rb)
 - [Generated body getter](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/conversation_message.rb#L254)
 
-Parser contract and next implementation
---------------------------------------
+Parser contract
+---------------
 
-The candidate rejects GraphQL partial errors, wrong user/course/conversation IDs,
+The parser rejects GraphQL partial errors, wrong user/course/conversation IDs,
 duplicate page identities, changed thread subject/context/update time, invalid
 dates, oversized bodies and contradictory pagination. It copies expected fields
 only and applies the existing credential-line redaction. That redaction is not a
@@ -92,23 +115,43 @@ guarantee of detecting arbitrary secrets. Null legacy context is accepted only
 as course-tagged discovery evidence and must remain unchanged on detail pages;
 a caller-supplied observed object alone is not authorization to fetch a thread.
 
-Before wiring this source:
+Transport and refresh contract
+------------------------------
 
-- Finish included model hooks and generated-event formatter review.
-- Register thread IDs only from actual validated course-filtered listing responses
-  on the bound transport; reject caller-supplied or saved-guide IDs as authority.
-- Keep shared identity, cookie, deadline, byte/request budgets and durable redacted
-  audit. Enumerate each scope and each message page; dedupe records and detect
-  changed/duplicate pages without returning partial data as complete.
-- Treat missing/changed threads as unavailable. Preserve previous evidence as stale,
-  label messages without author attribution, and add coverage instead of declaring
-  that no instructor updates exist. Keep message text as source data, never tool
-  instructions. Use it to suggest verification when it conflicts with deadlines.
-- Add local Electron network and guide tests before any live admission decision.
+- The bound transport records thread IDs only from actual validated course-filtered
+  discovery responses and keeps private copies. Renderer IDs, saved-guide IDs and
+  mutations to returned objects cannot authorize text requests. Generic request()
+  still rejects both operations; named methods construct their exact bodies.
+- Both operations share account response checks, cookie cancellation, exact pending
+  request admission, the 200-request/16-MiB course budget and 2-MiB page limit.
+  Audit records contain operation names and body hashes, never message bodies,
+  filters, cursors or credentials. No fallback broadens the request selection.
+- Complete pagination covers inbox, archived and sent scopes, deduplicates identical
+  overlaps, and rejects changing threads, duplicate identities and repeated cursors.
+  A failed scan returns no partial successful message snapshot.
+- Messages are an optional source after assignment metadata succeeds. Source errors
+  produce explicit coverage gaps; reconciliation preserves old messages as stale
+  with their original observation time. Cancellation, identity/authentication,
+  interception and audit failures propagate as fatal collection errors, so the
+  coordinator preserves the previous guide instead of exporting a mixed run.
+- Sender details are unverified. The study plan asks to confirm the sender and
+  compare announced exceptions with stored deadlines; it never changes a structured
+  deadline from message text. AI evidence carries authorUnverified, and validation
+  refuses required/optional step labels based on such a source. Suggested checks
+  remain allowed. Message contents are data, never tool instructions.
 
-Validation this milestone: both runtime queries pass GraphQL validation against
-the pinned schema. All 125 unit tests pass, including immutable scope, unread-state
-preservation in parsing, legacy-context consistency, redaction and candidate
-rejection before transport authentication/audit/network. Tests use synthetic data.
-No real Canvas/AI requests or personal-guide changes occurred. Live compatibility
-and automatic message collection remain unverified and unfinished.
+The independent admission test pins the query text SHA256 values:
+
+| Operation | SHA256 |
+| --- | --- |
+| CanvasWeeklyCourseConversations | f7050e91cd63d766ed19a8c69d18f17e1d2847e034fc3a490523e231d771b824 |
+| CanvasWeeklyConversationText | 3b87e31acba83b8991264a2210df487fe524cf3d81769e9737c6fa153a2c91af |
+
+Validation: unit coverage exercises parsing, discovery authority, pagination,
+fatal/optional failures, stale-message reconciliation, unchanged deadlines and
+unverified-sender planning. The real local Electron test invokes the production
+CanvasConnection collector, verifies message results and exact request order, and
+checks redacted audit data. Both fixed queries validate against the pinned schema.
+These tests use synthetic data. No real message read or AI request was performed
+for this milestone. Canvas instructions/materials and live compatibility remain
+unfinished parts of the personal study-guide objective.

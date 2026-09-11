@@ -1,6 +1,6 @@
 // Fixed field-level collector admitted by docs/canvas-metadata-admission.md.
 // This selection does not authorize instruction, module or assessment reads.
-export const METADATA_NOTICE = 'Canvas refresh checks assignments, stored deadlines and submission status. Course instructions and messages are not refreshed; check the marked gaps and last-known information.';
+export const METADATA_NOTICE = 'Canvas refresh checks assignments, stored deadlines and submission status. Course messages are checked when available. Instructions and materials remain incomplete; review coverage and last-known information.';
 const queries = Object.freeze({
   assignments: `query CanvasWeeklyAssignments($courseId: ID!, $after: String) {
   course(id: $courseId) {
@@ -151,6 +151,6 @@ export function metadataRecord(metadata) {
       ...(missing || unmatched ? { message: `${missing ? `Submission status needs confirmation for ${missing} listed item${missing === 1 ? '' : 's'}. ` : ''}${unmatched ? 'Some submission records could not be matched to listed work. ' : ''}Check uncertain status in Canvas.` } : {}) },
     { source: 'assignment instructions', status: 'unsupported', message: 'Instructions were not read by the metadata collector. Saved instructions are kept as last-known information.' },
     { source: 'quiz details', status: 'unsupported', message: 'Question counts, time limits and attempt allowances were not refreshed. No quiz was started or resumed.' },
-    { source: 'course materials', status: 'unsupported', message: 'This metadata source does not collect readings, schedules, announcements or message contents.' },
+    { source: 'course materials', status: 'unsupported', message: 'Readings, schedules and announcements were not refreshed. Course-message coverage is reported separately.' },
   ] };
 }

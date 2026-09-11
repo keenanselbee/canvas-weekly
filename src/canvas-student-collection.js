@@ -1,5 +1,7 @@
 import { collectEnrollmentScope, enrollmentScopeRequest } from './canvas-enrollment-scope.js';
 import { collectMetadata, metadataRecord } from './canvas-metadata.js';
+import { collectCourseMessages } from './canvas-message-collection.js';
+import { CanvasCollectionStoppedError } from './canvas-metadata-transport.js';
 
 // Fixed metadata orchestration for CanvasConnection. Supply
 // one fresh CanvasMetadataTransport bound to this course/account/connection so
@@ -32,5 +34,19 @@ export async function collectStudentMetadata({ transport, courseId, studentId, g
   signal?.throwIfAborted();
   // Enrollment and account evidence are confined to this invocation. They are
   // neither exported nor used as cached authority for a later guide update.
-  return metadataRecord(metadata);
+  const record = metadataRecord(metadata);
+  try {
+    const messages = await collectCourseMessages({ transport, courseId, studentId, signal });
+    signal?.throwIfAborted();
+    record.sources.conversation = messages.conversation;
+    record.coverage.push(messages.coverage);
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (error instanceof CanvasCollectionStoppedError || error?.name === 'AbortError') throw error;
+    // A complete message source is optional. Do not leak response text or export
+    // a successful partial scan; reconciliation retains old evidence as stale.
+    record.coverage.push({ source: 'course messages', status: 'error',
+      message: 'Course messages could not be fully refreshed. Any previous messages are last-known information. Check Canvas Inbox for updates and sender details.' });
+  }
+  return record;
 }

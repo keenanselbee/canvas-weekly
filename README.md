@@ -17,7 +17,7 @@ artifact paths, installation behavior and remaining release checks.
 
 ## Current implementation
 
-**Manual Canvas refresh now uses a limited, reviewed metadata collector.** It
+**Manual Canvas refresh uses reviewed metadata and course-message queries.** It
 collects assignment names, points/types, stored student deadlines and submission
 status through fixed queries. The earlier course-wide submission query and REST
 body collector remain disabled. See the [admission decision](docs/canvas-metadata-admission.md)
@@ -25,8 +25,11 @@ for the selected source paths, request limits and institutional assumptions.
 
 The app labels coverage gaps. Missing submission records remain unknown; missing
 deadlines retain any last-known date and its original age, with verification tasks.
-Instructions, Canvas materials and course messages are not refreshed by this
-collector. Connected external course websites remain a separate supported source.
+Course-tagged Inbox messages are checked after metadata, with complete pagination
+and unverified-sender labels. A message-source failure keeps older messages stale;
+account or audit failures stop the update. See [message admission](docs/canvas-message-review.md).
+Instructions and Canvas materials are not refreshed by this collector. Connected
+external course websites remain a separate supported source.
 Full automatic course-content collection and live UBC compatibility are still
 unresolved release requirements. Tests use isolated local fixtures, not your account.
 
