@@ -1,6 +1,15 @@
-// Offline validation only. This module has no transport or production admission.
+// Candidate preflight only. No default transport or production admission.
 // Complete enrollment evidence is not proof of account-level permissions or
 // date-effective access, and must never authorize collection by itself.
+const query = `query CanvasWeeklyEnrollmentScope($courseId: ID!, $studentId: ID!, $after: String) {
+  user(id: $studentId) {
+    _id
+    enrollmentsConnection(first: 100, after: $after, courseId: $courseId, currentOnly: false, excludeConcluded: false) {
+      pageInfo { hasNextPage endCursor }
+      nodes { _id userId course { _id } type state courseSectionId limitPrivilegesToCourseSection role { _id name } }
+    }
+  }
+}`;
 const validId = value => typeof value === 'string' && /^[1-9]\d{0,31}$/.test(value);
 const validCursor = value => value === null || (typeof value === 'string' && value.length > 0 && value.length <= 1024 && !/[\u0000-\u001f\u007f]/.test(value));
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -8,20 +17,34 @@ const types = new Set(['StudentEnrollment', 'TeacherEnrollment', 'TaEnrollment',
 const states = new Set(['active', 'invited', 'creation_pending', 'completed', 'inactive', 'rejected', 'deleted']);
 const unavailable = 'Canvas enrollment evidence is unavailable or incomplete. Collection remains paused.';
 
-// Each page pairs the cursor sent by the caller with its decoded response. This
-// verifies a complete chain; it cannot verify how the caller obtained the data.
-export function validateEnrollmentScopePages(pages, { courseId, studentId, signal } = {}) {
+export function enrollmentScopeRequest(courseId, studentId, after = null) {
+  if (!validId(courseId) || !validId(studentId) || !validCursor(after)) throw new Error(unavailable);
+  return Object.freeze({ operationName: 'CanvasWeeklyEnrollmentScope', query,
+    variables: Object.freeze({ courseId, studentId, after }) });
+}
+
+export function permittedEnrollmentScopeBody(body, courseId, studentId) {
+  try {
+    if (typeof body !== 'string' || body.length > 4096) return false;
+    const value = JSON.parse(body);
+    return body === JSON.stringify(enrollmentScopeRequest(courseId, studentId, value.variables?.after));
+  } catch { return false; }
+}
+
+// Shared incremental validation for recorded pages and the isolated collector.
+// Nothing leaves this reader until the entire chain has completed successfully.
+function enrollmentReader({ courseId, studentId, signal } = {}) {
   signal?.throwIfAborted();
-  if (!validId(courseId) || !validId(studentId) || !Array.isArray(pages) || !pages.length || pages.length > 100) throw new Error(unavailable);
+  if (!validId(courseId) || !validId(studentId)) throw new Error(unavailable);
   const enrollments = [];
   const identities = new Set();
   const cursors = new Set();
   let expected = null;
   let bytes = 0;
-  for (let index = 0; index < pages.length; index++) {
+  let count = 0;
+  const add = page => {
     signal?.throwIfAborted();
-    const page = pages[index];
-    if (!object(page) || page.after !== expected || cursors.has(page.after)) throw new Error(unavailable);
+    if (++count > 100 || !object(page) || page.after !== expected || cursors.has(page.after)) throw new Error(unavailable);
     cursors.add(page.after);
     const value = page.response;
     let encoded;
@@ -38,7 +61,7 @@ export function validateEnrollmentScopePages(pages, { courseId, studentId, signa
       || !validCursor(connection.pageInfo.endCursor)) throw new Error(unavailable);
     const { hasNextPage, endCursor } = connection.pageInfo;
     if (hasNextPage && (!endCursor || !connection.nodes.length || cursors.has(endCursor))) throw new Error(unavailable);
-    if (hasNextPage !== (index < pages.length - 1)) throw new Error(unavailable);
+    if (hasNextPage && count === 100) throw new Error(unavailable);
     for (const node of connection.nodes) {
       if (!object(node) || !validId(node._id) || identities.has(node._id)
         || node.userId !== studentId || !object(node.course) || node.course._id !== courseId
@@ -54,8 +77,39 @@ export function validateEnrollmentScopePages(pages, { courseId, studentId, signa
         role: Object.freeze({ id: node.role._id, name: node.role.name }) }));
     }
     expected = hasNextPage ? endCursor : null;
+    return expected;
+  };
+  const finish = () => {
+    signal?.throwIfAborted();
+    if (!enrollments.length || expected !== null) throw new Error(unavailable);
+    return Object.freeze({ courseId, studentId, enrollments: Object.freeze(enrollments) });
+  };
+  return { add, finish };
+}
+
+// Recorded pages pair each requested cursor with its decoded response. This
+// cannot establish where the evidence came from or grant collection permission.
+export function validateEnrollmentScopePages(pages, scope) {
+  const reader = enrollmentReader(scope);
+  if (!Array.isArray(pages) || !pages.length || pages.length > 100) throw new Error(unavailable);
+  for (const page of pages) reader.add(page);
+  return reader.finish();
+}
+
+export async function collectEnrollmentScope({ request, courseId, studentId, signal } = {}) {
+  const reader = enrollmentReader({ courseId, studentId, signal });
+  if (typeof request !== 'function') throw new Error(unavailable);
+  let after = null;
+  try {
+    do {
+      signal?.throwIfAborted();
+      const response = await request(enrollmentScopeRequest(courseId, studentId, after), signal);
+      after = reader.add({ after, response });
+    } while (after !== null);
+    return reader.finish();
+  } catch {
+    signal?.throwIfAborted();
+    // Supplied transport errors may contain credentials or response contents.
+    throw new Error(unavailable);
   }
-  if (!enrollments.length) throw new Error(unavailable);
-  signal?.throwIfAborted();
-  return Object.freeze({ courseId, studentId, enrollments: Object.freeze(enrollments) });
 }

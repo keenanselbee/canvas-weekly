@@ -18,7 +18,7 @@ export class CanvasAudit {
       ...(event.method === 'POST' ? { bodyHash: event.bodyHash } : {}),
     };
     const metadata = record.method === 'POST' && record.path === '/api/graphql'
-      && ['metadataassignments', 'metadatasubmissions'].includes(record.operation) && /^[a-f0-9]{64}$/.test(record.bodyHash);
+      && ['metadataassignments', 'metadatasubmissions', 'metadataenrollments'].includes(record.operation) && /^[a-f0-9]{64}$/.test(record.bodyHash);
     if (!/^[a-f0-9-]{36}$/.test(record.requestId)
       || !(metadata ? ['request', 'response', 'network-error', 'body-read', 'read-error'] : ['request', 'response', 'network-error']).includes(record.event)
       || !/^[a-z]+$/.test(record.operation)

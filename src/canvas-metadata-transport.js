@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { metadataRequest, permittedMetadataBody } from './canvas-metadata.js';
+import { permittedEnrollmentScopeBody } from './canvas-enrollment-scope.js';
 
 const pageLimit = 2 * 1024 * 1024;
 const collectionLimit = 16 * 1024 * 1024;
@@ -79,7 +80,8 @@ export class CanvasMetadataTransport {
   async request(value, signal) {
     let body;
     try { body = JSON.stringify(value); } catch { /* Reject unserializable inputs. */ }
-    if (!permittedMetadataBody(body, this.#courseId, this.#studentId) || Buffer.byteLength(body) > 8192) throw new Error('This Canvas metadata request is not permitted.');
+    if (!(permittedMetadataBody(body, this.#courseId, this.#studentId) || permittedEnrollmentScopeBody(body, this.#courseId, this.#studentId))
+      || Buffer.byteLength(body) > 8192) throw new Error('This Canvas metadata request is not permitted.');
     const envelope = JSON.parse(body);
     if (this.#busy) throw new Error('A Canvas metadata read is already running.');
     if (this.#requests >= 200 || this.#bytes >= collectionLimit) throw new Error('Canvas metadata exceeded the collection limit.');
@@ -90,7 +92,8 @@ export class CanvasMetadataTransport {
     const timer = setTimeout(() => timeout.abort(), 30000);
     timer.unref?.();
     this.#busy = true;
-    const evidence = { requestId: randomUUID(), operation: envelope.operationName === 'CanvasWeeklyAssignments' ? 'metadataassignments' : 'metadatasubmissions',
+    const operation = { CanvasWeeklyAssignments: 'metadataassignments', CanvasWeeklySubmissionStates: 'metadatasubmissions', CanvasWeeklyEnrollmentScope: 'metadataenrollments' }[envelope.operationName];
+    const evidence = { requestId: randomUUID(), operation,
       origin: this.#origin, path: '/api/graphql', method: 'POST', paginated: envelope.variables.after !== null,
       bodyHash: createHash('sha256').update(body).digest('hex') };
     let intent = false;
@@ -150,7 +153,7 @@ export class CanvasMetadataTransport {
       catch { throw new Error('Canvas returned unreadable metadata.'); }
       await write({ event: 'body-read' });
       if (combined.aborted) throw cancelled();
-      // GraphQL errors and field semantics are validated by collectMetadata.
+      // GraphQL errors and fields are validated by the operation's collector.
       return data;
     } catch (error) {
       if (intent && !auditFailed) await write({ event: response ? 'read-error' : 'network-error' });

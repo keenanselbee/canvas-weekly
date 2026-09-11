@@ -5,6 +5,7 @@ import path from 'node:path';
 import { CanvasMetadataTransport } from '../src/canvas-metadata-transport.js';
 import { CanvasAudit } from '../src/canvas-audit.js';
 import { metadataRequest } from '../src/canvas-metadata.js';
+import { enrollmentScopeRequest } from '../src/canvas-enrollment-scope.js';
 
 const request = () => metadataRequest('assignments', '1', '99');
 const response = () => new Response('{"data":{"course":null}}', { headers: { 'content-type': 'application/json' } });
@@ -30,7 +31,9 @@ function fixture(options = {}) {
 test('metadata transport rejects altered requests before authentication, audit or network', async () => {
   const setup = fixture({ authentication: () => assert.fail('Invalid requests must not load authentication') });
   for (const altered of [null, {}, { ...request(), operationName: 'CreateSubmission' }, metadataRequest('assignments', '2', '99'),
-    metadataRequest('submissions', '1', '100'), { ...request(), query: 'mutation { submitAssignment }' }, { ...request(), session_token: 'x' }]) {
+    metadataRequest('submissions', '1', '100'), { ...request(), query: 'mutation { submitAssignment }' }, { ...request(), session_token: 'x' },
+    enrollmentScopeRequest('2', '99'), enrollmentScopeRequest('1', '100'),
+    { ...enrollmentScopeRequest('1', '99'), query: enrollmentScopeRequest('1', '99').query.replace('excludeConcluded: false', 'excludeConcluded: true') }]) {
     await assert.rejects(setup.transport.request(altered), /not permitted/);
   }
   assert.deepEqual(setup.events, []);
@@ -39,6 +42,17 @@ test('metadata transport rejects altered requests before authentication, audit o
   for (const origin of ['http://canvas.example', 'https://user@canvas.example', 'https://canvas.example/path', 'https://canvas.example?as_user_id=2']) {
     assert.throws(() => new CanvasMetadataTransport({ origin, courseId: '1', studentId: '99' }), /origin/);
   }
+});
+
+test('isolated enrollment transport uses exact admission and distinct content-free audit events', async () => {
+  const setup = fixture();
+  await setup.transport.request(enrollmentScopeRequest('1', '99', 'private-cursor'));
+  assert.equal(setup.sent.length, 1);
+  assert.equal(setup.sent[0].init.method, 'POST');
+  assert.deepEqual(JSON.parse(setup.sent[0].init.body), enrollmentScopeRequest('1', '99', 'private-cursor'));
+  assert.deepEqual(setup.events.map(event => event.operation), ['metadataenrollments', 'metadataenrollments', 'metadataenrollments']);
+  assert.equal(setup.events[0].paginated, true);
+  assert.doesNotMatch(JSON.stringify(setup.events), /private-cursor|StudentEnrollment|courseId|studentId|query/);
 });
 
 test('admission binds actual bytes once and rejects browser borrowing, files, blobs and route changes', async () => {

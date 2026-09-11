@@ -31,6 +31,14 @@ The candidate's two fixed queries are:
   Default GraphQL submission filtering would omit unsubmitted records. There are
   no answers, attempt contents, scores, comments or participant lists in this query.
 
+The transport also supports the separate CanvasWeeklyEnrollmentScope preflight,
+implemented in canvas-enrollment-scope.js. It requests the bound user's own
+paginated enrollments for one selected course, retaining concluded/inactive roles
+and validating each node's course ID. This is a third exact query, not a general
+GraphQL interface. It produces enrollment evidence for future admission decisions;
+it does not add role records to the guide or establish account-wide permissions.
+See the [enrollment contract and fixture results](canvas-enrollment-scope.md).
+
 Assignment dates use OverrideAssignmentLoader, which preloads override records and
 calls overridden_for for the current user. Course submission scope intersects the
 requested student IDs with those allowed by course permissions, then selects

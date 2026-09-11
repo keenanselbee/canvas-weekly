@@ -45,8 +45,9 @@ restriction and role identity. It selects no profile details, grades, scores,
 submissions, course progress, lock state or assessment contents.
 
 The query validates against the pinned schema using GraphQL.js 16.11.0. Schema
-validation establishes syntax/type compatibility only. It is not registered in
-canvas-metadata.js or admitted by CanvasNetwork/CanvasMetadataTransport.
+validation establishes syntax/type compatibility only. The matching runtime
+request is admitted only by the isolated CanvasMetadataTransport candidate.
+Production CanvasNetwork still denies it, and the refresh hold remains active.
 
 The former course-rooted query was unsuitable for complete role evidence.
 CourseType.enrollments_connection requires read_roster, view_all_grades or
@@ -135,10 +136,10 @@ dependencies and account-wide privilege classification retain the production hol
 Offline response validation
 ---------------------------
 
-src/canvas-enrollment-scope.js validates already-decoded synthetic responses. It
-has no request builder, transport, production registration or authorization result.
-Every page is paired with its requested cursor; the validator requires a complete
-chain, the bound parent user and each node's course/user IDs, known raw states/types and explicit role/section
+src/canvas-enrollment-scope.js validates already-decoded responses, with the same
+incremental reader used by the isolated collector. Every page is paired with its
+requested cursor; the validator requires a complete chain, the bound parent user,
+each node's course/user IDs, known raw states/types and explicit role/section
 fields. It rejects partial GraphQL errors, missing/duplicate identities, cursor
 cycles, empty evidence, excess pages/nodes/bytes and cancellation. Errors exclude
 upstream text. Output copies and freezes selected fields only.
@@ -154,8 +155,45 @@ persisted, exported or sent to the planner by this module.
 Seven synthetic tests cover these conditions, including multiple sections, a
 completed teaching role, switched parent identities and foreign-course nodes on
 later pages. Responses shaped like the withdrawn course-rooted query are rejected.
-Runtime admission and permission classification remain
-unimplemented until the dependency review is resolved.
+Production admission and permission classification remain unimplemented until
+the dependency review is resolved.
+
+Isolated request and transport integration
+-----------------------------------------
+
+enrollmentScopeRequest builds a frozen operation and variables. Its query AST
+matches the documented candidate and validates against the pinned schema.
+permittedEnrollmentScopeBody accepts only exact canonical JSON for the bound
+course/user and a bounded cursor. Extra fields, changed filters, mutation names,
+foreign IDs, added profile/grade selections and alternate envelopes are denied.
+No query text comes from the renderer or planner.
+
+collectEnrollmentScope requires an injected request function; it has no session,
+credentials, origin or default fetcher. Each response passes the shared reader
+before a subsequent request. It stops at 100 pages, 100 nodes per page, 2 MiB per
+decoded page and 16 MiB in total. The reader retains only selected fields and
+returns frozen evidence after the last page. Failures never return partial
+evidence or upstream exception text. Cancellation is passed to the transport and
+checked again before accepting a late result. Transport cancellation/deadlines
+remain responsible for interrupting a pending request.
+
+CanvasMetadataTransport admits this third fixed operation through its existing
+single-use byte gate. The same origin, identity, cookie/token, redirect, timeout
+and streaming limits apply. Enrollment pages share its 200-request/16-MiB budget
+with metadata reads when the same instance is used. CanvasAudit records the
+distinct metadataenrollments operation and body hash; it omits role records,
+cursor values and credentials. This operation is not registered with the
+production session and does not itself authorize later metadata operations.
+
+Four additional enrollment unit cases cover the exact request boundary, complete
+pagination, early failure/budget exhaustion and cancellation; the original seven
+evidence cases still pass. Transport tests reject altered scope/filters before
+authentication or networking. The actual Electron localhost HTTPS fixture reads
+two enrollment pages with a concluded teaching role and rejects a foreign-user
+response before requesting a second page. It also verifies persisted audit
+redaction and the existing browser/redirect/CSRF protections. These are synthetic
+account fixtures, not evidence of successful UBC access or account-wide privilege
+classification. No live Canvas request was made.
 
 Acceptance and remaining work
 -----------------------------
@@ -164,10 +202,9 @@ Acceptance and remaining work
    dependencies. Resolve how account-wide elevated rights will be detected or
    supported; enrollment records alone cannot establish their absence. Preserve
    the institutional-version limitation in the final admission decision.
-2. Add an exact operation/body contract only after that review. Bind course/user
-   IDs to the current connection, use the same bounded transport and cancellation,
-   and finish all pages before producing a scope result. Reject response errors,
-   missing IDs/roles, foreign users, duplicate enrollment IDs and cursor cycles.
+2. Complete production connection wiring only after that review. The isolated
+   exact-body transport and complete-page validation above are implemented and
+   tested; passing those fixtures must not activate the real session gate.
 3. Combine the result with a freshly verified active course selection. Workflow
    state alone does not prove date-effective enrollment. Require supported student
    enrollment evidence; report mixed/custom/test-student or uncertain roles as

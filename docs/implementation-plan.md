@@ -373,3 +373,13 @@ Work log
   full unit suite pass. Documented why the limited GraphQL permission fields and
   REST permissions controller do not yet resolve the remaining privilege review.
   No production request admission, real account request or guide rewrite occurred.
+- 2026-09-10: Connected the self-enrollment candidate to the isolated metadata
+  transport using a third exact operation/body contract. A shared incremental
+  reader validates every page before another request, preserves conflicting roles,
+  enforces pagination/size budgets and returns evidence only after completion.
+  The audit records a separate enrollment operation without role data, cursor
+  values or credentials. The runtime query matches the documented AST and passes
+  the pinned schema. All 99 unit tests and the actual Electron localhost HTTPS
+  fixture pass, including two-page enrollment reads and early rejection of a
+  foreign user. Production admission and account-wide permission classification
+  remain pending; no real Canvas request, AI request or guide rewrite occurred.

@@ -158,11 +158,31 @@ CoursesController.permissions calls get_context. For a course, that populates
 @context_enrollment; the controller's update_enrollment_last_activity_at hook
 then has an enrollment to pass to RecentActivity.record_for_access. This is a
 different controller path from the reviewed context-free GraphQL POST. It is not
-an admitted substitute for the missing GraphQL permission fields. Whether a
-particular response reaches a persistent activity write depends on that helper;
-no live request was used to test it.
+an admitted substitute for the missing GraphQL permission fields. Follow-up
+review of RecentActivity confirms thresholded update_all_locked_in_order writes
+to enrollment.last_activity_at and, in some cases, total_activity_time. Its
+record_for_access ignores 4xx/5xx responses but can record a successful read.
+Separately, check_for_readonly_enrollment_state returns immediately for non-HTML
+requests, so its date-state recalculation is not reached for a JSON request.
+Do not conflate those two paths. No live request was used to test either.
 [Course controller](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/controllers/courses_controller.rb),
-[Context and activity hooks](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/controllers/application_controller.rb).
+[Context and activity hooks](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/controllers/application_controller.rb),
+[Activity recorder](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/enrollment/recent_activity.rb).
+
+The next account-level preflight candidate is GET /api/v1/accounts, without
+optional includes. AccountsController.index paginates
+current_user.all_paginatable_accounts. The pinned User implementation wraps
+adminable_accounts_scope, which selects active AccountUser account IDs and active
+Accounts across associated shards; it does not first filter by a named privilege.
+That offers a way to reject accounts with administrative membership without
+assuming false grade permissions cover all course privileges. It is distinct
+from /accounts/manageable, which additionally filters course-management rights
+and would lose relevant evidence. Complete the index controller's get_context,
+student-view rejection, pagination and default account_json review before
+admission. Empty responses must be authenticated and complete, never inferred
+from an error. Institutional shard/role behavior remains a limitation.
+[Account controller](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/controllers/accounts_controller.rb),
+[Account membership scope](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/user.rb).
 
 The override helpers reviewed in this pass select existing adhoc, group, tag,
 observer, section and course overrides and apply dates to a readonly clone.

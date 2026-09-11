@@ -35,6 +35,15 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
     if (mode === 'stream') { response.write('{"data":'); streaming?.(); return; }
     if (mode === 'graphql-error') { response.end('{"data":{"course":null},"errors":[{"message":"private-fixture-error"}]}'); return; }
     const input = JSON.parse(Buffer.concat(chunks));
+    if (input.operationName === 'CanvasWeeklyEnrollmentScope') {
+      const next = input.variables.after === null ? 'enrollment-next' : null;
+      const node = { _id: next ? '31' : '32', userId: '99', course: { _id: '1' },
+        type: next ? 'StudentEnrollment' : 'TeacherEnrollment', state: next ? 'active' : 'completed',
+        courseSectionId: '2', limitPrivilegesToCourseSection: false, role: { _id: next ? '3' : '4', name: next ? 'StudentEnrollment' : 'TeacherEnrollment' } };
+      response.end(JSON.stringify({ data: { user: { _id: mode === 'foreign-enrollment' ? '100' : '99',
+        enrollmentsConnection: { nodes: [node], pageInfo: { hasNextPage: next !== null, endCursor: next } } } } }));
+      return;
+    }
     const assignments = input.operationName === 'CanvasWeeklyAssignments';
     const next = assignments && input.variables.after === null ? 'next' : null;
     const id = input.variables.after === null ? '10' : '11';
@@ -136,6 +145,25 @@ try {
   const count = received.length;
   await assert.rejects(application.evaluate(async () => globalThis.metadataFixture.read()), /cancel/i);
   assert.equal(received.length, count);
+  mode = 'normal';
+  await application.evaluate(() => globalThis.metadataFixture.reset('session'));
+  const enrollmentStart = received.length;
+  const evidence = await application.evaluate(async () => globalThis.metadataFixture.enrollments());
+  assert.deepEqual(evidence.enrollments.map(row => [row.type, row.state]), [['StudentEnrollment', 'active'], ['TeacherEnrollment', 'completed']]);
+  assert.equal(received.length, enrollmentStart + 2);
+  for (const request of received.slice(enrollmentStart)) {
+    assert.equal(request.method, 'POST');
+    assert.equal(request.route, '/api/graphql');
+    const body = JSON.parse(request.body);
+    assert.equal(body.operationName, 'CanvasWeeklyEnrollmentScope');
+    assert.equal(body.variables.courseId, '1');
+    assert.equal(body.variables.studentId, '99');
+    assert.match(body.query, /currentOnly: false, excludeConcluded: false/);
+  }
+  mode = 'foreign-enrollment';
+  const beforeForeign = received.length;
+  await assert.rejects(application.evaluate(async () => globalThis.metadataFixture.enrollments()), /unavailable or incomplete/);
+  assert.equal(received.length, beforeForeign + 1, 'Invalid user must stop before the next enrollment page');
   const logFiles = await fs.readdir(path.join(directory, 'canvas-audit'));
   const log = await fs.readFile(path.join(directory, 'canvas-audit', logFiles[0]), 'utf8');
   assert.doesNotMatch(log, /fixture-(csrf|bearer|cookie)|private-fixture|Synthetic preparation|"query"|studentId/);
@@ -146,7 +174,9 @@ try {
   assert.equal(records.filter(event => event.event === 'request').length, received.length);
   assert.ok(records.some(event => event.event === 'read-error'));
   assert.ok(records.some(event => event.event === 'body-read'));
-  console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, paginated parsing, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
+  assert.equal(records.filter(event => event.operation === 'metadataenrollments' && event.event === 'request').length, 3);
+  assert.doesNotMatch(log, /enrollment-next|StudentEnrollment|TeacherEnrollment/);
+  console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, paginated metadata/enrollment parsing, foreign-user rejection, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
   console.log('Fixture profile: ' + directory);
 } finally {
   if (application) await application.close();

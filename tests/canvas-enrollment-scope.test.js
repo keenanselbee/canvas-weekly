@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateEnrollmentScopePages } from '../src/canvas-enrollment-scope.js';
+import { validateEnrollmentScopePages, enrollmentScopeRequest, permittedEnrollmentScopeBody, collectEnrollmentScope } from '../src/canvas-enrollment-scope.js';
 
 const scope = { courseId: '1', studentId: '99' };
 const enrollment = (id = '10', changes = {}) => ({ _id: id, userId: '99', type: 'StudentEnrollment', state: 'active',
@@ -8,6 +8,74 @@ const enrollment = (id = '10', changes = {}) => ({ _id: id, userId: '99', type: 
   courseSectionId: '2', limitPrivilegesToCourseSection: false, role: { _id: '3', name: 'StudentEnrollment' }, ...changes });
 const page = (nodes = [enrollment()], after = null, next = null) => ({ after, response: { data: { user: { _id: '99',
   enrollmentsConnection: { nodes, pageInfo: { hasNextPage: next !== null, endCursor: next } } } } } });
+
+test('enrollment request admits only the exact bound operation and cursor', () => {
+  const request = enrollmentScopeRequest('1', '99');
+  assert.ok(Object.isFrozen(request) && Object.isFrozen(request.variables));
+  assert.equal(permittedEnrollmentScopeBody(JSON.stringify(request), '1', '99'), true);
+  assert.equal(permittedEnrollmentScopeBody(JSON.stringify(enrollmentScopeRequest('1', '99', 'next')), '1', '99'), true);
+  for (const altered of [null, {}, { ...request, operationName: 'CreateSubmission' },
+    { ...request, query: request.query.replace('currentOnly: false', 'currentOnly: true') },
+    { ...request, query: request.query.replace('excludeConcluded: false', 'excludeConcluded: true') },
+    { ...request, variables: { ...request.variables, studentId: '100' } },
+    { ...request, variables: { ...request.variables, courseId: '2' } },
+    { ...request, variables: { ...request.variables, after: '' } },
+    { ...request, query: request.query.replace('_id userId', '_id userId grades { currentScore }') },
+    { ...request, as_user_id: '100' }, { ...request, extensions: {} }]) {
+    assert.equal(permittedEnrollmentScopeBody(JSON.stringify(altered), '1', '99'), false);
+  }
+  assert.equal(permittedEnrollmentScopeBody(JSON.stringify(request) + ' ', '1', '99'), false);
+});
+
+test('enrollment collection completes pagination before returning immutable evidence', async () => {
+  const calls = [];
+  const controller = new AbortController();
+  const result = await collectEnrollmentScope({ ...scope, signal: controller.signal, request: async (request, signal) => {
+    assert.equal(signal, controller.signal);
+    calls.push(request);
+    return request.variables.after === null ? page([enrollment()], null, 'next').response
+      : page([enrollment('11', { type: 'TeacherEnrollment', state: 'completed' })], 'next').response;
+  } });
+  assert.deepEqual(calls.map(value => value.variables), [
+    { courseId: '1', studentId: '99', after: null }, { courseId: '1', studentId: '99', after: 'next' },
+  ]);
+  assert.equal(result.enrollments[1].type, 'TeacherEnrollment');
+  assert.equal(Object.isFrozen(result.enrollments), true);
+  assert.equal(Object.hasOwn(result, 'authorized'), false);
+});
+
+test('invalid enrollment pages stop before another request and do not expose upstream details', async () => {
+  const foreign = page([enrollment()], null, 'next'); foreign.response.data.user._id = '100';
+  const partial = page([enrollment()], null, 'next'); partial.response.errors = [{ message: 'private-error' }];
+  for (const response of [foreign.response, partial.response, page([], null, 'next').response]) {
+    let calls = 0;
+    await assert.rejects(collectEnrollmentScope({ ...scope, request: async () => { calls++; return response; } }), /unavailable or incomplete/);
+    assert.equal(calls, 1);
+  }
+  await assert.rejects(collectEnrollmentScope({ ...scope, request: async () => { throw new Error('private-cookie'); } }),
+    error => !error.message.includes('private-cookie'));
+  let count = 0;
+  await assert.rejects(collectEnrollmentScope({ ...scope, request: async () => {
+    count++;
+    return page([enrollment(String(count))], null, String(count)).response;
+  } }), /unavailable or incomplete/);
+  assert.equal(count, 100, 'Never request a 101st enrollment page');
+});
+
+test('enrollment cancellation rejects late evidence without requesting another page', async () => {
+  const controller = new AbortController();
+  let resolve;
+  let calls = 0;
+  const pending = collectEnrollmentScope({ ...scope, signal: controller.signal, request: async () => {
+    calls++;
+    return new Promise(done => { resolve = done; });
+  } });
+  controller.abort();
+  resolve(page([enrollment()], null, 'next').response);
+  await assert.rejects(pending, { name: 'AbortError' });
+  assert.equal(calls, 1);
+  await assert.rejects(collectEnrollmentScope({ ...scope, signal: controller.signal, request: () => assert.fail('Already cancelled') }), { name: 'AbortError' });
+});
 
 test('enrollment evidence preserves multi-section and conflicting roles without granting admission', () => {
   const pages = [page([enrollment()], null, 'next'), page([
