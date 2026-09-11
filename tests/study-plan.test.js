@@ -83,6 +83,29 @@ test('no assignments still produces a weekly materials check without claiming no
   assert.notEqual(guide.studyPlan.tasks[0].id, next.studyPlan.tasks[0].id, 'Weekly materials checks must renew each week');
 });
 
+test('starting points cover each course, flag shared deadlines and advance after local completion', () => {
+  const first = record();
+  first.sources.assignments = [1, 2, 3].map(id => ({ id, name: `Deadline group ${id}`, due_at: '2026-09-18T18:00:00Z', submission: { workflow_state: 'unsubmitted' } }));
+  const second = { id: '2', coverage: [], sources: { course: { name: 'Ethics', course_code: 'PHIL 1' }, assignments: [{ id: 10, name: 'Reading questions', due_at: '2026-09-17T15:00:00Z' }] } };
+  const third = { id: '3', coverage: [], sources: { course: { name: 'Learning', course_code: 'DATA 1' }, assignments: [{ id: 20, name: 'Undated work' }] } };
+  const guide = buildGuide(reconcile([first, second, third], null, options));
+  const focus = guide.studyPlan.focus;
+  assert.deepEqual(focus.map(item => item.courseId), ['2', '1', '3']);
+  assert.match(focus[0].title, /Check the next step/);
+  assert.equal(focus[1].sharedDeadlineCount, 3);
+  assert.match(focus[1].deadlineNote, /3 outstanding items/);
+  assert.equal(focus[2].dueAt, null);
+  assert.match(focus[2].title, /materials/);
+  const chosen = guide.studyPlan.tasks.find(task => task.id === focus[1].taskId);
+  const changed = buildStudyPlan(guide, { [chosen.id]: { done: true, fingerprint: chosen.fingerprint } });
+  assert.notEqual(changed.focus.find(item => item.courseId === '1').taskId, chosen.id);
+  assert.equal(changed.focus.find(item => item.courseId === '1').sharedDeadlineCount, 3, 'Preparation completion does not mean submission');
+  assert.ok(guide.items.every(item => item.status !== 'submitted'));
+  const markdown = renderMarkdown(guide);
+  assert.ok(markdown.indexOf('### Start here') < markdown.indexOf('### Full preparation checklist'));
+  assert.match(markdown, /3 outstanding items share this recorded due time/);
+});
+
 test('AI steps enrich supported preparation while verification tasks and recorded dates remain intact', () => {
   const guide = buildGuide(reconcile([record()], null, options));
   const priority = { sourceId: '1:assignment:1', action: 'Practice identifying keys', reason: 'Prepare for the lab.', suggestedDate: '2026-09-11', checks: ['Confirm the assigned chapter.'], steps: [{ text: 'Review your key examples.', kind: 'suggested', quote: '' }] };

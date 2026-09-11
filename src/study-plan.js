@@ -52,7 +52,7 @@ export function buildStudyPlan(guide, progress = {}) {
     const courseId = `course:${course.id}`;
     const source = (course.evidence || []).find(source => ['page', 'syllabus', 'website'].includes(source.kind) && source.body && !source.stale);
     const reviewCount = tasks.filter(task => task.courseId === course.id && task.unscheduled).length;
-    tasks.push({ id: `${courseId}:materials:${guide.week.start}`, sourceId: source?.id || courseId, courseName: course.code || course.name,
+    tasks.push({ id: `${courseId}:materials:${guide.week.start}`, sourceId: source?.id || courseId, courseId: course.id, courseName: course.code || course.name,
       title: `Check this week's materials for ${course.code || course.name}`, suggestedDate: today,
       reason: 'Reading, lecture preparation and lab work may matter even when Canvas lists no deadline this week.',
       steps: ['Review the posted course schedule and identify this week’s assigned topics.', 'Separate required reading from optional supplementary material; note anything that is unclear.',
@@ -82,7 +82,7 @@ export function buildStudyPlan(guide, progress = {}) {
       continue;
     }
     if (!task) {
-      task = { id: `${priority.sourceId}:ai-preparation`, sourceId: priority.sourceId, courseName: source.courseName, dueAt: null, closesAt: null, steps: [], suggestedDate: today };
+      task = { id: `${priority.sourceId}:ai-preparation`, sourceId: priority.sourceId, courseId: source.courseId, courseName: source.courseName, dueAt: null, closesAt: null, steps: [], suggestedDate: today };
       tasks.push(task);
     }
     Object.assign(task, { title: priority.action, reason: priority.reason, ai: true });
@@ -97,12 +97,25 @@ export function buildStudyPlan(guide, progress = {}) {
     task.changedSinceDone = saved?.done === true && saved.fingerprint !== task.fingerprint;
   }
   tasks.sort((a, b) => (a.suggestedDate || '9999').localeCompare(b.suggestedDate || '9999') || (a.dueAt || a.closesAt || '9999').localeCompare(b.dueAt || b.closesAt || '9999'));
+  const boundary = task => [task.dueAt, task.closesAt].filter(Boolean).sort()[0] || '9999';
+  const focus = guide.courses.flatMap(course => {
+    const available = tasks.filter(task => task.courseId === course.id && !task.done && !task.unscheduled);
+    const dated = available.filter(task => task.dueAt || task.closesAt).sort((a, b) => boundary(a).localeCompare(boundary(b)));
+    const task = dated[0] || available.find(task => task.ai) || available[0];
+    if (!task) return [];
+    const sharedDeadlineCount = task.dueAt ? items.filter(item => item.courseId === course.id && item.dueAt === task.dueAt).length : 0;
+    return [{ taskId: task.id, sourceId: task.sourceId, courseId: course.id, courseName: task.courseName,
+      title: !task.ai && task.id.startsWith('course:') ? "Review this week's materials" : task.title,
+      reason: task.reason, suggestedDate: task.suggestedDate, dueAt: task.dueAt, closesAt: task.closesAt,
+      sharedDeadlineCount, deadlineNote: sharedDeadlineCount > 1 ? `${sharedDeadlineCount} outstanding items share this recorded due time. Review their workload together.` : null }];
+  }).sort((a, b) => boundary(a).localeCompare(boundary(b)));
   const reviewGroups = guide.courses.map(course => ({ courseId: course.id, courseName: course.code || course.name,
     tasks: tasks.filter(task => task.unscheduled && task.courseId === course.id) })).filter(group => group.tasks.length);
   return {
     summary: `${guide.inWeek.length} outstanding dated item${guide.inWeek.length === 1 ? '' : 's'} this week or overdue; ${guide.upcoming.length} coming up; ${guide.undated.length} without a supplied deadline.`,
     note: 'These are suggested starting days, not a timetable or new course deadlines. Adjust to your availability. Preparation checkmarks are local and never submit coursework.',
     reviewNote: 'Items with no recorded due or closing time are grouped for review. They may still require work this week; compare them with the current course schedule during your weekly materials check. A missing date does not mean optional work.',
+    focus, focusNote: 'One starting point per course, chosen from unfinished preparation tasks. Use the full plan for the remaining work and adjust suggested days to your availability.',
     tasks, checks, reviewGroups,
   };
 }

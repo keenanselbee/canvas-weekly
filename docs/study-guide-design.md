@@ -11,6 +11,14 @@ Implemented planning layer
 
 - Lead with a count of outstanding dated work, upcoming work and undated items.
   Absence of a deadline never implies absence of reading or preparation.
+- Add a compact Start here overview with one unfinished starting point per course.
+  Prefer the earliest recorded due/closing boundary; otherwise show an AI preparation
+  task or the weekly materials check. Keep the full checklist below. Display exact
+  due/closing times separately from suggested preparation dates, and flag multiple
+  outstanding items with the same course and exact due time. This is workload
+  orientation, not an estimate of effort or a claim that other work is optional.
+  Local completion advances the overview but never reduces the recorded submission
+  backlog. View task expands and focuses the existing checkbox without network access.
 - Create a preparation task for each outstanding item in the lookahead window.
   For expired availability, overdue work, stale information, unknown submission
   state or missing dates, suggest checking the next step rather than asserting

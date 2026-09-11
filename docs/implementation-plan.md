@@ -211,3 +211,14 @@ Work log
   payload, first-run, Codex, theme and document-reader checks. No authenticated
   Canvas or storage request was made. Alternative storage access and local imports
   remain implementation work; the historical account-state limitation is unchanged.
+- 2026-09-10: Reviewed the real saved factual guide offline: no AI priorities or
+  message details were present, and eight database items share one recorded due
+  time. Added Start here with one unfinished starting point per course, shared
+  deadline counts, and local View task navigation. The saved four-course Desktop
+  guide was re-exported without changing its collection timestamp or enabling AI.
+  Forty-nine unit tests, synthetic desktop refresh/navigation, standalone guide
+  checks and rebuilt-package checks pass. Fixed an ambiguous fixture heading and
+  a persisted test checkbox that prevented repeat-run focus verification. Reviewed
+  light/dark/narrow document and desktop screenshots. Real-course AI review remains
+  pending the user's response because saved Study suggestions are off; no Canvas
+  or live planning request was made. Word visual pagination remains unverified.

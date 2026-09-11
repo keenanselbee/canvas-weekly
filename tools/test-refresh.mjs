@@ -98,7 +98,7 @@ try {
   }, output);
   await page.getByRole('button', { name: 'Update guide', exact: true }).click();
   const first = await page.evaluate(() => window.refreshFinished);
-  await page.getByRole('heading', { name: 'Example assignment' }).waitFor();
+  await page.getByRole('heading', { name: 'Example assignment', exact: true }).waitFor();
   assert.equal(first.run.busy, false);
   assert.ok(first.guide.outputPath.startsWith(output));
   assert.equal(first.guide.items.length, 2);
@@ -119,6 +119,19 @@ try {
   const taskId = '1:assignment:10:prepare';
   await page.evaluate(taskId => window.canvasWeekly.setStudyTaskDone(taskId, false), taskId);
   const beforeLocalChanges = await application.evaluate(() => globalThis.syntheticRequestCount);
+  await page.getByRole('heading', { name: 'Start here', exact: true }).waitFor();
+  await page.locator('#notice').waitFor({ state: 'hidden', timeout: 6500 });
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(theme => window.canvasWeekly.setTheme(theme), theme);
+    await page.locator(`html[data-theme="${theme}"]`).waitFor();
+    await page.locator('main').evaluate(node => { node.scrollTop = 0; });
+    await page.screenshot({ path: `.codex-temp/visual/start-here-${theme}.png` });
+  }
+  await page.locator('details.study-day').evaluateAll(nodes => nodes.forEach(node => { node.open = false; }));
+  await page.getByRole('button', { name: 'View task', exact: true }).click();
+  await page.waitForFunction(() => document.activeElement?.id === 'study-1:assignment:10:prepare');
+  assert.equal(await page.locator('#study-1\\:assignment\\:10\\:prepare').isVisible(), true);
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeLocalChanges, 'Starting-point navigation stays local');
   await page.evaluate(taskId => {
     window.progressSaved = new Promise((resolve, reject) => {
       const timer = setTimeout(() => { unsubscribe(); reject(new Error('Study progress did not save')); }, 10000);
@@ -138,6 +151,12 @@ try {
   assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.items[0].status, 'not-submitted');
   await page.reload();
   assert.equal(await page.getByRole('checkbox', { name: /Preparation done:.*Example assignment/ }).isChecked(), true);
+  // This fixture uses persistent test storage. Reset the unchanged undated task
+  // so a repeat run actually exercises its change event and focus restoration.
+  if ((await page.evaluate(() => window.canvasWeekly.getState())).guide.studyPlan.tasks.find(task => task.id === '1:assignment:11:prepare').done) {
+    await page.evaluate(() => window.canvasWeekly.setStudyTaskDone('1:assignment:11:prepare', false));
+    await page.reload();
+  }
   await timingGroup.locator(':scope > summary').click();
   await page.getByRole('checkbox', { name: /Preparation done:.*Practice exam 2020/ }).check();
   await page.waitForFunction(() => document.getElementById('study-1:assignment:11:prepare') === document.activeElement);

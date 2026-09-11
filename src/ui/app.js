@@ -101,6 +101,24 @@ function renderGuide() {
     const refined = plan.tasks.filter(task => task.ai).length;
     if (guide.priorities?.length) overview.append(node('p', 'muted', `ChatGPT refined ${refined} preparation task${refined === 1 ? '' : 's'}. Other tasks use basic prompts. Required/optional labels are AI interpretations with source quotes to check.`));
     if (state.ai.connected && !state.settings.aiEnabled) overview.append(node('p', 'muted', 'ChatGPT is connected. Enable Study suggestions in Settings for more specific preparation advice.'));
+    if (plan.focus?.length) {
+      overview.append(node('h3', '', 'Start here'), node('p', 'muted', plan.focusNote));
+      for (const focus of plan.focus) {
+        const entry = node('div', 'setting-row');
+        const content = node('div');
+        content.append(node('h3', '', `${focus.courseName}: ${focus.title}`), node('p', '', focus.reason), node('p', 'muted', `Suggested start: ${focus.suggestedDate}`));
+        if (focus.dueAt) content.append(node('p', '', `Recorded due time: ${format(focus.dueAt)}`));
+        if (focus.closesAt) content.append(node('p', '', `Available until: ${format(focus.closesAt)}`));
+        if (focus.deadlineNote) content.append(node('p', '', focus.deadlineNote));
+        entry.append(content, button('View task', () => {
+          const target = document.getElementById(`study-${focus.taskId}`);
+          for (let parent = target?.parentElement; parent; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true;
+          target?.scrollIntoView({ block: 'center' }); target?.focus({ preventScroll: true });
+        }));
+        overview.append(entry);
+      }
+      overview.append(node('h3', '', 'Full preparation checklist'));
+    }
     const dates = [...new Set(plan.tasks.map(task => task.suggestedDate).filter(Boolean))];
     const groups = dates.map(date => ({ title: `Suggested start: ${date}`, open: date === dates[0], tasks: plan.tasks.filter(task => task.suggestedDate === date) }));
     groups.push(...(plan.reviewGroups || []).map(group => ({ title: `Timing to confirm: ${group.courseName}`, open: false, review: true, tasks: group.tasks })));

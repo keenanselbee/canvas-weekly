@@ -65,7 +65,9 @@ not extend session lifetimes. Switching accounts clears course selection.
 
 After connecting, choose courses and use Update guide on This week. Open guide
 exports the saved study plan with current local checkmarks, then opens Weekly Plan.html
-in the default browser. The document follows browser light/dark preferences and
+in the default browser. A Start here overview highlights one unfinished starting
+point per course and warns when multiple items share a recorded deadline. The full
+preparation checklist and source details follow it. The document follows browser light/dark preferences and
 includes section navigation and print styles. Weekly Plan.md and Weekly Plan.docx
 remain alongside it. The Word copy includes the same plan, source details and
 verification notes, with local preparation states labeled To do or Done.

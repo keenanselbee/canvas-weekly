@@ -111,6 +111,18 @@ export function renderMarkdown(guide) {
   lines.push('## Your study plan', '', plan.summary, '', plan.note, '');
   const refined = plan.tasks.filter(task => task.ai).length;
   if (guide.priorities?.length) lines.push(`ChatGPT refined ${refined} preparation task${refined === 1 ? '' : 's'}. Other tasks use basic prompts. Required/optional labels are AI interpretations with source quotes to check.`, '');
+  if (plan.focus?.length) {
+    lines.push('### Start here', '', plan.focusNote, '');
+    for (const focus of plan.focus) {
+      const source = sources.get(focus.sourceId);
+      lines.push(`#### ${md(focus.courseName)}: ${md(focus.title)}`, '', md(focus.reason), '', `Suggested start: ${focus.suggestedDate}.`, '');
+      if (focus.dueAt) lines.push(`Recorded due time: ${formatDate(focus.dueAt, guide.timeZone)}`, '');
+      if (focus.closesAt) lines.push(`Available until: ${formatDate(focus.closesAt, guide.timeZone)}`, '');
+      if (focus.deadlineNote) lines.push(md(focus.deadlineNote), '');
+      if (source) lines.push(`[Original source](${source.sourceUrl})`, '');
+    }
+    lines.push('### Full preparation checklist', '');
+  }
   let day, reviewCourse;
   for (const task of [...plan.tasks.filter(task => !task.unscheduled), ...(plan.reviewGroups || []).flatMap(group => group.tasks)]) {
     if (task.unscheduled) {
