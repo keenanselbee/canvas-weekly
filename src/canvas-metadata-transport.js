@@ -27,6 +27,26 @@ function discardResponse(response) {
   try { response?.body?.cancel().catch(() => {}); } catch { /* Already closed or locked. */ }
 }
 
+const accountScopeUnavailable = 'Canvas account permissions could not be confirmed. Collection stopped.';
+
+function requireEmptyAccountPage(data, headers, origin) {
+  if (!Array.isArray(data) || data.length) throw new Error(accountScopeUnavailable);
+  const links = headers.get('link');
+  if (links === null) return;
+  if (!links.length || links.length > 8192) throw new Error(accountScopeUnavailable);
+  const seen = new Set();
+  for (const part of links.split(',')) {
+    const match = part.match(/^\s*<([^<>]+)>;\s*rel="(first|current|last)"\s*$/);
+    if (!match || seen.has(match[2])) throw new Error(accountScopeUnavailable);
+    seen.add(match[2]);
+    let url;
+    try { url = new URL(match[1]); } catch { throw new Error(accountScopeUnavailable); }
+    if (url.origin !== origin || url.pathname !== '/api/v1/accounts' || url.username || url.password || url.hash
+      || url.searchParams.size !== 2 || url.searchParams.getAll('page').length !== 1
+      || !['1', 'first'].includes(url.searchParams.get('page')) || url.searchParams.get('per_page') !== '1') throw new Error(accountScopeUnavailable);
+  }
+}
+
 // Candidate transport only. CanvasConnection does not instantiate this class or
 // install its admission callback. The production refresh hold remains in force.
 // Create one instance per course collection using a verified account binding.
@@ -36,6 +56,7 @@ export class CanvasMetadataTransport {
   #studentId;
   #globalUserId;
   #identityRejected = false;
+  #accountScopeRejected = false;
   #connectionSignal;
   #authentication;
   #fetcher;
@@ -65,11 +86,16 @@ export class CanvasMetadataTransport {
   // one main-process request with exactly these upload bytes; no files or blobs.
   allows(details) {
     const pending = this.#pending;
-    if (!pending || this.#identityRejected || pending.admitted !== null || pending.signal.aborted
-      || details.url !== this.#origin + '/api/graphql' || details.method !== 'POST'
+    if (!pending || this.#identityRejected || this.#accountScopeRejected || pending.admitted !== null || pending.signal.aborted
+      || details.url !== pending.url || details.method !== pending.method
       || (details.webContentsId !== undefined && details.webContentsId !== 0) || details.webContents || details.frame
-      || !Number.isSafeInteger(details.id) || details.id < 0
-      || !Array.isArray(details.uploadData) || !details.uploadData.length || details.uploadData.length > 16) return false;
+      || !Number.isSafeInteger(details.id) || details.id < 0) return false;
+    if (pending.method === 'GET') {
+      if (details.uploadData !== undefined && (!Array.isArray(details.uploadData) || details.uploadData.length)) return false;
+      pending.admitted = details.id;
+      return true;
+    }
+    if (!Array.isArray(details.uploadData) || !details.uploadData.length || details.uploadData.length > 16) return false;
     let offset = 0;
     for (const part of details.uploadData) {
       if (!part || Object.hasOwn(part, 'file') || Object.hasOwn(part, 'blobUUID') || !Buffer.isBuffer(part.bytes)
@@ -88,7 +114,19 @@ export class CanvasMetadataTransport {
     if (!(permittedMetadataBody(body, this.#courseId, this.#studentId) || permittedEnrollmentScopeBody(body, this.#courseId, this.#studentId))
       || Buffer.byteLength(body) > 8192) throw new Error('This Canvas metadata request is not permitted.');
     const envelope = JSON.parse(body);
+    const operation = { CanvasWeeklyAssignments: 'metadataassignments', CanvasWeeklySubmissionStates: 'metadatasubmissions', CanvasWeeklyEnrollmentScope: 'metadataenrollments' }[envelope.operationName];
+    return this.#read({ method: 'POST', path: '/api/graphql', operation, body, paginated: envelope.variables.after !== null }, signal);
+  }
+
+  // Negative membership evidence only, not authorization to read course data.
+  // Never enumerate accounts or accept a caller-supplied URL or pagination link.
+  checkAccountMembership(signal) {
+    return this.#read({ method: 'GET', path: '/api/v1/accounts', query: '?per_page=1', operation: 'accountscope', paginated: false }, signal);
+  }
+
+  async #read({ method, path, query = '', operation, body, paginated }, signal) {
     if (this.#identityRejected) throw new Error('Reconnect Canvas before reading metadata.');
+    if (this.#accountScopeRejected) throw new Error(accountScopeUnavailable);
     if (this.#busy) throw new Error('A Canvas metadata read is already running.');
     if (this.#requests >= 200 || this.#bytes >= collectionLimit) throw new Error('Canvas metadata exceeded the collection limit.');
     const timeout = new AbortController();
@@ -98,10 +136,9 @@ export class CanvasMetadataTransport {
     const timer = setTimeout(() => timeout.abort(), 30000);
     timer.unref?.();
     this.#busy = true;
-    const operation = { CanvasWeeklyAssignments: 'metadataassignments', CanvasWeeklySubmissionStates: 'metadatasubmissions', CanvasWeeklyEnrollmentScope: 'metadataenrollments' }[envelope.operationName];
     const evidence = { requestId: randomUUID(), operation,
-      origin: this.#origin, path: '/api/graphql', method: 'POST', paginated: envelope.variables.after !== null,
-      bodyHash: createHash('sha256').update(body).digest('hex') };
+      origin: this.#origin, path, method, paginated,
+      ...(body === undefined ? {} : { bodyHash: createHash('sha256').update(body).digest('hex') }) };
     let intent = false;
     let response;
     let reader;
@@ -119,15 +156,15 @@ export class CanvasMetadataTransport {
       if (combined.aborted) throw cancelled();
       if (!auth || !['session', 'token'].includes(auth.kind) || typeof auth.value !== 'string'
         || !auth.value.length || auth.value.length > 4096 || /[^\x21-\x7e]/.test(auth.value)) throw new Error('Reconnect Canvas before reading metadata.');
-      const headers = { Accept: 'application/json', 'Content-Type': 'application/json',
-        ...(auth.kind === 'session' ? { 'X-CSRF-Token': auth.value } : { Authorization: `Bearer ${auth.value}` }) };
+      const headers = { Accept: 'application/json', ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+        ...(auth.kind === 'token' ? { Authorization: `Bearer ${auth.value}` } : method === 'POST' ? { 'X-CSRF-Token': auth.value } : {}) };
       await write({ event: 'request' });
       intent = true;
       if (combined.aborted) throw cancelled();
       this.#requests++;
-      const pending = { body: Buffer.from(body), admitted: null, signal: combined };
+      const pending = { url: this.#origin + path + query, method, body: body === undefined ? null : Buffer.from(body), admitted: null, signal: combined };
       this.#pending = pending;
-      response = await untilAborted(this.#fetcher(this.#origin + '/api/graphql', { method: 'POST', body, headers,
+      response = await untilAborted(this.#fetcher(pending.url, { method, ...(body === undefined ? {} : { body }), headers,
         credentials: auth.kind === 'session' ? 'include' : 'omit', redirect: 'manual', signal: combined }), combined, discardResponse);
       this.#pending = null;
       if (combined.aborted) throw cancelled();
@@ -159,17 +196,19 @@ export class CanvasMetadataTransport {
       let data;
       try { data = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)).replace(/^while\(1\);/, '')); }
       catch { throw new Error('Canvas returned unreadable metadata.'); }
+      if (operation === 'accountscope') requireEmptyAccountPage(data, response.headers, this.#origin);
       await write({ event: 'body-read' });
       if (combined.aborted) throw cancelled();
       // GraphQL errors and fields are validated by the operation's collector.
-      return data;
+      return operation === 'accountscope' ? Object.freeze({ studentId: this.#studentId, globalUserId: this.#globalUserId, accountMembership: 'none' }) : data;
     } catch (error) {
+      if (operation === 'accountscope') this.#accountScopeRejected = true;
       if (intent && !auditFailed) await write({ event: response ? 'read-error' : 'network-error' });
       if (auditFailed) throw new Error('Canvas metadata audit could not be saved. Collection stopped.');
       if (combined.aborted) throw cancelled();
       // Only errors created here are suitable for display. Transport/auth errors
       // can contain URLs, headers, credentials or institution response bodies.
-      const known = ['Reconnect Canvas before reading metadata.', 'Canvas metadata interception was not confirmed.',
+      const known = [accountScopeUnavailable, 'Reconnect Canvas before reading metadata.', 'Canvas metadata interception was not confirmed.',
         'Canvas login expired. Reconnect Canvas.', 'This Canvas connection cannot read metadata. No broader permissions were requested.',
         'Canvas redirected the metadata read. The redirect was not followed.', 'Canvas could not provide metadata. Try again later.',
         'Canvas returned an unsupported metadata response.', 'Canvas metadata exceeded the response limit.', 'Canvas returned unreadable metadata.'];

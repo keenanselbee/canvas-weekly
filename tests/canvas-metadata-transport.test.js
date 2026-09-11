@@ -15,15 +15,16 @@ function fixture(options = {}) {
   const sent = [];
   let transport;
   let id = 0;
-  const details = (init, overrides = {}) => ({ id: ++id, url: 'https://canvas.example/api/graphql', method: init.method, webContentsId: 0,
-    resourceType: 'other', uploadData: [{ bytes: Buffer.from(init.body) }], ...overrides });
+  const details = (init, overrides = {}) => ({ id: ++id,
+    url: 'https://canvas.example' + (init.method === 'GET' ? '/api/v1/accounts?per_page=1' : '/api/graphql'), method: init.method, webContentsId: 0,
+    resourceType: 'other', ...(init.body === undefined ? {} : { uploadData: [{ bytes: Buffer.from(init.body) }] }), ...overrides });
   transport = new CanvasMetadataTransport({ origin: 'https://canvas.example', courseId: '1', studentId: '99', globalUserId: '90099', connectionSignal: connection.signal,
     authentication: async () => ({ kind: 'session', value: 'fixture-csrf-secret' }),
     audit: async event => events.push(event),
     fetcher: async (url, init) => {
       sent.push({ url, init });
       assert.equal(transport.allows(details(init)), true);
-      return response();
+      return init.method === 'GET' ? new Response('[]', { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } }) : response();
     }, ...options });
   return { transport, connection, events, sent, details };
 }
@@ -44,6 +45,73 @@ test('metadata transport rejects altered requests before authentication, audit o
   }
 });
 
+test('account preflight uses one fixed GET and returns only bound negative membership evidence', async () => {
+  for (const kind of ['session', 'token']) {
+    const setup = fixture({ authentication: async () => ({ kind, value: 'private-fixture-value' }) });
+    const evidence = await setup.transport.checkAccountMembership();
+    assert.deepEqual(evidence, { studentId: '99', globalUserId: '90099', accountMembership: 'none' });
+    assert.ok(Object.isFrozen(evidence));
+    assert.equal(setup.sent.length, 1);
+    const { url, init } = setup.sent[0];
+    assert.equal(url, 'https://canvas.example/api/v1/accounts?per_page=1');
+    assert.equal(init.method, 'GET');
+    assert.equal(init.redirect, 'manual');
+    assert.equal(init.body, undefined);
+    assert.equal(init.credentials, kind === 'session' ? 'include' : 'omit');
+    assert.deepEqual(init.headers, { Accept: 'application/json', ...(kind === 'token' ? { Authorization: 'Bearer private-fixture-value' } : {}) });
+    assert.deepEqual(setup.events.map(event => [event.operation, event.event]), [['accountscope', 'request'], ['accountscope', 'response'], ['accountscope', 'body-read']]);
+    assert.doesNotMatch(JSON.stringify(setup.events), /private-|90099|studentId|per_page|bodyHash/);
+  }
+});
+
+test('account GET cannot be borrowed, redirected, paginated or supplied with upload bytes', async () => {
+  let setup;
+  setup = fixture({ fetcher: async (_url, init) => {
+    for (const change of [{ method: 'POST' }, { webContentsId: 5 }, { webContents: {} }, { frame: {} },
+      { url: 'https://other.example/api/v1/accounts?per_page=1' },
+      { url: 'https://canvas.example/api/v1/accounts?per_page=1&page=2' },
+      { url: 'https://canvas.example/api/v1/accounts?per_page=1&as_user_id=100' },
+      { url: 'https://canvas.example/api/v1/accounts?per_page=100' },
+      { uploadData: [{ bytes: Buffer.from('') }] }, { uploadData: [{ file: 'private' }] }, { uploadData: null }]) {
+      assert.equal(setup.transport.allows(setup.details(init, change)), false);
+    }
+    assert.equal(setup.transport.allows(setup.details(init, { uploadData: [] })), true);
+    assert.equal(setup.transport.allows(setup.details(init)), false);
+    return new Response('[]', { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099',
+      link: '<https://canvas.example/api/v1/accounts?page=first&per_page=1>; rel="current",<https://canvas.example/api/v1/accounts?per_page=1&page=first>; rel="first"' } });
+  } });
+  await setup.transport.checkAccountMembership();
+  assert.equal(setup.transport.allows(setup.details({ method: 'GET' })), false);
+});
+
+test('account preflight rejects positive, malformed, incomplete and unauthenticated evidence without following links', async () => {
+  const base = 'https://canvas.example/api/v1/accounts';
+  const failures = [
+    { body: '[{"id":1,"name":"private-admin-account"}]' }, { body: '{}' }, { body: 'null' }, { body: '[null]' },
+    { status: 401 }, { status: 403 }, { status: 302, headers: { location: '/quizzes/1/take' } },
+    { headers: { 'x-canvas-user-id': '90100' } }, { headers: { 'content-type': 'text/html' } },
+    ...['', `<${base}?page=2&per_page=1>; rel="next"`, `<${base}?page=2&per_page=1>; rel="current"`,
+      `<${base}?page=first&per_page=1&include[]=services>; rel="first"`,
+      `<${base}?page=first&per_page=100>; rel="first"`, '<https://other.example/>; rel="last"',
+      `<${base}?page=first&per_page=1>; rel="first",<${base}?page=first&per_page=1>; rel="first"`,
+      'x'.repeat(8193)].map(link => ({ headers: { link } })),
+  ];
+  for (const failure of failures) {
+    let setup, calls = 0;
+    setup = fixture({ fetcher: async (_url, init) => {
+      calls++;
+      assert.ok(setup.transport.allows(setup.details(init)));
+      return new Response(failure.body ?? '[]', { status: failure.status ?? 200,
+        headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099', ...failure.headers } });
+    } });
+    await assert.rejects(setup.transport.checkAccountMembership(), error => !/private-admin|90100/.test(error.message));
+    await assert.rejects(setup.transport.request(request()), /permissions could not be confirmed|Reconnect Canvas/);
+    await assert.rejects(setup.transport.checkAccountMembership(), /permissions could not be confirmed|Reconnect Canvas/);
+    assert.equal(calls, 1);
+    assert.doesNotMatch(JSON.stringify(setup.events), /private-admin|90100|name/);
+  }
+});
+
 test('isolated enrollment transport uses exact admission and distinct content-free audit events', async () => {
   const setup = fixture();
   await setup.transport.request(enrollmentScopeRequest('1', '99', 'private-cursor'));
@@ -53,6 +121,39 @@ test('isolated enrollment transport uses exact admission and distinct content-fr
   assert.deepEqual(setup.events.map(event => event.operation), ['metadataenrollments', 'metadataenrollments', 'metadataenrollments']);
   assert.equal(setup.events[0].paginated, true);
   assert.doesNotMatch(JSON.stringify(setup.events), /private-cursor|StudentEnrollment|courseId|studentId|query/);
+});
+
+test('account preflight cancels pending reads and does not invalidate another read merely for being busy', async () => {
+  let setup, entered, release;
+  const waiting = new Promise(resolve => { entered = resolve; });
+  const held = new Promise(resolve => { release = resolve; });
+  setup = fixture({ fetcher: async (_url, init) => {
+    assert.ok(setup.transport.allows(setup.details(init)));
+    entered();
+    await held;
+    return response();
+  } });
+  const metadata = setup.transport.request(request());
+  await waiting;
+  await assert.rejects(setup.transport.checkAccountMembership(), /already running/);
+  release();
+  await metadata;
+  await setup.transport.request(request());
+
+  let blocked, streamEntered;
+  const started = new Promise(resolve => { streamEntered = resolve; });
+  const cancellation = new AbortController();
+  blocked = fixture({ fetcher: async (_url, init) => {
+    assert.ok(blocked.transport.allows(blocked.details(init)));
+    return new Response(new ReadableStream({ pull() { streamEntered(); } }, { highWaterMark: 0 }),
+      { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
+  } });
+  const accounts = blocked.transport.checkAccountMembership(cancellation.signal);
+  await started;
+  cancellation.abort();
+  await assert.rejects(accounts, { name: 'AbortError' });
+  await assert.rejects(blocked.transport.request(request()), /permissions could not be confirmed/);
+  assert.deepEqual(blocked.events.map(event => event.event), ['request', 'response', 'read-error']);
 });
 
 test('metadata identity mismatches reject the body and prevent reuse of the transport', async () => {

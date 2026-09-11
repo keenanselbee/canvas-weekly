@@ -202,16 +202,16 @@ services, registration and counts remain excluded. account_json also invokes
 registered extension callbacks, an explicit institutional compatibility boundary;
 the stock serializer's read_only argument is not passed by index and is not a
 documented request flag. Do not invent a query parameter to activate it.
-ShardedBookmarkedCollection wraps/merges per-shard read relations. The candidate
-needs a fixed GET contract and complete authenticated-empty-response validation;
-it is not registered with the app's network gate yet.
+ShardedBookmarkedCollection wraps/merges per-shard read relations. The isolated
+transport now implements the fixed GET and authenticated-empty-response check
+described below; it is not registered with the production session's network gate.
 [Account serializer](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/api/v1/account.rb),
 [JSON helper](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/api/v1/json.rb),
 [Timezone getter](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/time_zone_helper.rb),
 [Sharded pagination](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/sharded_bookmarked_collection.rb).
 
 The account preflight only needs to distinguish no account membership from any
-membership. Its proposed fixed request is GET /api/v1/accounts?per_page=1, with
+membership. Its fixed request is GET /api/v1/accounts?per_page=1, with
 no page cursor, context parameters or optional includes. A nonempty first page
 stops admission immediately; there is no reason to enumerate more administrator
 accounts. Only a successful, identity-checked, completely decoded empty first
@@ -224,7 +224,7 @@ without skipping the review of the server's nonempty response path.
 
 The pinned Api.paginate helper applies ordering/pagination and constructs Link
 headers from collection page metadata. per_page_for clamps the requested size
-to 1..100; the proposed size of one is supported. paginate_collection! delegates
+to 1..100; the size of one is supported. paginate_collection! delegates
 to the collection's paginate method, including BookmarkedCollection/Folio paths
 whose implementation still needs review. The BookmarkedCollection initializer
 only supplies its Unicode collation-key callback. Group.default_storage_quota,
@@ -234,6 +234,21 @@ dependency work; they do not admit the route into production.
 [Pagination helper](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/api.rb),
 [Pagination initializer](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/config/initializers/bookmarked_collection.rb),
 [Group quota fallback](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/group.rb).
+
+Pagination follow-up: the pinned WrapProxy restricts/orders its account relation,
+counts matching rows and paginates from the first page. SimpleBookmarker reads
+account name/id attributes and builds SQL ordering/comparison expressions.
+PaginatedCollection::Proxy configures an in-memory page and executes the supplied
+read block. MergeProxy requests a page from each shard collection, merges the
+rows in order, and marks whether any shard has more data. Its selected merge has
+no custom merge callback and equal-depth leaf collections. CompositeCollection
+stores rows/bookmarks in arrays. None of these reviewed methods saves account,
+enrollment, assessment or module state. The underlying Folio/ActiveRecord paging
+adapter and serializer extensions remain explicit review dependencies; source
+inspection of these helpers is not evidence about UBC's deployed version.
+[Account page wrapper](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/gems/bookmarked_collection/lib/bookmarked_collection/wrap_proxy.rb),
+[Shard merge](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/gems/bookmarked_collection/lib/bookmarked_collection/merge_proxy.rb),
+[Page execution](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/gems/paginated_collection/lib/paginated_collection/proxy.rb).
 
 Response identity follow-up: the controller emits current_user.global_id in
 X-Canvas-User-Id and the real user's global ID during impersonation. Profile

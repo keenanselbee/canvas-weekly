@@ -211,6 +211,40 @@ refresh passes with both profile IDs preserved in the binding. No live Canvas
 identity header was read for this validation. Production metadata collection
 remains paused even though ordinary profile verification now uses this check.
 
+Isolated account-membership preflight
+------------------------------------
+
+CanvasMetadataTransport.checkAccountMembership issues only
+GET /api/v1/accounts?per_page=1. Callers cannot supply a route, query, body or
+pagination cursor. The existing pending-request gate binds the exact URL and
+method, admits one main-process request and rejects upload data or browser
+borrowing. It uses the same verified global identity, cancellation, timeout,
+stream limits and shared collection budget as the fixed GraphQL operations.
+Session authentication still uses the reviewed cookie helper, but this GET sends
+neither a CSRF header nor a content type; token mode omits cookies.
+
+Only a completely decoded empty array supplies negative membership evidence.
+Any supplied Link header must describe only the first/current/last initial page
+on the same account route with per_page=1; malformed, duplicate, foreign or
+next-page links fail. No link is followed. Nonempty accounts, error responses and
+incomplete evidence stop the check. A failed started check invalidates the
+transport for subsequent account and metadata requests. A concurrent call that
+is rejected before starting does not invalidate the already-running read.
+
+Successful output contains only the bound local/global user IDs and
+accountMembership: none, frozen in memory. It is not proof of student enrollment,
+date-effective access or permission to start collection. The production session
+does not instantiate this transport or admit this GET. Remaining serializer,
+permission and institution-specific dependencies retain the collection hold.
+
+Audit records use accountscope with request/response/body-read/read-error events
+and omit account bodies, identity headers and query strings. Four unit cases
+cover the fixed request, exact network admission, unsupported evidence, link
+validation, cancellation and concurrency. The localhost Electron HTTPS fixture
+checks session/token separation, identity rejection, nonempty accounts, 403,
+next-page contradictions, redirects, renderer denial and durable audit redaction.
+All 106 unit tests and the HTTPS fixture pass. No live Canvas request was made.
+
 Browser-session change detection
 --------------------------------
 

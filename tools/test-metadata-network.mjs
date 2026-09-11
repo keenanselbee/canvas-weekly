@@ -30,12 +30,20 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
   request.on('end', () => {
     received.push({ method: request.method, route: request.url, headers: request.headers, body: Buffer.concat(chunks).toString() });
     if (mode === 'redirect') { response.writeHead(307, { location: '/quizzes/1/take' }); response.end(); return; }
-    response.writeHead(200, { 'content-type': 'application/json',
+    response.writeHead(mode === 'account-denied' ? 403 : 200, { 'content-type': 'application/json',
       ...(mode === 'missing-identity' ? {} : { 'x-canvas-user-id': mode === 'other-identity' ? '90100' : '90099' }),
+      ...(mode === 'account-next' ? { link: `<https://${request.headers.host}/api/v1/accounts?per_page=1&page=2>; rel="next"` } : {}),
       ...(mode === 'impersonated-identity' ? { 'x-canvas-real-user-id': '90100' } : {}) });
     if (mode === 'large') { response.end('"' + 'x'.repeat(2 * 1024 * 1024) + '"'); return; }
     if (mode === 'stream') { response.write('{"data":'); streaming?.(); return; }
     if (mode === 'graphql-error') { response.end('{"data":{"course":null},"errors":[{"message":"private-fixture-error"}]}'); return; }
+    if (request.url.startsWith('/api/v1/accounts')) {
+      assert.equal(request.url, '/api/v1/accounts?per_page=1');
+      assert.equal(request.method, 'GET');
+      assert.equal(Buffer.concat(chunks).length, 0);
+      response.end(mode === 'account-present' ? '[{"id":1,"name":"private-admin-account"}]' : '[]');
+      return;
+    }
     const input = JSON.parse(Buffer.concat(chunks));
     if (input.operationName === 'CanvasWeeklyEnrollmentScope') {
       const next = input.variables.after === null ? 'enrollment-next' : null;
@@ -174,6 +182,37 @@ try {
     await assert.rejects(application.evaluate(async () => globalThis.metadataFixture.read()), /Reconnect Canvas/);
     assert.equal(received.length, beforeIdentity + 1, 'A rejected account identity invalidates this transport');
   }
+  for (const accountMode of ['normal', 'account-present', 'account-next', 'account-denied', 'missing-identity', 'other-identity', 'impersonated-identity', 'redirect']) {
+    mode = accountMode;
+    await application.evaluate(() => globalThis.metadataFixture.reset('session'));
+    const beforeAccount = received.length;
+    if (mode === 'normal') {
+      const accountEvidence = await application.evaluate(async () => globalThis.metadataFixture.accounts());
+      assert.deepEqual(accountEvidence, { studentId: '99', globalUserId: '90099', accountMembership: 'none' });
+    } else {
+      await assert.rejects(application.evaluate(async () => globalThis.metadataFixture.accounts()));
+      await assert.rejects(application.evaluate(async () => globalThis.metadataFixture.read()), /permissions could not be confirmed|Reconnect Canvas/);
+    }
+    assert.equal(received.length, beforeAccount + 1, 'Account check must issue one request without following pages or redirects');
+    const accountRequest = received.at(-1);
+    assert.equal(accountRequest.method, 'GET');
+    assert.equal(accountRequest.route, '/api/v1/accounts?per_page=1');
+    assert.equal(accountRequest.body, '');
+    assert.equal(accountRequest.headers['x-csrf-token'], undefined);
+    assert.equal(accountRequest.headers.authorization, undefined);
+    assert.match(accountRequest.headers.cookie, /fixture_session=fixture-cookie-only/);
+  }
+  mode = 'normal';
+  await application.evaluate(async () => { const state = globalThis.metadataFixture; state.reset('token'); await state.accounts(); });
+  assert.equal(received.at(-1).headers.authorization, 'Bearer fixture-bearer-only');
+  assert.equal(received.at(-1).headers.cookie, undefined);
+  const beforeUnadmitted = received.length;
+  await assert.rejects(page.evaluate(async origin => fetch(origin + '/api/v1/accounts?per_page=1'), origin));
+  await assert.rejects(application.evaluate(async () => {
+    const state = globalThis.metadataFixture;
+    await state.isolated.fetch(state.origin + '/api/v1/accounts?per_page=1');
+  }));
+  assert.equal(received.length, beforeUnadmitted, 'Account requests outside the pending main-process check are blocked');
   const logFiles = await fs.readdir(path.join(directory, 'canvas-audit'));
   const log = await fs.readFile(path.join(directory, 'canvas-audit', logFiles[0]), 'utf8');
   assert.doesNotMatch(log, /fixture-(csrf|bearer|cookie)|private-fixture|Synthetic preparation|"query"|studentId/);
@@ -186,7 +225,10 @@ try {
   assert.ok(records.some(event => event.event === 'body-read'));
   assert.equal(records.filter(event => event.operation === 'metadataenrollments' && event.event === 'request').length, 3);
   assert.doesNotMatch(log, /enrollment-next|StudentEnrollment|TeacherEnrollment/);
-  console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, paginated metadata/enrollment parsing, foreign-user rejection, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
+  assert.equal(records.filter(event => event.operation === 'accountscope' && event.event === 'request').length, 9);
+  assert.equal(records.filter(event => event.operation === 'accountscope' && event.event === 'body-read').length, 2);
+  assert.doesNotMatch(log, /private-admin-account|accountMembership|90099|per_page/);
+  console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, fixed account preflight, paginated metadata/enrollment parsing, foreign-user rejection, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
   console.log('Fixture profile: ' + directory);
 } finally {
   if (application) await application.close();

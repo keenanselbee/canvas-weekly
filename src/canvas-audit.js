@@ -19,8 +19,9 @@ export class CanvasAudit {
     };
     const metadata = record.method === 'POST' && record.path === '/api/graphql'
       && ['metadataassignments', 'metadatasubmissions', 'metadataenrollments'].includes(record.operation) && /^[a-f0-9]{64}$/.test(record.bodyHash);
+    const accountScope = record.method === 'GET' && record.path === '/api/v1/accounts' && record.operation === 'accountscope' && !record.paginated;
     if (!/^[a-f0-9-]{36}$/.test(record.requestId)
-      || !(metadata ? ['request', 'response', 'network-error', 'body-read', 'read-error'] : ['request', 'response', 'network-error']).includes(record.event)
+      || !(metadata || accountScope ? ['request', 'response', 'network-error', 'body-read', 'read-error'] : ['request', 'response', 'network-error']).includes(record.event)
       || !/^[a-z]+$/.test(record.operation)
       || !/^https:\/\/[^/?#@]+$/.test(record.origin)
       || !(metadata || (record.method === 'GET' && /^\/api\/v1\/[a-z0-9/_]+$/.test(record.path)))) throw new Error('Invalid Canvas audit metadata.');

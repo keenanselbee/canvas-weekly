@@ -405,3 +405,11 @@ Work log
   defaults, bundled Codex initialization, themes and restart persistence.
   This does not verify installation/uninstallation on a clean Windows machine
   or the institution's live response headers.
+- 2026-09-11: Implemented the fixed account-membership GET in the isolated
+  metadata transport. It accepts only authenticated empty first-page evidence,
+  never follows pagination/redirects, and stops subsequent reads after failed
+  preflight. Shared identity, byte, timeout and cancellation guards remain in
+  force; audit output excludes account details. All 106 unit tests and the real
+  Electron localhost HTTPS fixture pass. Reviewed the bookmarked page wrapper,
+  shard merge and page execution helpers. Production admission remains disabled
+  pending the remaining server dependencies; no live Canvas or AI request ran.
