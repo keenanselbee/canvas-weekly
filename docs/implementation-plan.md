@@ -430,3 +430,10 @@ Work log
   verifying the complete replacement. Source packages, extracted Ruby files and
   inventory remain in ignored .codex-temp/graphql-review for continuing review.
   No real Canvas request, AI request, app setting or saved guide was changed.
+- 2026-09-11: Traced the default Planner collection through calendar section
+  visibility to the enrollment-state getter's primary-database first_or_create.
+  Planner is not an unguarded replacement, even with an empty event result.
+  Identified and schema-validated a self-submission cachedDueDate selection as
+  the next deadline-source candidate. Documented the required runtime contract,
+  reconciliation, field-age and uncertainty changes before implementation.
+  This review did not admit requests or change the app, account or saved guide.

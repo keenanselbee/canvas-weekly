@@ -329,6 +329,13 @@ Temporary sources are cached as concern--*.rb under .codex-temp/graphql-review.
 Remaining review before production admission
 -------------------------------------------
 
+The [Planner follow-up](canvas-planner-review.md) confirms another route to the
+temporary enrollment-state getter: the default Planner collection's calendar
+branch. It also identifies the direct Submission.cachedDueDate GraphQL field as
+an alternative to assignment override-date resolution. That selection is only
+schema-validated and planned; the current isolated runtime queries still need
+revision and the remaining permission checks are not cleared by this finding.
+
 Account-membership follow-up (2026-09-10): AccountUser.permission_check delegates
 to enabled_for?, which caches RoleOverride.enabled_for?; permitted_for_account?
 returns a policy Success object. These helpers do not call the model's nearby

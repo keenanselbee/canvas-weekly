@@ -7,6 +7,12 @@ production Canvas client or enabled in its session gate.
 Live guide refresh remains paused. This is a component of the replacement collector,
 not a completed restoration of automatic collection.
 
+The [Planner and stored deadline review](canvas-planner-review.md) identifies
+cachedDueDate on self-scoped submissions as the next date-source candidate.
+Planner itself still reaches the enrollment-state getter through calendar
+section visibility. The fixed queries below describe the current implementation;
+their assignment date fields have not yet been replaced by that new design.
+
 Findings
 --------
 
