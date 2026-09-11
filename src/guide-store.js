@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { atomicJson } from './settings.js';
 import { contentHash, renderMarkdown } from './guide.js';
+import { buildStudyPlan } from './study-plan.js';
 
 export class GuideStore {
   constructor(directory) { this.directory = directory; }
@@ -13,10 +14,30 @@ export class GuideStore {
     try {
       const result = JSON.parse(await fs.readFile(path.join(this.directory, this.accountKey(origin, userId), 'state.json'), 'utf8'));
       if (result.schemaVersion !== 1 || !Array.isArray(result.items) || !Array.isArray(result.courses)) throw new Error('Unrecognized course state format.');
+      result.studyPlan = buildStudyPlan(result, await this.loadProgress(origin, userId));
       return result;
     } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
   }
+  async loadProgress(origin, userId) {
+    try {
+      const result = JSON.parse(await fs.readFile(path.join(this.directory, this.accountKey(origin, userId), 'study-progress.json'), 'utf8'));
+      if (result.version !== 1 || !result.tasks || typeof result.tasks !== 'object' || Array.isArray(result.tasks)) throw new Error('Unrecognized study progress format.');
+      return result.tasks;
+    } catch (error) { if (error.code === 'ENOENT') return {}; throw error; }
+  }
+  async setTaskDone(origin, userId, taskId, done) {
+    if (typeof taskId !== 'string' || typeof done !== 'boolean') throw new Error('Choose a study task and completion state.');
+    const guide = await this.load(origin, userId);
+    const task = guide?.studyPlan.tasks.find(task => task.id === taskId);
+    if (!task) throw new Error('Choose a study task from your saved guide.');
+    const progress = await this.loadProgress(origin, userId);
+    progress[task.id] = { done, fingerprint: task.fingerprint, updatedAt: new Date().toISOString() };
+    await atomicJson(path.join(this.directory, this.accountKey(origin, userId), 'study-progress.json'), { version: 1, tasks: progress });
+    guide.studyPlan = buildStudyPlan(guide, progress);
+    return guide;
+  }
   async export(guide, outputDirectory, userId, signal) {
+    guide = { ...guide, studyPlan: buildStudyPlan(guide, await this.loadProgress(guide.origin, userId)) };
     const weekDirectory = path.join(outputDirectory, guide.week.start);
     const destination = path.join(weekDirectory, 'Weekly Plan.md');
     await fs.mkdir(weekDirectory, { recursive: true });
@@ -30,6 +51,11 @@ export class GuideStore {
     if (oldText !== undefined && (!marker || marker.hash !== contentHash(oldText))) throw new Error('Weekly Plan.md has manual edits or was created elsewhere. Preserve it under another name before updating.');
     signal?.throwIfAborted();
     const text = renderMarkdown(guide);
+    if (text === oldText) {
+      const saved = { ...guide, outputPath: destination };
+      await atomicJson(path.join(this.directory, owner, 'state.json'), saved);
+      return saved;
+    }
     const temporary = path.join(weekDirectory, `.weekly-${crypto.randomUUID()}.tmp`);
     let replaced = false;
     try {

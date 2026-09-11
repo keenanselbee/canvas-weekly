@@ -121,3 +121,9 @@ Work log
   module/message reads, quiz-submission writes and redirect targets do not.
   No live Canvas request was issued. UBC SSO with this stricter gate remains
   unverified; external login origins are not individually allowlisted.
+- 2026-09-10: Added a personal study-plan layer with suggested preparation days,
+  weekly materials checks, concrete verification prompts and source links.
+  Local preparation checkmarks persist separately per account and reopen when
+  requirements change. Open guide exports checkmarks without Canvas or AI access.
+  Thirty unit tests and synthetic desktop refresh/progress checks pass; inspected
+  light and dark study-plan renderings. Richer AI planning and document output remain.

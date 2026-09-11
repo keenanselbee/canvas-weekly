@@ -78,9 +78,10 @@ Evidence
 Guide requirements after safety repairs
 --------------------------------------
 
-The saved factual guide is an evidence list, not yet the intended personal study
-plan. Add source-linked tasks, suggested preparation dates distinct from actual
-deadlines, required versus optional reading, local completion tracking, and clear
-confirmation items for conflicting dates or unavailable sources. No dated tasks
-this week does not mean no studying is needed. ChatGPT connection and enabled
-study suggestions are separate states; a live model planning turn remains untested.
+The earlier saved factual guide was an evidence list. The application now builds
+source-linked preparation tasks, suggested dates distinct from deadlines, local
+completion tracking and concrete verification prompts. Local task completion and
+Open guide have synthetic desktop tests confirming no Canvas fetches. Richer AI
+steps, required/optional reading grounded in evidence and polished document output
+remain. ChatGPT connection and enabled study suggestions are separate states;
+a live model planning turn remains untested.

@@ -94,6 +94,51 @@ function renderGuide() {
   const guide = state.guide;
   const format = value => value ? new Intl.DateTimeFormat(undefined, { timeZone: guide.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value)) : 'No date supplied';
   main.append(node('p', 'footer-note', `${guide.mode} · Updated ${format(guide.generatedAt)} · ${guide.timeZone}`));
+  if (guide.studyPlan) {
+    const plan = guide.studyPlan;
+    const overview = card('Your study plan');
+    overview.append(node('p', '', plan.summary), node('p', 'muted', plan.note));
+    if (state.ai.connected && !state.settings.aiEnabled) overview.append(node('p', 'muted', 'ChatGPT is connected. Enable Study suggestions in Settings for more specific preparation advice.'));
+    const dates = [...new Set(plan.tasks.map(task => task.suggestedDate))];
+    for (const date of dates) {
+      const day = node('details', 'study-day');
+      const tasks = plan.tasks.filter(task => task.suggestedDate === date);
+      day.open = date === dates[0];
+      day.append(node('summary', '', `Suggested start: ${date} · ${tasks.filter(task => task.done).length}/${tasks.length} checked off`));
+      for (const task of tasks) {
+        const row = node('div', 'study-task');
+        const checkbox = node('input');
+        checkbox.type = 'checkbox'; checkbox.checked = task.done; checkbox.disabled = state.run.busy;
+        checkbox.id = `study-${task.id}`;
+        checkbox.setAttribute('aria-label', `Preparation done: ${task.title}`);
+        checkbox.addEventListener('change', () => perform(async () => {
+          update(await api.setStudyTaskDone(task.id, checkbox.checked)); render();
+          document.getElementById(checkbox.id)?.focus();
+        }));
+        const content = node('div');
+        const label = node('label', 'study-task-title', task.title); label.htmlFor = checkbox.id;
+        content.append(label, node('small', '', `${task.courseName}${task.ai ? ' · AI suggestion' : ''}`));
+        if (task.dueAt) content.append(node('small', '', `Recorded due: ${format(task.dueAt)}`));
+        if (task.changedSinceDone) content.append(node('p', 'muted', 'Changed since you checked it off — review again.'));
+        const details = node('details');
+        details.append(node('summary', '', 'Preparation steps'), node('p', '', task.reason));
+        const steps = node('ul');
+        for (const step of task.steps) steps.append(node('li', '', step));
+        details.append(steps, button('Open source', () => api.openSource(task.sourceId), 'link'));
+        content.append(details); row.append(checkbox, content); day.append(row);
+      }
+      overview.append(day);
+    }
+    main.append(overview);
+    const checks = card('Double-check before relying on this plan');
+    if (!plan.checks.length) checks.append(node('p', 'muted', 'No specific gaps identified. Course information can still change.'));
+    for (const check of plan.checks) {
+      const details = node('details');
+      details.append(node('summary', '', check.title), node('p', '', check.detail), button('Open source', () => api.openSource(check.sourceId), 'link'));
+      checks.append(details);
+    }
+    main.append(checks);
+  }
   if (guide.priorities?.length) {
     const suggestions = card('Suggested focus');
     suggestions.append(node('p', 'muted', 'AI study suggestions based on your collected course information.'));
@@ -106,7 +151,7 @@ function renderGuide() {
   if (guide.planningNote) main.append(node('p', 'muted', `AI suggestions unavailable: ${guide.planningNote}`));
   for (const [title, items] of [['This week and overdue', guide.inWeek], ['Looking ahead', guide.upcoming], ['Undated work', guide.undated]]) {
     const section = card(title);
-    if (!items.length) section.append(node('p', 'muted', 'No outstanding items identified in the collected information.'));
+    if (!items.length) section.append(node('p', 'muted', 'No matching dated or undated items identified here. Reading, preparation and unavailable sources may still require attention.'));
     for (const item of items) {
       const task = node('div', 'task');
       const content = node('div', 'task-content');

@@ -8,6 +8,7 @@ import { GuideStore } from './guide-store.js';
 import { reconcile, buildGuide } from './guide.js';
 import { CodexClient, planningEvidence } from './codex-client.js';
 import { referenceUrl } from './content.js';
+import { guideSources } from './study-plan.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const uiUrl = pathToFileURL(path.join(directory, 'ui/index.html')).href;
@@ -156,13 +157,33 @@ else {
       } finally { controller = null; publish(); }
     });
     handle('guide:cancel', () => { controller?.abort(); return snapshot(); });
+    handle('guide:task', async (taskId, done) => {
+      requireIdle();
+      const account = store.value.lastGuideAccount;
+      if (!account || !guide) throw new Error('Create a guide before tracking study progress.');
+      run = { busy: true, message: 'Saving study progress on this device...' }; publish();
+      try {
+        guide = await guides.setTaskDone(account.origin, account.userId, taskId, done);
+        run = { busy: false, message: 'Study progress saved locally. Open guide includes the latest checkmarks.' };
+        return snapshot();
+      } catch (error) { run = { busy: false, message: error.message }; throw error; }
+      finally { publish(); }
+    });
     handle('guide:open', async () => {
+      requireIdle();
       if (!guide?.outputPath) throw new Error('Create a guide first.');
+      const account = store.value.lastGuideAccount;
+      if (account) {
+        // Refresh only the local document; opening it never contacts Canvas or AI.
+        run = { busy: true, message: 'Preparing your saved study guide...' }; publish();
+        try { guide = await guides.export(guide, path.dirname(path.dirname(guide.outputPath)), account.userId); }
+        finally { run = { busy: false, message: '' }; publish(); }
+      }
       const error = await shell.openPath(guide.outputPath);
       if (error) throw new Error(error);
     });
     handle('guide:source', async id => {
-      const source = guide && [...guide.items, ...guide.courses.flatMap(course => course.evidence || [])].find(item => item.id === id);
+      const source = guide && guideSources(guide).find(item => item.id === id);
       const url = source && referenceUrl(source.sourceUrl, guide.origin);
       if (!url) throw new Error('Choose a source in the current guide.');
       await shell.openExternal(url);

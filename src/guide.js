@@ -1,23 +1,10 @@
 import crypto from 'node:crypto';
 import { plainText, sourceUrl } from './content.js';
 import { courseEvidence } from './course-evidence.js';
+import { localDate, shiftDate, weekOf } from './dates.js';
+import { buildStudyPlan, guideSources } from './study-plan.js';
 export { plainText, sourceUrl } from './content.js';
-
-export function localDate(value, timeZone) {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(value));
-  return ['year', 'month', 'day'].map(type => parts.find(part => part.type === type).value).join('-');
-}
-export function shiftDate(value, days) {
-  const date = new Date(`${value}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-export function weekOf(value, timeZone) {
-  const today = localDate(value, timeZone);
-  const day = new Date(`${today}T12:00:00Z`).getUTCDay();
-  const start = shiftDate(today, -(day + 6) % 7);
-  return { start, end: shiftDate(start, 6), today };
-}
+export { localDate, shiftDate, weekOf } from './dates.js';
 const dateOrNull = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
 const numberOrNull = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
 
@@ -105,7 +92,9 @@ export function buildGuide(snapshot, now = snapshot.observedAt) {
   const inWeek = relevant.filter(item => item.dueAt && localDate(item.dueAt, snapshot.timeZone) <= week.end);
   const upcoming = relevant.filter(item => item.dueAt && localDate(item.dueAt, snapshot.timeZone) > week.end);
   const undated = relevant.filter(item => !item.dueAt);
-  return { ...snapshot, week, inWeek, upcoming, undated, mode: 'Factual guide', generatedAt: now };
+  const guide = { ...snapshot, week, inWeek, upcoming, undated, mode: 'Factual guide', generatedAt: now };
+  guide.studyPlan = buildStudyPlan(guide);
+  return guide;
 }
 
 export function formatDate(value, timeZone) {
@@ -116,7 +105,28 @@ const md = value => String(value ?? '').replace(/[\\`*_{}\[\]<>|#]/g, '\\$&').re
 
 export function renderMarkdown(guide) {
   const lines = ['# Weekly Plan', '', `**${guide.week.start} to ${guide.week.end}**`, '', `${guide.mode} · Updated ${formatDate(guide.generatedAt, guide.timeZone)} (${guide.timeZone})`, '',
-    'Generated sections are refreshed by Canvas Weekly. Keep your own notes in Student Notes.md.', ''];
+    'Generated sections are refreshed by Canvas Weekly. Check off preparation tasks in the app; keep your own notes in Student Notes.md.', ''];
+  const plan = guide.studyPlan || buildStudyPlan(guide);
+  const sources = new Map(guideSources(guide).map(source => [source.id, source]));
+  lines.push('## Your study plan', '', plan.summary, '', plan.note, '');
+  let day;
+  for (const task of plan.tasks) {
+    if (day !== task.suggestedDate) { day = task.suggestedDate; lines.push(`### Suggested start: ${day}`, ''); }
+    const source = sources.get(task.sourceId);
+    lines.push(`- [${task.done ? 'x' : ' '}] **${md(task.title)}** (${md(task.courseName)})${task.ai ? ' - AI suggestion' : ''}`, '', md(task.reason), '');
+    if (task.changedSinceDone) lines.push('Source or task changed since you checked it off. Review it again.', '');
+    if (task.dueAt) lines.push(`Recorded due time: ${formatDate(task.dueAt, guide.timeZone)}.`, '');
+    for (const step of task.steps) lines.push(`- ${md(step)}`);
+    if (source) lines.push('', `[Source](<${source.sourceUrl}>)`);
+    lines.push('');
+  }
+  lines.push('## Double-check before relying on this plan', '');
+  for (const check of plan.checks) {
+    const source = sources.get(check.sourceId);
+    lines.push(`- **${md(check.title)}:** ${md(check.detail)}${source ? ` [Source](<${source.sourceUrl}>)` : ''}`);
+  }
+  if (!plan.checks.length) lines.push('No specific gaps were identified in the collected records. Course announcements and unpublished requirements can still change.');
+  lines.push('');
   if (guide.priorities?.length) {
     lines.push('## Suggested focus', '', 'AI suggestions based on collected evidence; these do not change course requirements.', '');
     for (const priority of guide.priorities) {

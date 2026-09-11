@@ -50,6 +50,12 @@ Settings groups Connections, Output, and Appearance. Output shows the resolved
 path and Change folder native dialog. Appearance is System (default), Light, Dark.
 Future scheduling is optional, off by default, and must show local-machine limits.
 
+The implemented weekly screen now leads with Your study plan: suggested starting
+days, local preparation checkboxes and collapsible steps. Recorded deadlines stay
+separate. Double-check prompts precede the detailed Canvas records. Opening a guide
+updates its local checkmarks without recollecting Canvas. See study-guide-design.md
+for completion semantics, offline behavior and the richer AI planning work.
+
 
 Visual system
 -------------

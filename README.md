@@ -55,7 +55,12 @@ the institution's expiry rules, so another sign-in may be required. The app does
 not extend session lifetimes. Switching accounts clears course selection.
 
 After connecting, choose courses and use Update guide on This week. Open guide
-opens the generated Markdown file in its associated Windows app. Existing manual
+exports the saved study plan with current local checkmarks, then opens the Markdown
+file in its associated Windows app. Opening the guide does not contact Canvas or
+ChatGPT. The plan suggests preparation days, separates recorded deadlines, and
+lists concrete information to double-check. Study checkmarks stay on this device;
+changed task requirements reopen them for review. See the
+[study guide design](docs/study-guide-design.md). Existing manual
 edits to generated guides block replacement; keep notes in Student Notes.md.
 The latest saved guide is available in the app after restart without reconnecting.
 Run `npm run test:refresh` for a synthetic desktop collection/export/update test;

@@ -72,6 +72,14 @@ p { margin:0 0 14px; }
 .source-body { white-space:pre-wrap; overflow-wrap:anywhere; margin-top:12px; }
 .card details { margin:12px 0; }
 .card details details { margin-left:14px; }
+.study-day>summary { font-weight:600; cursor:pointer; padding:8px 0; }
+.study-task { display:flex; gap:12px; padding:14px 0; border-top:1px solid var(--border); }
+.study-task>input { flex:none; align-self:flex-start; margin-top:5px; width:18px; height:18px; accent-color:var(--accent-fill); }
+.study-task>div { min-width:0; overflow-wrap:anywhere; }
+.study-task-title { display:block; font-weight:600; cursor:pointer; }
+.study-task:has(input:checked) .study-task-title { color:var(--muted); }
+.study-task details { margin:6px 0 0 !important; }
+.study-task li { margin:7px 0; }
 @media(max-width:950px) { .sidebar { width:185px; } main { padding:26px; } .columns { grid-template-columns:1fr; } .brand { font-size:15px; gap:8px; } }
 @media(forced-colors:active) { button.primary,.badge,.nav-item.selected { border:1px solid ButtonText; } .task-marker,.status-dot { background:CanvasText; } }
 @media(prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; } }

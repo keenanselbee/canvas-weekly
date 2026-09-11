@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('canvasWeekly', {
   updateGuide: () => invoke('guide:update'),
   cancelRefresh: () => invoke('guide:cancel'),
   openGuide: () => invoke('guide:open'),
+  setStudyTaskDone: (taskId, done) => invoke('guide:task', taskId, done),
   openSource: id => invoke('guide:source', id),
   connectChatGPT: () => invoke('ai:login'),
   checkChatGPT: () => invoke('ai:check'),

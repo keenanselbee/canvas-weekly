@@ -9,10 +9,13 @@ const environment = { ...process.env, CANVAS_WEEKLY_TEST: '1' };
 delete environment.ELECTRON_RUN_AS_NODE;
 const application = await electron.launch({ args: ['.'], env: environment });
 try {
-  await application.evaluate(({ session, dialog }, output) => {
+  await application.evaluate(({ session, dialog, shell }, output) => {
+    globalThis.syntheticRequestCount = 0;
+    shell.openPath = async value => { globalThis.syntheticOpenedPath = value; return ''; };
     const deadline = new Date().toISOString();
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [output] });
     session.fromPartition('persist:canvas').fetch = async (address, options) => {
+      globalThis.syntheticRequestCount++;
       if (options.method !== 'GET' || options.redirect !== 'manual') throw new Error('Unsafe request in desktop test');
       const url = new URL(address);
       let data = [];
@@ -61,7 +64,34 @@ try {
   await page.evaluate(() => window.canvasWeekly.updateGuide());
   assert.equal(await fs.readFile(notes, 'utf8'), 'Keep these student notes.');
   assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.changes.length, 0);
+  const taskId = '1:assignment:10:prepare';
+  await page.evaluate(taskId => window.canvasWeekly.setStudyTaskDone(taskId, false), taskId);
+  const beforeLocalChanges = await application.evaluate(() => globalThis.syntheticRequestCount);
+  await page.evaluate(taskId => {
+    window.progressSaved = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { unsubscribe(); reject(new Error('Study progress did not save')); }, 10000);
+      const unsubscribe = window.canvasWeekly.onStateChanged(state => {
+        if (!state.run.busy && state.guide?.studyPlan.tasks.find(task => task.id === taskId)?.done) {
+          clearTimeout(timer); unsubscribe(); resolve();
+        }
+      });
+    });
+  }, taskId);
+  await page.getByRole('checkbox', { name: /Preparation done:.*Example assignment/ }).check();
+  await page.evaluate(() => window.progressSaved);
+  await page.evaluate(() => window.canvasWeekly.openGuide());
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeLocalChanges, 'Local progress and Open guide must not fetch Canvas');
+  assert.equal(await application.evaluate(() => globalThis.syntheticOpenedPath), first.guide.outputPath);
+  assert.match(await fs.readFile(first.guide.outputPath, 'utf8'), /- \[x\]/);
+  assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.items[0].status, 'not-submitted');
+  await page.reload();
+  assert.equal(await page.getByRole('checkbox', { name: /Preparation done:.*Example assignment/ }).isChecked(), true);
   await fs.mkdir('.codex-temp/visual', { recursive: true });
+  await page.evaluate(() => window.canvasWeekly.setTheme('light'));
+  await page.locator('html[data-theme="light"]').waitFor();
+  await page.screenshot({ path: '.codex-temp/visual/study-plan-light.png' });
+  await page.evaluate(() => window.canvasWeekly.setTheme('dark'));
+  await page.locator('html[data-theme="dark"]').waitFor();
   await page.screenshot({ path: '.codex-temp/visual/factual-guide.png' });
   await application.evaluate(({ session }) => {
     session.fromPartition('persist:canvas').fetch = async () => new Response('', { status: 401 });
@@ -80,6 +110,6 @@ try {
   assert.equal(switched.canvas.error, null);
   assert.deepEqual(switched.settings.selectedCourseIds, []);
   assert.equal(switched.guide, null);
-  console.log('Desktop refresh passed: synthetic connection, generation, preserved notes, visible login errors and account-switch isolation.');
+  console.log('Desktop refresh passed: synthetic connection, study plan, persistent local checkmarks, offline Open guide, preserved notes, login errors and account-switch isolation.');
   await page.evaluate(() => window.canvasWeekly.disconnectCanvas());
 } finally { await application.close(); }
