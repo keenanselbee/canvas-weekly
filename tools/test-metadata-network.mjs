@@ -45,6 +45,14 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
       return;
     }
     const input = JSON.parse(Buffer.concat(chunks));
+    if (input.operationName === 'CanvasWeeklyOwnSubmission') {
+      assert.deepEqual(input.variables, { assignmentId: '10', studentId: '99' });
+      response.end(JSON.stringify({ data: { submission: mode === 'own-null' ? null : {
+        _id: '20', assignmentId: mode === 'own-foreign' ? '11' : '10', state: 'submitted',
+        cachedDueDate: '2026-09-18T23:59:00-07:00', body: 'own-submission-private-body',
+      } } }));
+      return;
+    }
     if (input.operationName === 'CanvasWeeklyEnrollmentScope') {
       const next = input.variables.after === null ? 'enrollment-next' : null;
       const node = { _id: next ? '31' : '32', userId: '99', course: { _id: '1' },
@@ -251,6 +259,23 @@ try {
   assert.deepEqual(bridge, { count: 1, pausedBeforeWatch: true, deniedOutsideRun: true, cancelledOnChange: true });
   assert.deepEqual(received.slice(beforeBridge).map(request => request.method === 'GET' ? 'account' : JSON.parse(request.body).operationName),
     ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklySubmissionStates']);
+  const beforeOwn = received.length;
+  await application.evaluate(() => globalThis.metadataFixture.reset('session'));
+  await assert.rejects(application.evaluate(() => globalThis.metadataFixture.transport.readOwnSubmission('10')), /Read this assignment/);
+  await application.evaluate(() => globalThis.metadataFixture.transport.readAssignmentPage());
+  const own = await application.evaluate(() => globalThis.metadataFixture.transport.readOwnSubmission('10'));
+  assert.deepEqual(own, { id: '20', assignmentId: '10', state: 'submitted', cachedDueDate: '2026-09-19T06:59:00.000Z' });
+  await assert.rejects(application.evaluate(() => globalThis.metadataFixture.transport.readOwnSubmission('11')), /Read this assignment/);
+  mode = 'own-null';
+  assert.equal(await application.evaluate(() => globalThis.metadataFixture.transport.readOwnSubmission('10')), null);
+  mode = 'own-foreign';
+  await assert.rejects(application.evaluate(() => globalThis.metadataFixture.transport.readOwnSubmission('10')), /unavailable or incomplete/);
+  assert.deepEqual(received.slice(beforeOwn).map(request => JSON.parse(request.body).operationName),
+    ['CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyOwnSubmission']);
+  const auditDirectory = path.join(directory, 'canvas-audit');
+  const ownAudit = (await Promise.all((await fs.readdir(auditDirectory)).map(file => fs.readFile(path.join(auditDirectory, file), 'utf8')))).join('');
+  assert.doesNotMatch(ownAudit, /own-submission-private-body|CanvasWeeklyOwnSubmission/);
+  assert.equal(ownAudit.split('\n').filter(Boolean).map(line => JSON.parse(line)).filter(event => event.operation === 'metadataownsubmission' && event.event === 'body-read').length, 3);
   console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, fixed account preflight, paginated metadata/enrollment parsing, foreign-user rejection, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
   console.log('Fixture profile: ' + directory);
 } finally {

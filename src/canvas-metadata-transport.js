@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { metadataRequest, permittedMetadataBody } from './canvas-metadata.js';
+import { metadataRequest, permittedMetadataBody, parseMetadataPage } from './canvas-metadata.js';
+import { ownSubmissionRequest, parseOwnSubmission } from './canvas-own-submission.js';
 import { permittedEnrollmentScopeBody } from './canvas-enrollment-scope.js';
 import { canvasResponseIdentity } from './canvas-identity.js';
 
@@ -51,6 +52,7 @@ function requireEmptyAccountPage(data, headers, origin) {
 // The production refresh hold remains in force before any transport is created.
 // Create one instance per course collection using a verified account binding.
 export class CanvasMetadataTransport {
+  #assignmentIds = new Set();
   #origin;
   #courseId;
   #studentId;
@@ -116,6 +118,22 @@ export class CanvasMetadataTransport {
     const envelope = JSON.parse(body);
     const operation = { CanvasWeeklyAssignments: 'metadataassignments', CanvasWeeklySubmissionStates: 'metadatasubmissions', CanvasWeeklyEnrollmentScope: 'metadataenrollments' }[envelope.operationName];
     return this.#read({ method: 'POST', path: '/api/graphql', operation, body, paginated: envelope.variables.after !== null }, signal);
+  }
+
+  // Only validated assignment pages read by this transport can extend the direct
+  // submission scope. Arbitrary IDs from a renderer or saved guide are rejected.
+  async readAssignmentPage(after = null, signal) {
+    const value = await this.request(metadataRequest('assignments', this.#courseId, this.#studentId, after), signal);
+    const page = parseMetadataPage(value, 'assignments', this.#courseId);
+    for (const assignment of page.nodes) this.#assignmentIds.add(assignment.id);
+    return page;
+  }
+
+  async readOwnSubmission(assignmentId, signal) {
+    if (!this.#assignmentIds.has(assignmentId)) throw new Error('Read this assignment from the selected course before checking its submission.');
+    const body = JSON.stringify(ownSubmissionRequest(assignmentId, this.#studentId));
+    const value = await this.#read({ method: 'POST', path: '/api/graphql', operation: 'metadataownsubmission', body, paginated: false }, signal);
+    return parseOwnSubmission(value, assignmentId);
   }
 
   // Negative membership evidence only, not authorization to read course data.

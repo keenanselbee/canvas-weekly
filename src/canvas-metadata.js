@@ -43,7 +43,7 @@ export function permittedMetadataBody(body, courseId, studentId) {
   } catch { return false; }
 }
 
-function date(value) {
+export function parseMetadataDate(value) {
   if (value === null) return null;
   if (typeof value !== 'string') throw new Error('Canvas returned an invalid metadata date.');
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/);
@@ -79,7 +79,7 @@ export function parseMetadataPage(value, operation, courseId) {
     seen.add(node._id);
     if (operation === 'submissions') {
       if (!validId(node.assignmentId) || !['unsubmitted', 'submitted', 'pending_review', 'graded', 'ungraded'].includes(node.state)) throw new Error('Canvas returned invalid submission status metadata.');
-      return { id: node._id, assignmentId: node.assignmentId, state: node.state, cachedDueDate: date(node.cachedDueDate) };
+      return { id: node._id, assignmentId: node.assignmentId, state: node.state, cachedDueDate: parseMetadataDate(node.cachedDueDate) };
     }
     if (node.courseId !== courseId || node.state !== 'published'
       || !(node.pointsPossible === null || (typeof node.pointsPossible === 'number' && Number.isFinite(node.pointsPossible) && node.pointsPossible >= 0))

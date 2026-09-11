@@ -6,6 +6,7 @@ import { CanvasMetadataTransport } from '../src/canvas-metadata-transport.js';
 import { CanvasAudit } from '../src/canvas-audit.js';
 import { metadataRequest } from '../src/canvas-metadata.js';
 import { enrollmentScopeRequest } from '../src/canvas-enrollment-scope.js';
+import { ownSubmissionRequest } from '../src/canvas-own-submission.js';
 
 const request = () => metadataRequest('assignments', '1', '99');
 const response = () => new Response('{"data":{"course":null}}', { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
@@ -28,6 +29,46 @@ function fixture(options = {}) {
     }, ...options });
   return { transport, connection, events, sent, details };
 }
+
+test('direct submission reads require fresh validated assignment scope and keep exact transport binding', async () => {
+  let authCalls = 0;
+  let value = { data: { course: { _id: '1', name: 'Example course', courseCode: 'DEMO', assignmentsConnection: {
+    nodes: [{ _id: '10', courseId: '1', name: 'Preparation', state: 'published', pointsPossible: 5, submissionTypes: ['online_upload'] }],
+    pageInfo: { hasNextPage: false, endCursor: null },
+  } } } };
+  const context = fixture({ authentication: () => { authCalls++; return { kind: 'session', value: 'fixture-csrf' }; },
+    fetcher: async (_url, init) => {
+      context.sent.push(init);
+      assert.equal(context.transport.allows(context.details(init)), true);
+      return new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
+    } });
+  await assert.rejects(context.transport.readOwnSubmission('10'), /Read this assignment/);
+  await assert.rejects(context.transport.request(ownSubmissionRequest('10', '99')), /not permitted/);
+  assert.equal(authCalls, 0);
+  await context.transport.readAssignmentPage();
+  await assert.rejects(context.transport.readOwnSubmission('11'), /Read this assignment/);
+  assert.equal(authCalls, 1);
+  value = { data: { submission: { _id: '20', assignmentId: '10', state: 'unsubmitted', cachedDueDate: null } } };
+  assert.deepEqual(await context.transport.readOwnSubmission('10'), { id: '20', assignmentId: '10', state: 'unsubmitted', cachedDueDate: null });
+  assert.deepEqual(JSON.parse(context.sent[1].body), ownSubmissionRequest('10', '99'));
+  assert.equal(context.events.filter(event => event.operation === 'metadataownsubmission' && event.event === 'body-read').length, 1);
+  value = { data: { submission: null } };
+  assert.equal(await context.transport.readOwnSubmission('10'), null);
+  context.connection.abort();
+  const before = authCalls;
+  await assert.rejects(context.transport.readOwnSubmission('10'), { name: 'AbortError' });
+  assert.equal(authCalls, before);
+});
+
+test('foreign assignment pages cannot extend the direct submission scope', async () => {
+  const context = fixture({ fetcher: async (_url, init) => {
+    assert.equal(context.transport.allows(context.details(init)), true);
+    return new Response(JSON.stringify({ data: { course: { _id: '2' } } }),
+      { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
+  } });
+  await assert.rejects(context.transport.readAssignmentPage(), /unavailable or incomplete/);
+  await assert.rejects(context.transport.readOwnSubmission('10'), /Read this assignment/);
+});
 
 test('metadata transport rejects altered requests before authentication, audit or network', async () => {
   const setup = fixture({ authentication: () => assert.fail('Invalid requests must not load authentication') });

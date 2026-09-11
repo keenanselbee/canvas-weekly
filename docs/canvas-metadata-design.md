@@ -10,7 +10,11 @@ not a completed restoration of automatic collection.
 The [admission decision](canvas-metadata-admission.md) withholds enablement:
 the course submission resolver can reach temporary enrollment-state creation
 through its elevated-permission branch. Separate preflight requests cannot
-freeze server-side roles. A direct self-submission lookup is the next candidate.
+freeze server-side roles. A direct self-submission component now binds each lookup
+to assignment IDs actually read by its transport and the verified student. Its
+fallback policies and local tests are documented in the admission decision.
+Collection orchestration still uses the old query behind the production hold;
+it must be replaced before enablement.
 
 The [Planner and stored deadline review](canvas-planner-review.md) identifies
 cachedDueDate on self-scoped submissions as the revised date source.

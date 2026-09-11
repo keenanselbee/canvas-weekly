@@ -79,8 +79,8 @@ Replacement candidates
   SubmissionByAssignmentAndUser loader reads an existing active row with find_by;
   it does not create a missing submission or use the course-wide visibility
   loader. Its first Submission read policy passes for the student's own published
-  assignment. The anonymous-grading helper and permission fallback for an
-  unpublished/changed assignment must be reviewed before admission.
+  assignment. The anonymous-grading helper and permission fallbacks are reviewed
+  below; production orchestration still needs to replace the old query.
 
 The proposed fixed query validates against the pinned schema:
 
@@ -92,11 +92,60 @@ query CanvasWeeklyOwnSubmission($assignmentId: ID!, $studentId: ID!) {
 }
 ```
 
-It is not implemented or admitted by the transport. If approved, bind each ID to
-fresh assignment evidence and the verified student, treat null as unavailable,
-retain request/byte limits, and preserve prior status/dates as last-known. The
-additional per-assignment request cost must be reflected in the collection
-budget and coverage. Do not broaden privileges or obtain attempts to fill gaps.
+The isolated canvas-own-submission.js component implements this exact query and
+strict response parsing. CanvasMetadataTransport.readAssignmentPage registers
+only IDs from validated pages read for its bound course. readOwnSubmission can
+request only those IDs for the bound student; generic request does not accept
+the new operation. Null remains unavailable, not evidence of no deadline or no
+submission. The existing identity, credential, cancellation, byte/request limits
+and redacted audit apply. This component is not yet used by production collection.
+
+Before admission, replace the course-wide query in collection orchestration,
+preserve prior status/dates as last-known for missing records, and account for
+per-assignment request costs in coverage. Do not broaden privileges or obtain
+attempts to fill gaps. The production hold remains in place.
+
+Direct lookup fallback review, 2026-09-11
+---------------------------------------
+
+Reviewed against the same pinned source, including unpublished assignments and
+permission fallbacks rather than assuming the first self-policy always passes:
+
+- SubmissionByAssignmentAndUser uses Submission.active.preload(...).find_by,
+  then anonymous-name filtering and the selected read policy. Missing records
+  produce null; this loader does not call find_or_create_submission.
+- Submission's read fallbacks check published grade permissions, existing
+  observer enrollments, and peer-review eligibility. user_can_read_grades? checks
+  view_all_grades/manage_grades through the previously reviewed course policies.
+- peer_reviewer? first requires a published assignment, then checks stored peer
+  review settings, participating student membership and existing assessment
+  requests. The participating_students association filters stored enrollment
+  type/workflow fields; it does not evaluate date-based enrollment state.
+- The peer-review submitted? helper reads submissions.find_by(user:). Its
+  non_digital_submission? and has_submission? checks use stored submission types.
+  They do not create a row or inspect quiz attempts. Unpublished assignments
+  stop before this peer-review branch.
+- can_read_submission_user_name? short-circuits for the owner. Its foreign-user
+  paths inspect stored anonymity settings, existing unposted submissions and
+  reviewed course permissions. preload_unposted_anonymous_submissions uses SQL
+  with stored enrollment workflow states and assigns an in-memory boolean.
+
+These selected paths did not reveal the course-wide enrollment-state creation
+problem. That finding supports the isolated replacement component, not a claim
+that the deployed institution matches this source or that historical account
+state is unchanged. Response identity checks remain mandatory.
+
+Validation: 116 unit tests passed. The localhost Electron HTTPS fixture verifies
+observed-assignment admission, fixed student identity, null and mismatched result
+handling, and audit redaction. No real Canvas or AI requests were made.
+
+Fallback source references:
+
+- [Submission policies and anonymity helpers](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/submission.rb#L584)
+- [Existing submission lookup for submitted?](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/abstract_assignment.rb#L2124)
+- [Grade permission helper](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/abstract_assignment.rb#L2230)
+- [Unposted anonymity lookup](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/abstract_assignment.rb#L1986)
+- [Participating student association](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/course.rb#L109)
 
 The requested automatic instructions/materials/messages remain separate work.
 A deadlines-only replacement is not the final personal study-guide objective.

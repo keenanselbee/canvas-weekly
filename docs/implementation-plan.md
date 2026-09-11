@@ -492,3 +492,13 @@ Work log
   review and request-budget implications. Dashboard and comment-stream alternatives
   are not complete safe replacements. The restored desktop refresh test passes,
   including the production hold and preservation after connection changes.
+- 2026-09-11: Reviewed direct submission permission/anonymity fallbacks, including
+  unpublished assignments and peer-review submitted? checks that read existing
+  rows. Added an isolated fixed query/parser and transport methods bound to
+  assignment IDs actually read from the selected course. Missing rows remain
+  unknown; mismatched responses fail and audit records omit response content.
+  All 116 unit tests and localhost Electron metadata network checks pass.
+  Production collection remains paused pending orchestration replacement and
+  per-assignment budget/coverage handling. No real Canvas/AI calls or personal
+  guide changes occurred. Ignored test profiles and pinned source review files
+  remain under .codex-temp for inspection.
