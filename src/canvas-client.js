@@ -43,6 +43,24 @@ export function validateNextPage(value, initial) {
   return next;
 }
 
+export function permittedRead(value, origin) {
+  try {
+    const url = new URL(value);
+    const context = url.searchParams.get('context_codes[]') || url.searchParams.get('filter[]') || '';
+    const args = {
+      courseId: url.pathname.match(/^\/api\/v1\/courses\/(\d+)(?:\/|$)/)?.[1] || context.match(/^course_(\d+)$/)?.[1],
+      conversationId: url.pathname.match(/^\/api\/v1\/conversations\/(\d+)$/)?.[1],
+    };
+    const count = url.searchParams.get('per_page');
+    if (count !== null && (!/^\d+$/.test(count) || Number(count) < 1 || Number(count) > 100)) return false;
+    for (const operation of Object.keys(operations)) {
+      try { validateNextPage(url.href, requestUrl(origin, operation, args)); return true; }
+      catch { /* This URL must exactly match one of the remaining operations. */ }
+    }
+  } catch { /* Invalid URL. */ }
+  return false;
+}
+
 export function blockedAssessmentUrl(value) {
   try {
     const url = new URL(value);

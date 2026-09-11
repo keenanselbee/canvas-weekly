@@ -51,7 +51,7 @@ insufficient: some reads mutate state.
 Module/module-item listing is disabled after the safety audit: Canvas can create
 and evaluate student progression on these reads. Preserve previous module evidence
 as stale and report missing coverage. See safety-audit.md for the evidence and
-outstanding network/logging work; no live-account invariance claim is supported.
+remaining live authentication checks; no live-account invariance claim is supported.
 
 Browser authentication is a human-operated phase in an isolated profile with no
 app preload or Node integration. Close the login surface before collection and
@@ -59,6 +59,15 @@ use reviewed structured reads through its session if institution-permitted. If
 session reads are unavailable, expose supported API token connection or an honest
 coverage gap. No autonomous unrestricted navigation. UI login can generate normal
 access logs; do not claim zero server-side effects.
+
+The session network gate registers each exact collector URL only for the duration
+of its pending GET/manual-redirect fetch. Revalidate its origin, operation and
+fixed parameters at this boundary. Reject browser-originated requests even when
+their URL matches a pending collector read. With no login window, all other
+session traffic is denied. During human login, permit Canvas login routes and
+known static-asset paths, but reject dashboard API calls and non-login writes.
+External HTTPS identity-provider traffic must belong to that login webContents;
+institution-specific SSO origin configuration remains a future hardening step.
 
 Linked sources are discovered as references with provenance. Fetch only relevant
 HTTP(S) documents with a size limit and timeouts; reject private network targets,

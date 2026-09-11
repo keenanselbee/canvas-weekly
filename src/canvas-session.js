@@ -4,6 +4,7 @@ import path from 'node:path';
 import { CanvasClient, blockedAssessmentUrl } from './canvas-client.js';
 import { atomicJson } from './settings.js';
 import { CanvasAudit } from './canvas-audit.js';
+import { CanvasNetwork } from './canvas-network.js';
 
 export class CanvasConnection {
   constructor({ directory, settings, onChange, onConnected = () => {} }) {
@@ -17,18 +18,13 @@ export class CanvasConnection {
     this.loginWindow = null;
     this.connectionError = null;
     this.session = session.fromPartition('persist:canvas');
+    this.network = new CanvasNetwork({ origin: () => new URL(this.settings.value.canvasBaseUrl).origin,
+      loginContentsId: () => this.loginWindow?.webContents.id,
+      fetcher: (url, init) => this.session.fetch(url, init) });
     this.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     this.session.on('will-download', event => event.preventDefault());
     this.session.webRequest.onBeforeRequest((details, callback) => {
-      // This profile is used only for human login and reviewed API reads.
-      const url = new URL(details.url);
-      if (blockedAssessmentUrl(details.url)) return callback({ cancel: true });
-      if (url.origin === new URL(this.settings.value.canvasBaseUrl).origin) {
-        const loginRoute = /^\/login(\/|$)/.test(url.pathname);
-        if (details.method !== 'GET' && details.method !== 'HEAD' && !loginRoute) return callback({ cancel: true });
-        if (details.resourceType === 'mainFrame' && !loginRoute && !['/', '/dashboard'].includes(url.pathname)) return callback({ cancel: true });
-      }
-      callback({ cancel: false });
+      callback({ cancel: !this.network.allows(details) });
     });
   }
   get status() { return { connected: Boolean(this.profile), name: this.profile?.name || null, connecting: Boolean(this.loginWindow), error: this.connectionError }; }
@@ -47,7 +43,7 @@ export class CanvasConnection {
   }
   client(options = {}) {
     return new CanvasClient({ origin: this.settings.value.canvasBaseUrl, token: this.token,
-      fetcher: (url, init) => this.session.fetch(url, init), ...options, audit: event => this.audit.write(event) });
+      ...options, fetcher: (url, init) => this.network.fetch(url, init), audit: event => this.audit.write(event) });
   }
   async verify() {
     if (this.verification) return this.verification;

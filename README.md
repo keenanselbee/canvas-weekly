@@ -34,11 +34,14 @@ baseline or complete request ledger was recorded. See the
 New collector requests write a local credential-free intent/outcome ledger under
 application storage/canvas-audit. It does not record authentication-window traffic
 and cannot prove the absence of Canvas-side effects.
+The session now admits only pending reviewed collector requests outside login.
+Canvas dashboard API calls are blocked during login too. The tightened sign-in
+flow still needs live UBC validation; synthetic tests do not prove SSO compatibility.
 
 In Settings, sign in to Canvas in the separate window. A successful account check
 returns to Canvas Weekly automatically. If it stays open, close it and click Check
 connection; the app now displays the actual connection error. Canvas dashboard
-widgets may fail because the login window blocks non-login write requests; those
+widgets may fail because the login window blocks dashboard API traffic; those
 widgets are not used to collect course information. Course and Inbox navigation
 are disabled in the login window; it is
 only for authentication. If your institution does not allow session API reads,
@@ -72,6 +75,12 @@ checks and light/dark screenshots under `.codex-temp/visual`. Development settin
 live under ignored `.local/app`; UI tests use separate `.local/test-app` storage.
 The desktop app saves its own settings; the JSON config below belongs to the
 standalone PowerShell initializer.
+
+On Windows, `npm run test:network` starts an isolated Electron fixture and a local
+HTTPS server to test actual request interception. Windows PowerShell generates
+an ephemeral test certificate without installing it in any certificate store.
+Diagnostic test profiles/logs remain under ignored `.codex-temp/network-*`.
+The test never loads saved application accounts or contacts Canvas.
 
 From this repository, run:
 

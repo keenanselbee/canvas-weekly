@@ -30,13 +30,20 @@ Findings and repair status
    source. A request without an outcome is inconclusive (for example, a crash).
    A response event records HTTP status, not successful parsing or account state.
    Authentication browser traffic and rejected operations are not in this ledger.
-   Actual Electron transport interception tests remain pending.
+   Actual Electron transport interception is tested against a local HTTPS server
+   using synthetic data. The test does not use Canvas accounts or internet hosts.
 3. Medium: the login network guard allows broader GET subresources than needed.
    It blocks common assessment routes and non-login Canvas writes but is not an
    exact operation boundary for all traffic. SSO requests are a separate human
    authentication phase, not authorization for autonomous browsing.
-   Repair pending: stricter collection/session network admission and login-phase
-   separation, with explicit institution-dependent authentication limitations.
+   Repair: the closed-login session admits only an exact reviewed GET/manual-
+   redirect request currently pending from the collector. Browser requests cannot
+   borrow that permission. The human login window can load Canvas login routes
+   and static assets, but Canvas API traffic requires collector permission even
+   during login. Module/assessment routes remain denied in both phases.
+   External HTTPS identity-provider traffic is restricted to the login window;
+   individual institutional SSO hosts are not yet configured as an allowlist.
+   Actual UBC sign-in with the tightened asset/API restrictions needs validation.
 
 The finite collector contains no operation that starts/resumes a quiz, fetches
 attempt questions, submits work, sends messages, or edits account settings.
@@ -59,7 +66,9 @@ Evidence
 - src/canvas-session.js: isolated login profile and network guard.
 - tests/canvas-client.test.js and tests/course-evidence.test.js: synthetic
   rejection of module requests and stale retention. These are not live account
-  verification and do not prove the existing browser guard intercepts all traffic.
+  verification. tools/test-network.mjs separately checks actual Electron network
+  interception: approved reads, rejected module/message reads and quiz writes,
+  denied browser API requests and redirects that never reach their target.
 - [Canvas modules controller](https://github.com/instructure/canvas-lms/blob/master/app/controllers/context_modules_api_controller.rb)
 - [Canvas module progression creation](https://github.com/instructure/canvas-lms/blob/master/app/models/context_module.rb)
 - [Canvas progression evaluation](https://github.com/instructure/canvas-lms/blob/master/app/models/context_module_progression.rb)
