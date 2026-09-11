@@ -476,10 +476,11 @@ admission work is now:
    selected ActiveRecord initializer behavior. Carry that bounded conclusion
    into the final fixed-query getter inventory; it does not authorize other
    model methods, body fields or authentication effects.
-2. Reconcile the exact three queries and account GET with that completed
-   inventory and controller/authentication findings in one admission decision.
-   Removed assignment-date and Planner section paths are excluded, not cleared
-   for reuse. Record production-environment and institutional-extension limits.
+2. The [admission decision](canvas-metadata-admission.md) now withholds production
+   use of the course submission query: its elevated-permission branch reaches
+   enrollment-state creation, and separate student preflights cannot freeze
+   server permissions. Review the direct self-submission candidate instead.
+   Removed assignment-date and Planner section paths remain excluded.
 3. Validate institutional authentication/schema and student results only after
    that decision. Connection, fresh enrollment binding and actual Electron
    request admission are now wired and tested locally behind the production hold;

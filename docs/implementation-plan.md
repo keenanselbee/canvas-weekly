@@ -483,3 +483,12 @@ Work log
   dependency archive hash and retained its 44 Ruby sources in ignored review
   storage. No dependency was installed or executed, and no live Canvas or AI
   request ran. The consolidated admission decision remains the next step.
+- 2026-09-11: Withheld metadata admission after tracing the elevated course-
+  submission branch through student visibility to temporary enrollment-state
+  creation. Separate account/enrollment preflights cannot freeze server roles
+  between requests. Withdrew enablement edits before any live request or build;
+  production app code remains unchanged. Validated a direct self-submission query
+  candidate against the pinned schema and recorded its required fallback-policy
+  review and request-budget implications. Dashboard and comment-stream alternatives
+  are not complete safe replacements. The restored desktop refresh test passes,
+  including the production hold and preservation after connection changes.

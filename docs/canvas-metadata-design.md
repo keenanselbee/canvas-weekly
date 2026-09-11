@@ -7,6 +7,11 @@ are wired behind the production hold; no transport is created while it is paused
 Live guide refresh remains paused. This is a component of the replacement collector,
 not a completed restoration of automatic collection.
 
+The [admission decision](canvas-metadata-admission.md) withholds enablement:
+the course submission resolver can reach temporary enrollment-state creation
+through its elevated-permission branch. Separate preflight requests cannot
+freeze server-side roles. A direct self-submission lookup is the next candidate.
+
 The [Planner and stored deadline review](canvas-planner-review.md) identifies
 cachedDueDate on self-scoped submissions as the revised date source.
 Planner itself still reaches the enrollment-state getter through calendar
