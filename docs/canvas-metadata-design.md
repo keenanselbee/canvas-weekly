@@ -36,10 +36,13 @@ requested student IDs with those allowed by course permissions, then selects
 existing Submission rows. Missing status data is not evidence of an unsubmitted
 assignment: the future reconciliation adapter must preserve unknown status.
 
-This traces the selected resolvers but does not yet certify the entire request.
-Course permission preloading, underlying override/scoping helpers, controller
-authentication hooks and institutional compatibility still require completion of
-the transitive review before the production gate is changed.
+The [permission review](canvas-metadata-permissions-review.md) now traces course
+permission preloading, override cloning/caches, visibility selection and the
+controller's operation-name hooks. It identifies scoped-token incompatibility
+and session CSRF requirements. Shared visibility/permission dependencies, model
+load callbacks, schema analyzers and authenticated transport still require review
+before the production gate is changed. This is not certification of the entire
+request or institutional compatibility.
 
 Contract and safeguards
 -----------------------
@@ -87,8 +90,11 @@ Integration work still required
    reads, manual redirects, cancellation and flushed intent/outcome audit. Bind
    pending network admission to method, origin, body and authenticated identity;
    a browser must not borrow a pending request. Session CSRF and API-token paths
-   need separate verification. GraphQL uses POST, so method alone cannot enforce
-   the mutation boundary.
+   need separate verification. Scoped developer-key tokens cannot access the
+   required GraphQL types in the reviewed revision; report this without asking
+   for broader permissions. GraphQL uses POST, so method alone cannot enforce
+   the mutation boundary. Apply the additional identity, envelope and CSRF checks
+   recorded in the permission review.
 3. Merge fresh metadata with saved instructions without erasing them or claiming
    that their contents were refreshed. Display field-specific age and source gaps.
    Match status records only to the current assignment list; an absent status row

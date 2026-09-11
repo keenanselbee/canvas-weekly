@@ -24,6 +24,12 @@ which GETs were safe; it cannot establish what happened in the earlier live run.
 The historical findings below remain evidence, but their narrower repairs must
 not be read as certification of the withdrawn collector.
 
+The replacement's [metadata permission review](canvas-metadata-permissions-review.md)
+separates in-memory date overrides, server caches, authentication bookkeeping
+and learning-state effects. The reviewed GraphQL operation hooks do not match
+the candidate's fixed names. Remaining dependencies and authenticated transport
+are still under review; no replacement query has been sent to Canvas.
+
 1. High: GET module listings are not free of learning-progress side effects.
    The modules controller selects the current student and calls evaluate_for.
    This can create a ContextModuleProgression and evaluate/save its state using

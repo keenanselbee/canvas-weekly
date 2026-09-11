@@ -250,3 +250,12 @@ Work log
   All 56 unit tests and the rebuilt Windows package checks pass, including the
   production refresh hold. The schema and temporary validation dependency remain
   under ignored .codex-temp/graphql-review; neither is a shipped dependency.
+- 2026-09-10: Extended the replacement-query audit through enrollment preloading,
+  visibility selection, readonly date clones and controller operation hooks.
+  Documented cache/authentication side effects separately from learning progress,
+  the reviewed revision's scoped-token incompatibility, and exact-envelope,
+  identity and CSRF transport requirements. Shared permission/visibility branches,
+  model callbacks, schema analyzers and institutional compatibility remain open.
+  This documentation milestone preserves the production pause and makes no
+  authenticated requests or guide changes. Source links and local document links
+  were checked against the pinned repository tree and workspace.
