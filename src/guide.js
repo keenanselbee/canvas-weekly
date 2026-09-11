@@ -111,13 +111,17 @@ export function renderMarkdown(guide) {
   lines.push('## Your study plan', '', plan.summary, '', plan.note, '');
   const refined = plan.tasks.filter(task => task.ai).length;
   if (guide.priorities?.length) lines.push(`ChatGPT refined ${refined} preparation task${refined === 1 ? '' : 's'}. Other tasks use basic prompts. Required/optional labels are AI interpretations with source quotes to check.`, '');
-  let day;
-  for (const task of plan.tasks) {
-    if (day !== task.suggestedDate) { day = task.suggestedDate; lines.push(`### Suggested start: ${day}`, ''); }
+  let day, reviewCourse;
+  for (const task of [...plan.tasks.filter(task => !task.unscheduled), ...(plan.reviewGroups || []).flatMap(group => group.tasks)]) {
+    if (task.unscheduled) {
+      if (day !== null) { lines.push('## Timing to confirm', '', plan.reviewNote, ''); day = null; }
+      if (reviewCourse !== task.courseId) { reviewCourse = task.courseId; lines.push(`### ${md(task.courseName)}`, ''); }
+    } else if (day !== task.suggestedDate) { day = task.suggestedDate; lines.push(`### Suggested start: ${day}`, ''); }
     const source = sources.get(task.sourceId);
     lines.push(`- [${task.done ? 'x' : ' '}] **${md(task.title)}** (${md(task.courseName)})${task.ai ? ' - AI suggestion' : ''}`, '', md(task.reason), '');
     if (task.changedSinceDone) lines.push('Source or task changed since you checked it off. Review it again.', '');
-    if (task.dueAt) lines.push(`Recorded due time: ${formatDate(task.dueAt, guide.timeZone)}.`, '');
+    if (task.dueAt) lines.push(`Recorded due time: ${formatDate(task.dueAt, guide.timeZone)}`, '');
+    if (task.closesAt) lines.push(`Available until: ${formatDate(task.closesAt, guide.timeZone)}`, '');
     for (const step of task.steps) {
       if (typeof step === 'string') lines.push(`- ${md(step)}`);
       else {
@@ -125,6 +129,7 @@ export function renderMarkdown(guide) {
         if (step.quote) lines.push('', `  Source quote: ${md(step.quote)}`, '');
       }
     }
+    for (const check of task.checks || []) lines.push('', `${md(check.title)}: ${md(check.detail)}`);
     if (source) lines.push('', `[Source](<${source.sourceUrl}>)`);
     lines.push('');
   }

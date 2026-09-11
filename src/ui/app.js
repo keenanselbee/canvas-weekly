@@ -101,12 +101,16 @@ function renderGuide() {
     const refined = plan.tasks.filter(task => task.ai).length;
     if (guide.priorities?.length) overview.append(node('p', 'muted', `ChatGPT refined ${refined} preparation task${refined === 1 ? '' : 's'}. Other tasks use basic prompts. Required/optional labels are AI interpretations with source quotes to check.`));
     if (state.ai.connected && !state.settings.aiEnabled) overview.append(node('p', 'muted', 'ChatGPT is connected. Enable Study suggestions in Settings for more specific preparation advice.'));
-    const dates = [...new Set(plan.tasks.map(task => task.suggestedDate))];
-    for (const date of dates) {
+    const dates = [...new Set(plan.tasks.map(task => task.suggestedDate).filter(Boolean))];
+    const groups = dates.map(date => ({ title: `Suggested start: ${date}`, open: date === dates[0], tasks: plan.tasks.filter(task => task.suggestedDate === date) }));
+    groups.push(...(plan.reviewGroups || []).map(group => ({ title: `Timing to confirm: ${group.courseName}`, open: false, review: true, tasks: group.tasks })));
+    let reviewIntro = false;
+    for (const group of groups) {
+      if (group.review && !reviewIntro) { overview.append(node('h3', '', 'Timing to confirm'), node('p', 'muted', plan.reviewNote)); reviewIntro = true; }
       const day = node('details', 'study-day');
-      const tasks = plan.tasks.filter(task => task.suggestedDate === date);
-      day.open = date === dates[0];
-      day.append(node('summary', '', `Suggested start: ${date} · ${tasks.filter(task => task.done).length}/${tasks.length} checked off`));
+      const tasks = group.tasks;
+      day.open = group.open;
+      day.append(node('summary', '', `${group.title} · ${tasks.filter(task => task.done).length}/${tasks.length} checked off`));
       for (const task of tasks) {
         const row = node('div', 'study-task');
         const checkbox = node('input');
@@ -115,12 +119,15 @@ function renderGuide() {
         checkbox.setAttribute('aria-label', `Preparation done: ${task.title}`);
         checkbox.addEventListener('change', () => perform(async () => {
           update(await api.setStudyTaskDone(task.id, checkbox.checked)); render();
-          document.getElementById(checkbox.id)?.focus();
+          const restored = document.getElementById(checkbox.id);
+          for (let parent = restored?.parentElement; parent; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true;
+          restored?.focus();
         }));
         const content = node('div');
         const label = node('label', 'study-task-title', task.title); label.htmlFor = checkbox.id;
         content.append(label, node('small', '', `${task.courseName}${task.ai ? ' · AI suggestion' : ''}`));
         if (task.dueAt) content.append(node('small', '', `Recorded due: ${format(task.dueAt)}`));
+        if (task.closesAt) content.append(node('small', '', `Available until: ${format(task.closesAt)}`));
         if (task.changedSinceDone) content.append(node('p', 'muted', 'Changed since you checked it off — review again.'));
         const details = node('details');
         details.append(node('summary', '', 'Preparation steps'), node('p', '', task.reason));
@@ -138,7 +145,9 @@ function renderGuide() {
           }
           steps.append(item);
         }
-        details.append(steps, button('Open source', () => api.openSource(task.sourceId), 'link'));
+        details.append(steps);
+        for (const check of task.checks || []) details.append(node('p', 'muted', `${check.title}: ${check.detail}`));
+        details.append(button('Open source', () => api.openSource(task.sourceId), 'link'));
         content.append(details); row.append(checkbox, content); day.append(row);
       }
       overview.append(day);

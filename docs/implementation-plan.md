@@ -172,3 +172,14 @@ Work log
   configuration and added regression coverage. Word content/layout-token tests,
   file-lock rollback and synthetic desktop refresh pass. LibreOffice is absent;
   Word page rendering remains explicitly unverified. No Canvas account was used.
+- 2026-09-10: Separated items with neither due nor closing times into per-course
+  Timing to confirm groups, preserving task IDs, progress, source links and all
+  per-item checks. Weekly course checks remind the student to review applicability.
+  Closing-time-only items remain in the dated plan; AI cannot invent timing for
+  the unscheduled group. Forty-three unit tests and the synthetic desktop flow
+  pass, including focus/open-state after checking a review item. Inspected both
+  app themes and the actual saved HTML without network requests. The existing
+  four-course snapshot now has 21 dated plan tasks and 32 timing-review tasks,
+  with 17 general checks and remaining checks alongside their review items.
+  Re-exported locally without fresh Canvas or AI access. Workload balancing,
+  full-course AI quality and Word page rendering remain acceptance gaps.

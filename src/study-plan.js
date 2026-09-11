@@ -13,6 +13,7 @@ export function buildStudyPlan(guide, progress = {}) {
   const checks = [];
   const today = guide.week.today;
   const now = Date.parse(guide.generatedAt);
+  let scheduledCount = 0;
   const items = [...guide.inWeek, ...guide.upcoming, ...guide.undated];
   const check = (sourceId, title, detail) => checks.push({ sourceId, title, detail });
   for (const item of items) {
@@ -23,33 +24,39 @@ export function buildStudyPlan(guide, progress = {}) {
     const latestStart = deadlineDay ? [shiftDate(deadlineDay, -2), guide.week.end].sort()[0] : guide.week.end;
     const availableDays = Math.max(1, Math.round((Date.parse(`${latestStart}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000) + 1);
     const verify = closed || overdue || item.stale || item.status === 'unknown' || !item.dueAt;
+    const unscheduled = !item.dueAt && !item.closesAt;
     const task = {
-      id: `${item.id}:prepare`, sourceId: item.id, courseName: item.courseName,
+      id: `${item.id}:prepare`, sourceId: item.id, courseId: item.courseId, courseName: item.courseName,
       title: `${verify ? 'Check the next step for' : 'Prepare for'} ${item.title}`,
       reason: closed ? 'The recorded availability window has ended. Check whether an exception applies before planning further work.'
         : overdue ? 'The recorded deadline has passed. Confirm submission status and any extension before planning further work.'
         : !item.dueAt ? 'No deadline was supplied. Confirm whether this item requires action and when.'
         : item.stale || item.status === 'unknown' ? 'The available record needs verification before you rely on it.'
         : 'Start preparation before the recorded deadline; use the source for the actual requirements.',
-      suggestedDate: verify ? today : shiftDate(today, tasks.length % availableDays),
+      suggestedDate: unscheduled ? null : verify ? today : shiftDate(today, scheduledCount % availableDays),
       dueAt: item.dueAt, closesAt: item.closesAt, ai: false, needsVerification: verify,
+      unscheduled, checks: [],
       steps: verify ? ['Check the current instructions, availability and your submission status in Canvas.', 'Record any confirmed next step in your student notes.']
         : ['Read the instructions and linked course materials.', 'Work through the relevant notes or practice, then identify what you still need to understand.', 'Check the deliverable and submission instructions before completing the work yourself.'],
     };
     tasks.push(task);
-    if (item.stale) check(item.id, `Recheck ${item.title}`, 'This is last-known information from an incomplete or failed collection.');
-    if (!item.dueAt) check(item.id, `Confirm timing: ${item.title}`, 'A missing deadline does not mean this work is optional. Confirm applicability and timing.');
-    if (item.status === 'unknown') check(item.id, `Confirm status: ${item.title}`, 'Canvas did not supply a reliable submission status. A local checkmark is not proof of submission.');
-    if (!item.instructions) check(item.id, `Find instructions: ${item.title}`, 'Instructions were not included in the collected metadata. Check the source and associated course materials.');
-    if (item.closesAt && item.dueAt && item.closesAt < item.dueAt) check(item.id, `Check availability: ${item.title}`, 'The recorded closing time is earlier than the due time. Confirm the usable window.');
+    if (!unscheduled) scheduledCount++;
+    const itemCheck = (title, detail) => (unscheduled ? task.checks : checks).push({ sourceId: item.id, title, detail });
+    if (item.stale) itemCheck(`Recheck ${item.title}`, 'This is last-known information from an incomplete or failed collection.');
+    if (!item.dueAt) itemCheck(`Confirm timing: ${item.title}`, 'A missing deadline does not mean this work is optional. Confirm applicability and timing.');
+    if (item.status === 'unknown') itemCheck(`Confirm status: ${item.title}`, 'Canvas did not supply a reliable submission status. A local checkmark is not proof of submission.');
+    if (!item.instructions) itemCheck(`Find instructions: ${item.title}`, 'Instructions were not included in the collected metadata. Check the source and associated course materials.');
+    if (item.closesAt && item.dueAt && item.closesAt < item.dueAt) itemCheck(`Check availability: ${item.title}`, 'The recorded closing time is earlier than the due time. Confirm the usable window.');
   }
   for (const course of guide.courses) {
     const courseId = `course:${course.id}`;
-    const source = (course.evidence || []).find(source => ['page', 'syllabus'].includes(source.kind) && source.body && !source.stale);
+    const source = (course.evidence || []).find(source => ['page', 'syllabus', 'website'].includes(source.kind) && source.body && !source.stale);
+    const reviewCount = tasks.filter(task => task.courseId === course.id && task.unscheduled).length;
     tasks.push({ id: `${courseId}:materials:${guide.week.start}`, sourceId: source?.id || courseId, courseName: course.code || course.name,
       title: `Check this week's materials for ${course.code || course.name}`, suggestedDate: today,
       reason: 'Reading, lecture preparation and lab work may matter even when Canvas lists no deadline this week.',
-      steps: ['Review the posted course schedule and identify this week’s assigned topics.', 'Separate required reading from optional supplementary material; note anything that is unclear.'],
+      steps: ['Review the posted course schedule and identify this week’s assigned topics.', 'Separate required reading from optional supplementary material; note anything that is unclear.',
+        ...(reviewCount ? [`Review the ${reviewCount} item${reviewCount === 1 ? '' : 's'} under Timing to confirm for this course. Confirm what applies this week before scheduling the work.`] : [])],
       dueAt: null, closesAt: null, ai: false });
     const gaps = course.coverage.filter(source => source.status !== 'ok');
     if (gaps.length) check(courseId, `Incomplete coverage: ${course.code || course.name}`, gaps.map(source => `${source.source}: ${source.message || source.status}`).join(' '));
@@ -66,8 +73,8 @@ export function buildStudyPlan(guide, progress = {}) {
   for (const priority of guide.priorities || []) {
     const source = sourceMap.get(priority.sourceId);
     if (!source) continue;
-    for (const question of priority.checks || []) check(priority.sourceId, `ChatGPT suggests checking: ${source.title}`, question);
     let task = tasks.find(task => task.sourceId === priority.sourceId);
+    for (const question of priority.checks || []) (task?.unscheduled ? task.checks : checks).push({ sourceId: priority.sourceId, title: `ChatGPT suggests checking: ${source.title}`, detail: question });
     if (source.stale) continue;
     const steps = priority.steps?.map(step => ({ ...step }));
     if (task?.needsVerification) {
@@ -89,10 +96,13 @@ export function buildStudyPlan(guide, progress = {}) {
     task.done = saved?.done === true && saved.fingerprint === task.fingerprint;
     task.changedSinceDone = saved?.done === true && saved.fingerprint !== task.fingerprint;
   }
-  tasks.sort((a, b) => a.suggestedDate.localeCompare(b.suggestedDate) || (a.dueAt || '9999').localeCompare(b.dueAt || '9999'));
+  tasks.sort((a, b) => (a.suggestedDate || '9999').localeCompare(b.suggestedDate || '9999') || (a.dueAt || a.closesAt || '9999').localeCompare(b.dueAt || b.closesAt || '9999'));
+  const reviewGroups = guide.courses.map(course => ({ courseId: course.id, courseName: course.code || course.name,
+    tasks: tasks.filter(task => task.unscheduled && task.courseId === course.id) })).filter(group => group.tasks.length);
   return {
     summary: `${guide.inWeek.length} outstanding dated item${guide.inWeek.length === 1 ? '' : 's'} this week or overdue; ${guide.upcoming.length} coming up; ${guide.undated.length} without a supplied deadline.`,
     note: 'These are suggested starting days, not a timetable or new course deadlines. Adjust to your availability. Preparation checkmarks are local and never submit coursework.',
-    tasks, checks,
+    reviewNote: 'Items with no recorded due or closing time are grouped for review. They may still require work this week; compare them with the current course schedule during your weekly materials check. A missing date does not mean optional work.',
+    tasks, checks, reviewGroups,
   };
 }

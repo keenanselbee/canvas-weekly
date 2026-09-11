@@ -22,7 +22,8 @@ try {
       if (url.pathname.endsWith('/users/self/profile')) data = { id: 999, name: 'Example Student' };
       else if (url.pathname === '/api/v1/courses') data = [{ id: 1, name: 'Example course', course_code: 'DEMO 101' }];
       else if (url.pathname === '/api/v1/courses/1') data = { id: 1, name: 'Example course', course_code: 'DEMO 101', syllabus_body: '<p>Read the notes first.</p>' };
-      else if (url.pathname.endsWith('/assignments')) data = [{ id: 10, name: 'Example assignment', due_at: deadline, description: '<p>Complete the practice. Extra examples are optional.</p>', submission: { workflow_state: 'unsubmitted' } }];
+      else if (url.pathname.endsWith('/assignments')) data = [{ id: 10, name: 'Example assignment', due_at: deadline, description: '<p>Complete the practice. Extra examples are optional.</p>', submission: { workflow_state: 'unsubmitted' } },
+        { id: 11, name: 'Practice exam 2020', due_at: null, description: '<p>Check the current syllabus for applicability.</p>' }];
       else if (url.pathname.endsWith('/pages')) data = [{ page_id: 2, url: 'course-site', title: 'Course website', body: '<p>Read the external syllabus.</p><p>Password: example-password</p>' }];
       return new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
     };
@@ -100,7 +101,10 @@ try {
   await page.getByRole('heading', { name: 'Example assignment' }).waitFor();
   assert.equal(first.run.busy, false);
   assert.ok(first.guide.outputPath.startsWith(output));
-  assert.equal(first.guide.items.length, 1);
+  assert.equal(first.guide.items.length, 2);
+  const timingGroup = page.locator('details.study-day').filter({ has: page.locator('summary', { hasText: 'Timing to confirm: DEMO 101' }) });
+  assert.equal(await timingGroup.evaluate(node => node.open), false);
+  assert.equal(first.guide.studyPlan.tasks.find(task => task.sourceId === '1:assignment:11').suggestedDate, null);
   assert.ok((await fs.readFile(first.guide.outputPath, 'utf8')).includes('Complete the practice.'));
   assert.ok((await fs.readFile(first.guide.outputPath, 'utf8')).includes('Read the external syllabus.'));
   assert.ok(!(await fs.readFile(first.guide.outputPath, 'utf8')).includes('example-password'));
@@ -134,6 +138,12 @@ try {
   assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.items[0].status, 'not-submitted');
   await page.reload();
   assert.equal(await page.getByRole('checkbox', { name: /Preparation done:.*Example assignment/ }).isChecked(), true);
+  await timingGroup.locator(':scope > summary').click();
+  await page.getByRole('checkbox', { name: /Preparation done:.*Practice exam 2020/ }).check();
+  await page.waitForFunction(() => document.getElementById('study-1:assignment:11:prepare') === document.activeElement);
+  assert.equal(await timingGroup.evaluate(node => node.open), true, 'Checking a review item preserves its open group and focus');
+  assert.equal(await page.getByRole('checkbox', { name: /Preparation done:.*Practice exam 2020/ }).isChecked(), true);
+  await timingGroup.locator(':scope > summary').click();
   await fs.mkdir('.codex-temp/visual', { recursive: true });
   await page.evaluate(() => window.canvasWeekly.setTheme('light'));
   await page.locator('html[data-theme="light"]').waitFor();

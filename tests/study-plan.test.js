@@ -26,7 +26,7 @@ test('study plan includes preparation, honest uncertainties and suggested days w
   assert.match(plan.tasks.find(task => task.sourceId === '1:assignment:3').reason, /availability window has ended/);
   assert.match(plan.tasks.find(task => task.sourceId === '1:assignment:2').reason, /Confirm whether this item requires action/);
   assert.equal(guide.items.find(item => item.assignmentId === '1').dueAt, '2026-09-18T18:00:00.000Z');
-  assert.ok(plan.tasks.every(task => task.suggestedDate >= guide.week.today && task.suggestedDate <= guide.week.end));
+  assert.ok(plan.tasks.filter(task => !task.unscheduled).every(task => task.suggestedDate >= guide.week.today && task.suggestedDate <= guide.week.end));
   assert.ok(plan.tasks.filter(task => task.dueAt && Date.parse(task.dueAt) > Date.parse(options.now)).every(task => task.suggestedDate <= localDate(task.dueAt, options.timeZone)));
   assert.ok(plan.checks.some(check => check.title.startsWith('Compare instructor update')));
   assert.ok(plan.checks.some(check => check.detail.includes('Module reads disabled')));
@@ -34,6 +34,44 @@ test('study plan includes preparation, honest uncertainties and suggested days w
   assert.ok(markdown.indexOf('Your study plan') < markdown.indexOf('This week and overdue'));
   assert.match(markdown, /not a timetable or new course deadlines/);
   assert.match(markdown, /Double-check/);
+});
+
+test('undated backlog stays complete without invented start dates or changing dated priorities', () => {
+  const course = record();
+  const baseline = buildGuide(reconcile([course], null, options));
+  for (let id = 100; id < 130; id++) course.sources.assignments.push({ id, name: `Practice exam 2020 number ${id}`, due_at: null });
+  course.sources.assignments.push({ id: 200, name: 'Undated closing soon', due_at: null, lock_at: '2026-09-11T18:00:00Z' });
+  const guide = buildGuide(reconcile([course], null, options));
+  const plan = guide.studyPlan;
+  assert.equal(plan.reviewGroups.length, 1);
+  assert.equal(plan.reviewGroups[0].tasks.length, 31);
+  assert.ok(plan.reviewGroups[0].tasks.every(task => task.suggestedDate === null && task.needsVerification));
+  assert.equal(plan.tasks.find(task => task.sourceId === '1:assignment:1').suggestedDate, baseline.studyPlan.tasks.find(task => task.sourceId === '1:assignment:1').suggestedDate);
+  const closing = plan.tasks.find(task => task.sourceId === '1:assignment:200');
+  assert.equal(closing.unscheduled, false);
+  assert.equal(closing.suggestedDate, guide.week.today);
+  assert.equal(closing.closesAt, '2026-09-11T18:00:00.000Z');
+  assert.ok(plan.tasks.find(task => task.id.startsWith('course:')).steps.some(step => step.includes('31 items')));
+  assert.ok(plan.reviewGroups[0].tasks.every(task => task.checks.some(check => check.title.startsWith('Confirm timing'))));
+  assert.equal(plan.checks.some(check => check.title.includes('Practice exam 2020')), false);
+  const markdown = renderMarkdown(guide);
+  assert.ok(markdown.indexOf('Timing to confirm') > markdown.indexOf('Suggested start:'));
+  assert.ok(markdown.includes('Practice exam 2020 number 129'));
+  assert.ok(!markdown.includes('Suggested start: null'));
+  assert.match(markdown, /Available until:/);
+  guide.priorities = [{ sourceId: '1:assignment:100', action: 'Do this today', reason: 'Unverified AI urgency', suggestedDate: guide.week.today, checks: ['Confirm applicability'], steps: [{ text: 'Read it', kind: 'suggested', quote: '' }] }];
+  const ai = buildStudyPlan(guide).tasks.find(task => task.sourceId === '1:assignment:100');
+  assert.equal(ai.suggestedDate, null);
+  assert.ok(ai.steps.at(-1).conditional);
+  assert.ok(ai.checks.some(check => check.detail === 'Confirm applicability'));
+  assert.match(ai.title, /Check the next step/);
+  course.sources.assignments.find(item => item.id === 100).due_at = '2026-09-12T18:00:00Z';
+  const dated = buildGuide(reconcile([course], guide, options));
+  const promoted = dated.studyPlan.tasks.find(task => task.id === ai.id);
+  assert.equal(promoted.unscheduled, false);
+  assert.equal(promoted.dueAt, '2026-09-12T18:00:00.000Z');
+  const withProgress = buildStudyPlan(dated, { [ai.id]: { done: true, fingerprint: ai.fingerprint } });
+  assert.equal(withProgress.tasks.find(task => task.id === ai.id).changedSinceDone, true);
 });
 
 test('no assignments still produces a weekly materials check without claiming no work exists', () => {

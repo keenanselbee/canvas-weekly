@@ -63,8 +63,12 @@ remain alongside it. The Word copy includes the same plan, source details and
 verification notes, with local preparation states labeled To do or Done.
 Opening the guide does not contact Canvas or
 ChatGPT. The plan suggests preparation days, separates recorded deadlines, and
-lists concrete information to double-check. Study checkmarks stay on this device;
-changed task requirements reopen them for review. See the
+lists concrete information to double-check. Items without a due or closing time
+are grouped under Timing to confirm rather
+than assigned an invented start day. Each course's materials check reminds you to
+review that group; missing dates never mean optional work.
+Study checkmarks stay on this device; changed task requirements reopen them for
+review. See the
 [study guide design](docs/study-guide-design.md). Existing manual
 edits to generated guides block replacement; keep notes in Student Notes.md.
 The latest saved guide is available in the app after restart without reconnecting.

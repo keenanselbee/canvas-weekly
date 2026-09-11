@@ -18,6 +18,15 @@ Implemented planning layer
 - Suggest starting days within the remaining guide week. These are adjustable
   suggestions, not class times, a capacity-aware schedule or new deadlines.
   Display source due times separately and preserve them unchanged.
+- Items with neither a due time nor a closing time have no invented start day.
+  Keep their existing task IDs, local progress and per-item verification notes in
+  per-course Timing to confirm groups. Course materials checks explicitly ask the
+  student to review these items against the current schedule. No title heuristic
+  declares an item optional or historical. An undated item with a closing time
+  stays in the dated plan, with the closing time visible.
+- An undated backlog does not affect preparation-day allocation for dated items.
+  AI may add conditional preparation or verification steps to an unscheduled item,
+  but cannot promote it into the dated plan without a recorded time.
 - Add a weekly materials check per selected course, including courses with no
   assignments. Do not guess required readings or effort from titles or points.
 - Surface specific missing instructions/status/dates, unavailable sources, links
@@ -25,7 +34,9 @@ Implemented planning layer
   A possible instructor exception is a verification prompt, not an automatic
   replacement of the structured assignment date.
 - Keep preparation steps collapsed in the app. Group tasks by suggested day and
-  show exact source links. Render the same plan before source details in Markdown.
+  show exact source links. Timing-review groups start collapsed and retain focus
+  when the student checks a task. Render the same plan and separate timing-review
+  section before source details in Markdown, HTML and Word.
 
 The deterministic steps are general preparation advice. ChatGPT can refine up to
 twelve priorities with specific steps, suggested dates and verification questions.
