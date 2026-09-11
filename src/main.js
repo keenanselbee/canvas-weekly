@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, dialog, shell, safeStorage } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -9,6 +9,7 @@ import { reconcile, buildGuide } from './guide.js';
 import { CodexClient, planningEvidence } from './codex-client.js';
 import { referenceUrl } from './content.js';
 import { guideSources } from './study-plan.js';
+import { CourseWebsites } from './course-websites.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const uiUrl = pathToFileURL(path.join(directory, 'ui/index.html')).href;
@@ -23,6 +24,8 @@ let guide = null;
 let run = { busy: false, message: '' };
 let controller;
 let codex;
+let websiteStore;
+let websites = [];
 
 function snapshot() {
   return {
@@ -31,6 +34,7 @@ function snapshot() {
     appearance: { source: nativeTheme.themeSource, dark: nativeTheme.shouldUseDarkColors },
     canvas: canvas?.status || { connected: false },
     courses,
+    websites,
     guide,
     run,
     ai: codex?.state || { connected: false },
@@ -56,6 +60,13 @@ else {
   app.on('second-instance', () => { if (window) { window.show(); window.focus(); } });
   app.whenReady().then(async () => {
     await store.load();
+    websiteStore = new CourseWebsites({ directory: path.join(app.getPath('userData'), 'course-websites'), secrets: {
+      encrypt: value => {
+        if (process.platform !== 'win32' || !safeStorage.isEncryptionAvailable()) throw new Error('Windows credential encryption is unavailable. Website passwords cannot be saved.');
+        return safeStorage.encryptString(value);
+      },
+      decrypt: value => safeStorage.decryptString(value),
+    } });
     const createCodex = () => {
       const client = new CodexClient({ executable: store.value.codexExecutable || 'codex', directory: path.join(app.getPath('userData'), 'planner') });
       client.on('state', publish);
@@ -63,6 +74,10 @@ else {
     };
     codex = createCodex();
     if (store.value.lastGuideAccount) guide = await guides.load(store.value.lastGuideAccount.origin, store.value.lastGuideAccount.userId);
+    if (store.value.lastGuideAccount) {
+      try { websites = await websiteStore.list(store.value.lastGuideAccount); }
+      catch (error) { run.message = error.message; }
+    }
     const loadCourses = async () => {
       courses = await canvas.client().read('courses', {}, true);
       guide = await guides.load(store.value.canvasBaseUrl, canvas.profile.id);
@@ -72,6 +87,7 @@ else {
         lastGuideAccount: { origin: store.value.canvasBaseUrl, userId: canvas.profile.id },
         selectedCourseIds: sameAccount ? store.value.selectedCourseIds.filter(id => courses.some(course => String(course.id) === id)) : [],
       });
+      websites = await websiteStore.list(store.value.lastGuideAccount);
     };
     canvas = new CanvasConnection({ directory: app.getPath('userData'), settings: store, onChange: publish, onConnected: async () => {
       try { await loadCourses(); run = { busy: false, message: 'Canvas connected. Choose your courses.' }; }
@@ -92,22 +108,22 @@ else {
     window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     handle('state:get', snapshot);
     const requireIdle = () => { if (run.busy) throw new Error('Wait for the current refresh or cancel it first.'); };
-    handle('canvas:login', async () => { requireIdle(); guide = null; await canvas.openLogin(); return snapshot(); });
+    handle('canvas:login', async () => { requireIdle(); guide = null; websites = []; await canvas.openLogin(); return snapshot(); });
     handle('canvas:verify', async () => {
-      requireIdle(); guide = null;
+      requireIdle(); guide = null; websites = [];
       courses = [];
       await canvas.finishLogin();
       await loadCourses();
       return snapshot();
     });
     handle('canvas:token', async token => {
-      requireIdle(); guide = null;
+      requireIdle(); guide = null; websites = [];
       courses = [];
       await canvas.connectToken(token);
       await loadCourses();
       return snapshot();
     });
-    handle('canvas:disconnect', async () => { requireIdle(); await canvas.disconnect(); await store.update({ lastGuideAccount: null }); courses = []; guide = null; return snapshot(); });
+    handle('canvas:disconnect', async () => { requireIdle(); await canvas.disconnect(); await store.update({ lastGuideAccount: null }); courses = []; guide = null; websites = []; return snapshot(); });
     handle('settings:canvas', async origin => {
       requireIdle();
       validateSettings({ ...store.value, canvasBaseUrl: origin });
@@ -118,6 +134,7 @@ else {
         await store.update({ canvasBaseUrl, selectedCourseIds: [], lastGuideAccount: null });
         courses = [];
         guide = null;
+        websites = [];
       }
       return snapshot();
     });
@@ -127,6 +144,31 @@ else {
       await store.update({ selectedCourseIds: [...new Set(selectedCourseIds)] });
       return snapshot();
     });
+    const websiteAction = async callback => {
+      requireIdle();
+      const account = store.value.lastGuideAccount;
+      if (!account) throw new Error('Connect Canvas and choose a course first.');
+      controller = new AbortController();
+      run = { busy: true, message: 'Updating course website connection...' }; publish();
+      try {
+        await callback(account, controller.signal);
+        websites = await websiteStore.list(account);
+        run = { busy: false, message: 'Course website settings updated.' };
+        return snapshot();
+      } catch (error) {
+        websites = await websiteStore.list(account).catch(() => []);
+        run = { busy: false, message: controller.signal.aborted ? 'Website operation cancelled.' : error.message };
+        throw new Error(run.message);
+      } finally { controller = null; run.busy = false; publish(); }
+    };
+    handle('website:add', (courseId, url) => websiteAction(async (account, signal) => {
+      if (![...courses, ...(guide?.courses || [])].some(course => String(course.id) === courseId)) throw new Error('Choose a course from the current account.');
+      const id = await websiteStore.add(account, courseId, url);
+      await websiteStore.probe(account, id, null, signal);
+    }));
+    handle('website:check', id => websiteAction((account, signal) => websiteStore.probe(account, id, null, signal)));
+    handle('website:login', (id, username, password) => websiteAction((account, signal) => websiteStore.probe(account, id, { username, password }, signal)));
+    handle('website:remove', id => websiteAction(account => websiteStore.remove(account, id)));
     handle('guide:update', async () => {
       requireIdle();
       if (!canvas.profile) throw new Error('Connect Canvas before updating your guide.');
@@ -140,6 +182,20 @@ else {
         const previous = await guides.load(store.value.canvasBaseUrl, userId);
         const records = await canvas.client({ signal: controller.signal, onProgress: message => { run = { busy: true, message }; publish(); } }).collect(store.value.selectedCourseIds);
         if (!records.some(record => record.coverage.some(source => ['assignments', 'quizzes'].includes(source.source) && source.status === 'ok'))) throw new Error('No assessment information could be refreshed. Your previous guide has been preserved.');
+        try {
+          const external = await websiteStore.collect({ origin: store.value.canvasBaseUrl, userId }, store.value.selectedCourseIds, { signal: controller.signal,
+            onProgress: message => { run = { busy: true, message }; publish(); } });
+          for (const record of records) {
+            record.sources.websites = external.filter(site => site.courseId === record.id);
+            record.coverage.push(...record.sources.websites.flatMap(site => site.coverage));
+            const connected = new Set(record.sources.websites.map(site => site.siteId));
+            if (previous?.courses.find(course => course.id === record.id)?.evidence?.some(source => source.kind === 'website' && !connected.has(source.siteId))) record.coverage.push({ source: 'websites', status: 'unsupported', message: 'A prior course website is disconnected. Its last-known content needs rechecking.' });
+          }
+          websites = await websiteStore.list({ origin: store.value.canvasBaseUrl, userId });
+        } catch {
+          controller.signal.throwIfAborted();
+          for (const record of records) record.coverage.push({ source: 'websites', status: 'error', message: 'Course website collection failed. Check the website settings in Courses.' });
+        }
         const next = buildGuide(reconcile(records, previous, { origin: store.value.canvasBaseUrl, now: new Date().toISOString(), timeZone: store.value.timeZone }));
         if (store.value.aiEnabled) {
           run = { busy: true, message: 'Preparing study suggestions with ChatGPT…' }; publish();

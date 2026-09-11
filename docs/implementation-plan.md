@@ -16,7 +16,7 @@ Milestone ledger
 | M2 | Canvas connection and restricted course collection | Allowlist, redirects, pagination, quiz metadata, preserved read state tested | Safety repairs implemented and local HTTPS interception tested; tightened UBC login flow still needs account validation |
 | M3 | Persistent weekly guide and updates | Week/DST, same-week revisions, notes, partial scans and changes tested | Complete: ddd9975; synthetic end-to-end verified |
 | M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Live account restoration and validated synthetic planning verified with pinned CLI; full-course quality review pending |
-| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Canvas evidence expanded; external-site adapters and Word output pending |
+| M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Canvas evidence and public/Basic website adapter implemented; live site validation, browser-login sites, linked documents and Word output pending |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Pending |
 
 Scheduling, multi-provider support, public distribution and hosted service are
@@ -151,3 +151,16 @@ Work log
   and factual mode. The large undated backlog includes possibly historical exam
   resources; prioritization/applicability needs review before calling this a
   finished personal study plan. No fresh Canvas scan or real-course AI call ran.
+- 2026-09-10: Implemented per-course public/HTTP Basic website connections, scoped
+  HTML/text reads, encrypted local credentials and request intent/outcome logs.
+  Courses now supports discovered links, add/check/login/remove, and guide updates
+  include website evidence with stale retention and content diffs. Forty
+  unit tests and the synthetic desktop flow pass. A real local HTTPS fixture
+  verifies GET/auth sequencing, TLS with a fixture-only CA, DNS pinning, rejected
+  redirects/private addresses, byte limits and cancellation. It exposed and fixed
+  an oversized-response completion race. Inspected the login form in both themes.
+  Failed website logins stop the crawl and suspend automatic credential retries;
+  images and embedded media remain explicit uncollected references.
+  No actual Canvas or university course-site request ran. DATA 311 compatibility,
+  browser-only login, linked PDF/DOCX contents and Word export remain unverified
+  or unfinished as detailed in external-course-sources.md.

@@ -70,10 +70,20 @@ External HTTPS identity-provider traffic must belong to that login webContents;
 institution-specific SSO origin configuration remains a future hardening step.
 
 Linked sources are discovered as references with provenance. Fetch only relevant
-HTTP(S) documents with a size limit and timeouts; reject private network targets,
+HTTPS documents with a size limit and timeouts; reject private network targets,
 assessment launches, credential-bearing URLs and unsafe redirects. Never attach
 Canvas authorization to external requests. Initially unsupported documents are
 listed as gaps, then add typed parsers and bounded extraction.
+
+CourseWebsites stores per-account course/site associations and encrypted Basic
+credentials. Its public list omits credentials; narrow IPC supports add, check,
+login and remove. SiteReader traverses only the configured HTTPS origin and path,
+without a browser, scripts, cookies or forms. DNS is checked and pinned for each
+request, Basic credentials require a matching challenge, and redirects never
+inherit authorization. Durable request intent/outcome logging precedes/follows
+transport calls. See external-course-sources.md for limits and unsupported cases.
+Reconciliation adds website evidence to the same course while leaving Canvas
+assessment dates and submission status unchanged.
 
 
 Persistence and export

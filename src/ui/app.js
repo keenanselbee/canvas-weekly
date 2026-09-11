@@ -248,12 +248,66 @@ function renderCourses() {
     if (!state.courses.length) list.append(node('p', 'muted', 'No active student courses were returned by Canvas.'));
     list.append(button('Save course selection', async () => { update(await api.selectCourses([...selected])); announce('Course selection saved.'); }, 'primary'));
     main.append(list);
+    renderCourseWebsites(state.courses);
     return;
   }
+  if (state.guide) renderCourseWebsites(state.guide.courses);
   const empty = card();
   empty.classList.add('empty');
   empty.append(node('h2', '', 'Your courses will appear here'), node('p', '', 'Connect Canvas to find your courses, including optional co-op or application work.'), button('Connection settings', () => go('settings'), 'primary'));
   main.append(empty);
+}
+
+function renderCourseWebsites(courses) {
+  if (!state.settings.lastGuideAccount || !courses.length) return;
+  const section = card('Course websites');
+  section.append(node('p', 'muted', 'Connect a separate course site for its schedule, readings and lecture pages. The next guide update includes readable pages in the chosen site folder.'));
+  if (state.run.busy) section.append(button('Cancel current operation', () => api.cancelRefresh()));
+  for (const course of courses) {
+    const id = String(course.id);
+    const group = node('details', 'website-course');
+    const connected = (state.websites || []).filter(site => site.courseId === id);
+    const connectionLabel = connected.length ? connected.some(site => site.status !== 'ok') ? 'Needs attention' : connected.length === 1 ? 'Website connected' : `${connected.length} websites connected` : 'Add a website';
+    group.append(node('summary', '', `${course.name || course.course_code || course.code} · ${connectionLabel}`));
+    group.open = connected.some(site => site.status !== 'ok');
+    for (const site of connected) {
+      const connection = node('section', 'website-connection');
+      connection.append(node('h3', '', site.url), node('p', '', site.message || 'Not checked yet.'), node('small', 'muted', `Collection folder: ${site.scope}`));
+      const actions = node('div', 'actions');
+      actions.append(button('Check website', async () => { update(await api.checkWebsite(site.id)); render(); }),
+        button('Remove website', async () => { update(await api.removeWebsite(site.id)); render(); }));
+      for (const control of actions.children) control.disabled = state.run.busy;
+      connection.append(actions);
+      if (site.needsPassword) {
+        connection.append(node('p', 'muted', 'Use the website login supplied by your course, which may differ from your Canvas login. It is encrypted on this Windows computer.'));
+        const username = node('input'); username.autocomplete = 'off'; username.placeholder = 'Website username'; username.setAttribute('aria-label', `Website username for ${site.url}`);
+        const password = node('input'); password.type = 'password'; password.autocomplete = 'off'; password.placeholder = 'Website password'; password.setAttribute('aria-label', `Website password for ${site.url}`);
+        const login = button('Connect website', async () => {
+          const user = username.value; const secret = password.value; password.value = '';
+          update(await api.connectWebsite(site.id, user, secret)); render();
+        }, 'primary');
+        login.disabled = state.run.busy;
+        const fields = node('div', 'actions'); fields.append(username, password, login); connection.append(fields);
+      }
+      group.append(connection);
+    }
+    const address = node('input'); address.type = 'url'; address.placeholder = 'https://course.example.edu/course/'; address.setAttribute('aria-label', `Course website for ${course.name || id}`);
+    const candidates = (state.guide?.courses.find(item => item.id === id)?.references || []).filter(reference => {
+      try { return new URL(reference.sourceUrl).origin !== state.settings.canvasBaseUrl; } catch { return false; }
+    });
+    if (candidates.length) {
+      const select = node('select'); select.setAttribute('aria-label', `Discovered website for ${course.name || id}`);
+      const placeholder = node('option', '', 'Choose a link found in Canvas, or enter an address'); placeholder.value = ''; select.append(placeholder);
+      for (const reference of candidates) { const option = node('option', '', reference.sourceUrl); option.value = reference.sourceUrl; select.append(option); }
+      select.addEventListener('change', () => { address.value = select.value; }); group.append(select);
+    }
+    const add = button('Add website', async () => { update(await api.addWebsite(id, address.value)); render(); });
+    add.disabled = state.run.busy;
+    const fields = node('div', 'actions'); fields.append(address, add);
+    group.append(fields, node('small', 'muted', 'HTML and text pages are supported. Linked PDF/Word files and sites needing browser sign-in remain visible as collection gaps.'));
+    section.append(group);
+  }
+  main.append(section);
 }
 
 function renderSettings() {

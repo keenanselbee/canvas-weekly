@@ -71,6 +71,13 @@ export function courseEvidence(record, previous, origin, now) {
     const url = base + `/files/${file.id}`;
     references.set(url, { title: String(file.display_name || file.filename || 'Course file'), sourceUrl: url, foundOn: base + '/files', status: file.locked_for_user ? 'File is locked' : 'File contents not collected' });
   }
+  for (const website of record.sources.websites || []) {
+    for (const page of website.pages) add('website', page.id, page.title, '', page.sourceUrl, {
+      body: page.body, siteId: website.siteId, observedAt: page.observedAt,
+    });
+    for (const reference of website.references) references.set(reference.sourceUrl, reference);
+    for (const page of website.pages) references.delete(page.sourceUrl);
+  }
   const seen = new Set(current.map(source => source.id));
   for (const source of previous?.evidence || []) {
     if (!seen.has(source.id)) current.push({ ...source, stale: true });
@@ -79,6 +86,7 @@ export function courseEvidence(record, previous, origin, now) {
       if (!fresh.detailsAvailable) Object.assign(fresh, { body: source.body, stale: true });
     }
   }
-  for (const reference of previous?.references || []) if (!references.has(reference.sourceUrl)) references.set(reference.sourceUrl, { ...reference, stale: true });
+  const collected = new Set(current.filter(source => !source.stale).map(source => source.sourceUrl));
+  for (const reference of previous?.references || []) if (!references.has(reference.sourceUrl) && !collected.has(reference.sourceUrl)) references.set(reference.sourceUrl, { ...reference, stale: true });
   return { evidence: current, references: [...references.values()] };
 }

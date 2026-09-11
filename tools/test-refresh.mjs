@@ -27,9 +27,25 @@ try {
       return new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
     };
   }, output);
+  await application.evaluate((_electron, moduleUrl) => {
+    const require = process.getBuiltinModule('module').createRequire(moduleUrl);
+    const { CourseWebsites } = require('./course-websites.js');
+    const original = CourseWebsites.prototype.reader;
+    globalThis.syntheticWebsiteRequests = [];
+    CourseWebsites.prototype.reader = function (...args) {
+      this.transport = async (url, init) => {
+        globalThis.syntheticWebsiteRequests.push(url.href);
+        if (url.origin !== 'https://course.example' || !url.pathname.startsWith('/data311/')) throw new Error('Unexpected website request');
+        if (init.authorization !== 'Basic ' + Buffer.from('student:website-fixture-password').toString('base64')) return { status: 401, headers: { 'www-authenticate': 'Basic realm="course"' }, body: '' };
+        return { status: 200, headers: { 'content-type': 'text/html' }, body: '<main><h1>Course website schedule</h1><p>Supplementary readings are optional. Review the lecture notes before class.</p></main>' };
+      };
+      return original.apply(this, args);
+    };
+  }, new URL('../src/course-websites.js', import.meta.url).href);
   const page = await application.firstWindow();
   await page.evaluate(async () => {
     await window.canvasWeekly.verifyCanvas();
+    for (const site of (await window.canvasWeekly.getState()).websites) await window.canvasWeekly.removeWebsite(site.id);
     await window.canvasWeekly.selectCourses(['1']);
     await window.canvasWeekly.chooseOutput();
   });
@@ -38,6 +54,36 @@ try {
   await page.getByRole('button', { name: 'Save course selection', exact: true }).click();
   await page.getByText('Course selection saved.', { exact: true }).waitFor();
   await page.locator('#notice').waitFor({ state: 'hidden', timeout: 6500 });
+  await page.locator('.website-course > summary').click();
+  await page.getByRole('textbox', { name: 'Course website for Example course', exact: true }).fill('https://course.example/data311/');
+  const beforeWebsite = await application.evaluate(() => globalThis.syntheticRequestCount);
+  await page.getByRole('button', { name: 'Add website', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Website username for https://course.example/data311/', exact: true }).fill('student');
+  await page.getByLabel('Website password for https://course.example/data311/', { exact: true }).fill('website-fixture-password');
+  await fs.mkdir('.codex-temp/visual', { recursive: true });
+  await page.locator('#notice').waitFor({ state: 'hidden', timeout: 6500 });
+  await page.locator('.website-connection').screenshot({ path: '.codex-temp/visual/website-login.png' });
+  await page.evaluate(() => window.canvasWeekly.setTheme('light'));
+  await page.locator('html[data-theme="light"]').waitFor();
+  await page.locator('.website-connection').screenshot({ path: '.codex-temp/visual/website-login-light.png' });
+  await page.evaluate(() => window.canvasWeekly.setTheme('dark'));
+  await page.evaluate(() => {
+    window.websiteConnected = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { unsubscribe(); reject(new Error('Website login did not complete')); }, 15000);
+      const unsubscribe = window.canvasWeekly.onStateChanged(state => {
+        if (!state.run.busy && state.websites[0]?.status === 'ok' && state.websites[0]?.hasCredentials) {
+          clearTimeout(timer); unsubscribe(); resolve();
+        }
+      });
+    });
+  });
+  await page.getByRole('button', { name: 'Connect website', exact: true }).click();
+  await page.evaluate(() => window.websiteConnected);
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeWebsite, 'Website setup must not access Canvas');
+  const websiteState = await page.evaluate(() => window.canvasWeekly.getState());
+  assert.equal(JSON.stringify(websiteState).includes('website-fixture-password'), false);
+  assert.equal(websiteState.websites[0].hasCredentials, true);
+  const websiteId = websiteState.websites[0].id;
   await page.getByRole('button', { name: 'This week', exact: true }).click();
   await page.evaluate(output => {
     window.refreshFinished = new Promise((resolve, reject) => {
@@ -58,6 +104,8 @@ try {
   assert.ok((await fs.readFile(first.guide.outputPath, 'utf8')).includes('Complete the practice.'));
   assert.ok((await fs.readFile(first.guide.outputPath, 'utf8')).includes('Read the external syllabus.'));
   assert.ok(!(await fs.readFile(first.guide.outputPath, 'utf8')).includes('example-password'));
+  assert.ok(first.guide.courses[0].evidence.some(source => source.kind === 'website' && source.body.includes('Supplementary readings are optional.')));
+  assert.ok(!(await fs.readFile(first.guide.outputPath, 'utf8')).includes('website-fixture-password'));
   await assert.rejects(page.evaluate(() => window.canvasWeekly.openSource('https://unknown.example/')), /Choose a source/);
   const notes = path.join(path.dirname(first.guide.outputPath), 'Student Notes.md');
   await fs.writeFile(notes, 'Keep these student notes.');
@@ -118,6 +166,7 @@ try {
   await page.screenshot({ path: '.codex-temp/visual/study-plan-ai.png' });
   assert.match(await fs.readFile(first.guide.outputPath, 'utf8'), /Optional \(AI interpretation\)/);
   await page.evaluate(() => window.canvasWeekly.setAIEnabled(false));
+  await page.evaluate(id => window.canvasWeekly.removeWebsite(id), websiteId);
   await application.evaluate(({ session }) => {
     session.fromPartition('persist:canvas').fetch = async () => new Response('', { status: 401 });
   });
@@ -135,6 +184,7 @@ try {
   assert.equal(switched.canvas.error, null);
   assert.deepEqual(switched.settings.selectedCourseIds, []);
   assert.equal(switched.guide, null);
-  console.log('Desktop refresh passed: synthetic connection, study plan, persistent local checkmarks, offline Open guide, preserved notes, login errors and account-switch isolation.');
+  assert.deepEqual(switched.websites, []);
+  console.log('Desktop refresh passed: synthetic Canvas and website connections, encrypted website login, collected course pages, study plan, persistent local checkmarks, offline Open guide, preserved notes, login errors and account-switch isolation.');
   await page.evaluate(() => window.canvasWeekly.disconnectCanvas());
 } finally { await application.close(); }

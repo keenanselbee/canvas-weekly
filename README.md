@@ -21,8 +21,9 @@ source gaps. Markdown and standalone HTML guides, in-app reading, same-week
 updates, revisions, separate student notes and change reporting are implemented.
 Optional ChatGPT sign-in and study suggestions use the pinned official Codex CLI
 runtime included as a dependency. Page bodies, calendar events and course message
-details now feed both the factual guide and optional AI evidence. External website
-connections, linked file contents and Word export remain in progress; see
+details now feed both the factual guide and optional AI evidence. Public and
+password-protected HTTP Basic course websites can now be connected under Courses.
+Browser-login websites, linked PDF/Word contents and Word export remain pending; see
 [external course sources](docs/external-course-sources.md).
 
 Safety audit follow-up: module and module-item reads are now disabled because
@@ -71,6 +72,13 @@ Run `npm run test:document` for standalone document checks and light/dark/narrow
 print screenshots. The HTML includes no scripts or remote resources; source links
 require a click. Print styles are checked; PDF pagination and Word export still
 need separate verification.
+
+Under Courses, expand Course websites, choose a discovered link or enter a course
+site address, then Add website. Enter its separate website login if requested.
+The next Update guide includes supported pages within that site's course folder.
+Website setup itself does not contact Canvas. Read limits and unavailable files
+remain visible as gaps; website text never replaces Canvas deadlines automatically.
+Run `npm run test:websites` for the local HTTPS transport fixture.
 
 For AI suggestions, open Settings, connect ChatGPT through the official browser
 flow, then enable Study suggestions. ChatGPT can refine up to twelve priorities

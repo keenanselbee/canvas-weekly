@@ -83,3 +83,11 @@ p { margin:0 0 14px; }
 @media(max-width:950px) { .sidebar { width:185px; } main { padding:26px; } .columns { grid-template-columns:1fr; } .brand { font-size:15px; gap:8px; } }
 @media(forced-colors:active) { button.primary,.badge,.nav-item.selected { border:1px solid ButtonText; } .task-marker,.status-dot { background:CanvasText; } }
 @media(prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; } }
+.website-course { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
+.website-course summary { cursor: pointer; font-weight: 600; }
+.website-course .actions { margin: 14px 0; }
+.website-course input, .website-course select { max-width: 100%; min-width: 0; }
+.website-course input[type="url"] { flex: 1; min-width: 230px; }
+.website-course select { width: 100%; margin-top: 16px; }
+.website-connection { margin: 18px 0; padding: 16px; border: 1px solid var(--border); border-radius: 8px; }
+.website-connection h3, .website-connection small { overflow-wrap: anywhere; }

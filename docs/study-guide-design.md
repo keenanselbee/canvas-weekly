@@ -72,6 +72,7 @@ Further acceptance work
    workload balance using student availability rather than an invented timetable.
 2. Verified Word output and actual PDF pagination review. Standalone HTML and
    print styles are implemented and visually checked with synthetic evidence.
-3. External course sites and linked documents with explicit collection coverage.
+3. Validate external course sites with real course access; add browser-login and
+   linked-document support. Public/Basic HTML/text collection and gaps are implemented.
 4. Tightened UBC login verification, with no unverified claims about the earlier
    Canvas account state. A live Codex planning turn with synthetic evidence passed.

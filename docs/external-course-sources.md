@@ -1,7 +1,9 @@
 External course websites
 ========================
 
-Design target; authenticated external collection is not implemented yet.
+Public HTML/text and HTTP Basic website connections are implemented and tested
+with synthetic fixtures. The actual DATA 311 site has not been collected by this
+adapter yet. Browser-login adapters and PDF/DOCX contents remain pending.
 Canvas often supplies only the submission deadlines while a separate course
 website contains the syllabus, reading schedule, lecture slides and lab directions.
 Treat both as sources for the same course, with independent access and coverage.
@@ -10,17 +12,26 @@ Treat both as sources for the same course, with independent access and coverage.
 Student experience
 ------------------
 
-Discover links in Canvas pages, syllabus text, announcements and module items.
-Show relevant candidates under the course: title, address, where it was linked,
-and status (ready, needs sign-in, unavailable or unsupported). Let the student
-choose a course site once, and retain that association for later refreshes.
-Avoid asking the student to authorize every individual document in that site.
+In Courses, expand a course under Course websites. Choose a discovered reference
+from the saved Canvas guide, or enter its website address, then Add website.
+The app checks the seed page and shows its connection result and collection folder.
+If it returns a supported Basic challenge, enter the course website username and
+password in the app's masked login form. Check website retries a connection;
+Remove website stops future reads and removes its saved encrypted credential.
+Existing guides retain last-known evidence, marked stale on the next refresh.
+
+Website setup works for saved courses without reconnecting Canvas. Update guide
+collects the selected courses' configured websites after Canvas reads, then feeds
+the combined evidence to the guide and optional planner. Only explicitly added
+sites are crawled. No source-selection or login prompt is repeated per page.
+Discovery uses the existing Canvas page/syllabus/announcement/assignment links;
+module reads remain disabled for safety.
 
 For DATA 311, the supplied screenshots show a course page under
 https://irene.vrbik.ok.ubc.ca/data311/ and a browser username/password challenge.
 Connect that origin and course path separately. Do not assume Canvas cookies grant
-access. Offer a native credential prompt for HTTP Basic authentication, or a
-dedicated human login window when the actual site uses browser authentication.
+access. The implemented form supports HTTP Basic authentication. A dedicated
+human login window for browser-authenticated websites remains planned.
 Store credentials only in Windows-backed encrypted app storage; never in source
 snapshots, exports, logs or AI evidence. The collector now redacts labeled login
 details from collected course text. Refer the student to the original Canvas
@@ -35,18 +46,41 @@ Collection adapter
 2. Fetch HTML with GET using a separate client. Parse content without executing
    JavaScript. Extract headings, paragraphs, ordered steps, tables and links.
    Quarto/Reveal lecture HTML can often provide text without playing slides.
-3. Follow relevant syllabus, schedule, lecture, lab and reading links inside the
-   configured scope. Bound page count, bytes, depth and time; record limits as
-   partial coverage. Do not traverse the whole university site or Internet.
+3. Follow HTML, text and folder links inside the configured scope, up to depth 2,
+   30 queued document reads, 12 MB total response budget, and two minutes per site.
+   Each document read allows at most four redirect-loop iterations.
+   Individual requests allow up to 2 MB and 20 seconds including DNS lookup.
+   Failed requests conservatively consume their full byte allowance. Record
+   limits as partial coverage. Do not crawl other origins or path prefixes.
 4. Scope HTTP credentials to the exact origin and path. Handle authentication
    challenges explicitly. Reject unexpected auth realms, private-network targets,
    unsafe redirects, assessment routes, form actions and external-tool launches.
    Never forward Canvas authorization or external-site credentials elsewhere.
-5. Add typed PDF and DOCX readers for linked documents; retain unsupported media
+5. Planned: add typed PDF and DOCX readers for linked documents; retain unsupported media
    as references. Dynamic/authenticated pages that cannot be read safely remain
    visible coverage gaps, with the original source link.
-6. Keep each source's content hash, URL, retrieval time, course, title, extraction
-   status and previous version. A failed refresh retains last known content.
+   Images and embedded media are listed as uncollected references, never loaded
+   automatically or represented as having been understood from nearby text.
+6. Keep each source's stable URL-based identity, retrieval time, course, title,
+   extraction status and previous version. Compare content on each refresh;
+   changed schedules appear in the diff. A failed refresh retains stale content.
+
+The Node HTTPS transport has no Canvas cookie jar or token. Resolve only public
+network addresses and pin each socket lookup to the checked result; TLS certificate
+verification remains enabled. Every redirected URL is checked again. Authorization
+starts empty and is sent only after a matching Basic realm challenge inside the
+configured origin/path. Never submit HTML forms or execute website scripts.
+Stop a site's crawl at the first failed login. Once saved credentials are rejected,
+later refreshes do not retry them; a new explicit website login is required. This
+avoids repeated failed attempts across queued lecture pages.
+
+Account-bound site records live under private app storage/course-websites.
+Credentials use Windows safeStorage and cannot be transmitted for a new login
+unless encryption succeeds first. The renderer receives connection metadata only.
+Request intent/outcome records are flushed under course-websites/request-audit;
+they contain no headers, query strings, bodies or exception details. Failed audit
+intent prevents the request. Ordinary website GETs can still create server access
+logs; this is not a guarantee that arbitrary remote servers are side-effect-free.
 
 
 Reconciliation
@@ -74,3 +108,11 @@ Acceptance checks
 - A changed schedule appears in the next same-week diff; notes remain untouched.
 - Optional and tentative labels survive extraction and guide generation.
 - No POST, form submission, quiz launch or module-completion request is made.
+
+These checks pass in unit fixtures, the synthetic desktop flow (using actual
+Windows encryption), and a local HTTPS transport fixture. The latter trusts only
+its ephemeral certificate and maps an inspected public-host request to localhost
+inside the test adapter; it does not weaken production TLS or DNS rules. It tests
+GET/auth sequencing, rejected redirects/private DNS, oversized responses and
+cancellation. No live Canvas or university website request was needed for these
+checks. Full institutional-site compatibility remains unverified.

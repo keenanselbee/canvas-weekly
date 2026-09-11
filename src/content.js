@@ -1,4 +1,4 @@
-import { parseFragment } from 'parse5';
+import { parse, parseFragment, serialize } from 'parse5';
 import { blockedAssessmentUrl } from './canvas-client.js';
 
 export function extractHtml(value = '') {
@@ -28,6 +28,25 @@ export function redactCredentials(value) {
 }
 
 export function plainText(value) { return extractHtml(value).text; }
+
+export function extractDocument(value, isPlainText = false) {
+  if (isPlainText) return { title: '', text: redactCredentials(value), links: [], media: [], passwordForm: false };
+  const document = parse(String(value));
+  const nodes = [];
+  const stack = [document];
+  while (stack.length) {
+    const node = stack.pop(); nodes.push(node);
+    for (const child of [...(node.childNodes || [])].reverse()) stack.push(child);
+  }
+  const passwordForm = nodes.some(node => node.tagName === 'input' && node.attrs?.some(attr => attr.name === 'type' && attr.value.toLowerCase() === 'password'));
+  const title = nodes.find(node => node.tagName === 'h1') || nodes.find(node => node.tagName === 'title');
+  const body = nodes.find(node => node.tagName === 'main') || nodes.find(node => node.tagName === 'body') || document;
+  const media = nodes.filter(node => ['img', 'video', 'audio', 'source', 'iframe', 'embed', 'object'].includes(node.tagName))
+    .map(node => node.attrs?.find(attr => attr.name === (node.tagName === 'object' ? 'data' : 'src'))?.value).filter(Boolean);
+  // Never include form values or navigation chrome as course instructions.
+  for (const node of nodes) if (node.childNodes) node.childNodes = node.childNodes.filter(child => !['form', 'input', 'button', 'nav', 'footer'].includes(child.tagName));
+  return { ...extractHtml(serialize(body)), title: title ? plainText(serialize(title)) : '', media, passwordForm };
+}
 
 export function referenceUrl(value, origin) {
   if (typeof value !== 'string' || !value.trim()) return null;
