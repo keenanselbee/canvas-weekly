@@ -363,3 +363,13 @@ Work log
   bundled Codex initialization and theme/restart checks pass. No real Canvas
   collection or planning request was made. Test profiles and source-review
   downloads remain in ignored .codex-temp.
+- 2026-09-10: Replaced the offline enrollment preflight candidate after source
+  review showed that course-roster visibility can hide concluded/inactive roles
+  even when the query explicitly requests them. The replacement reads the bound
+  user's own paginated enrollments for one course with current/concluded filters
+  disabled. Validation binds the parent user and each node's course, rejects the
+  old response shape, and preserves all raw states and conflicting roles. The
+  pinned schema accepts the replacement query. Seven enrollment tests and the
+  full unit suite pass. Documented why the limited GraphQL permission fields and
+  REST permissions controller do not yet resolve the remaining privilege review.
+  No production request admission, real account request or guide rewrite occurred.

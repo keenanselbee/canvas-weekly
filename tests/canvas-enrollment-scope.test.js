@@ -4,8 +4,9 @@ import { validateEnrollmentScopePages } from '../src/canvas-enrollment-scope.js'
 
 const scope = { courseId: '1', studentId: '99' };
 const enrollment = (id = '10', changes = {}) => ({ _id: id, userId: '99', type: 'StudentEnrollment', state: 'active',
+  course: { _id: '1' },
   courseSectionId: '2', limitPrivilegesToCourseSection: false, role: { _id: '3', name: 'StudentEnrollment' }, ...changes });
-const page = (nodes = [enrollment()], after = null, next = null) => ({ after, response: { data: { course: { _id: '1',
+const page = (nodes = [enrollment()], after = null, next = null) => ({ after, response: { data: { user: { _id: '99',
   enrollmentsConnection: { nodes, pageInfo: { hasNextPage: next !== null, endCursor: next } } } } } });
 
 test('enrollment evidence preserves multi-section and conflicting roles without granting admission', () => {
@@ -21,12 +22,13 @@ test('enrollment evidence preserves multi-section and conflicting roles without 
   assert.equal(result.enrollments[3].role.name, 'Custom student');
   assert.deepEqual(Object.keys(result), ['courseId', 'studentId', 'enrollments']);
   assert.throws(() => { result.enrollments[0].role.name = 'Changed'; }, TypeError);
-  pages[0].response.data.course.enrollmentsConnection.nodes[0].role.name = 'Changed';
+  pages[0].response.data.user.enrollmentsConnection.nodes[0].role.name = 'Changed';
   assert.equal(result.enrollments[0].role.name, 'StudentEnrollment');
 });
 
 test('missing or malformed enrollment fields and foreign identities fail closed', () => {
   for (const change of [{ _id: null }, { _id: 10 }, { userId: '100' }, { userId: null }, { type: 'UnknownEnrollment' },
+    { course: null }, { course: { _id: '2' } }, { course: { _id: 1 } },
     { state: 'pending' }, { courseSectionId: null }, { limitPrivilegesToCourseSection: null }, { role: null },
     { role: { _id: '3', name: '' } }, { role: { _id: null, name: 'StudentEnrollment' } }]) {
     assert.throws(() => validateEnrollmentScopePages([page([enrollment('10', change)])], scope), /unavailable or incomplete/);
@@ -47,13 +49,24 @@ test('all raw enrollment states remain visible to later permission review', () =
 });
 
 test('partial GraphQL results and empty evidence never establish a scope', () => {
-  for (const response of [null, {}, { data: { course: null } }, { data: { course: { _id: '1', enrollmentsConnection: null } } }]) {
+  for (const response of [null, {}, { data: { user: null } }, { data: { user: { _id: '99', enrollmentsConnection: null } } },
+    { data: { course: { _id: '1', enrollmentsConnection: page().response.data.user.enrollmentsConnection } } }]) {
     assert.throws(() => validateEnrollmentScopePages([{ after: null, response }], scope));
   }
   const partial = page(); partial.response.errors = [{ message: 'private upstream detail' }];
   assert.throws(() => validateEnrollmentScopePages([partial], scope), error => !error.message.includes('private upstream detail'));
   assert.throws(() => validateEnrollmentScopePages([page([])], scope));
   assert.throws(() => validateEnrollmentScopePages([], scope));
+});
+
+test('self-enrollment evidence requires the bound user on every page', () => {
+  const foreign = page([enrollment('11')], 'next');
+  foreign.response.data.user._id = '100';
+  assert.throws(() => validateEnrollmentScopePages([page([enrollment()], null, 'next'), foreign], scope));
+  const missing = page(); delete missing.response.data.user._id;
+  assert.throws(() => validateEnrollmentScopePages([missing], scope));
+  const foreignCourse = page([enrollment('11', { course: { _id: '2' } })], 'next');
+  assert.throws(() => validateEnrollmentScopePages([page([enrollment()], null, 'next'), foreignCourse], scope));
 });
 
 test('pagination rejects missing, additional, repeated and mismatched pages', () => {

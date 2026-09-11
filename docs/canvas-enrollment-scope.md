@@ -36,23 +36,49 @@ Do not add it to the allowlist merely because the route contains users/self.
 Minimal field-query candidate
 ----------------------------
 
-[canvas-enrollment-scope.graphql](canvas-enrollment-scope.graphql) requests only
-the bound user's enrollments in one selected course. It explicitly includes all
-seven states in the pinned EnrollmentWorkflowState enum, avoids a type filter,
-and paginates. It selects enrollment/user/section identifiers, workflow state,
-type, section restriction and role identity. It selects no user object, grades,
-scores, submissions, course progress, lock state or assessment contents.
+[canvas-enrollment-scope.graphql](canvas-enrollment-scope.graphql) now starts at
+user(id: $studentId), bound to the verified signed-in user. Its
+enrollmentsConnection fixes courseId, currentOnly: false and excludeConcluded:
+false, omits role/type filters and paginates. It selects the parent user ID and
+each enrollment's user/course/section IDs, raw workflow state, type, section
+restriction and role identity. It selects no profile details, grades, scores,
+submissions, course progress, lock state or assessment contents.
 
 The query validates against the pinned schema using GraphQL.js 16.11.0. Schema
 validation establishes syntax/type compatibility only. It is not registered in
 canvas-metadata.js or admitted by CanvasNetwork/CanvasMetadataTransport.
 
-CourseType.enrollments_connection requires at least one of read_roster,
-view_all_grades or manage_grades. It applies course enrollment visibility, then
-the supplied state/user filters. A denied or null connection must stop preflight;
-do not ask for additional privileges to obtain it. All returned user IDs must
-match the verified account despite the server-side filter.
-[Course resolver](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/types/course_type.rb).
+The former course-rooted query was unsuitable for complete role evidence.
+CourseType.enrollments_connection requires read_roster, view_all_grades or
+manage_grades and applies enrollment visibility before state/user filters.
+Course.apply_enrollment_visibility can remove concluded and inactive rows for
+limited visibility even when filters explicitly request those states. Listing
+every state does not undo that earlier restriction. That query is replaced,
+not retained as a fallback.
+[Course resolver](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/types/course_type.rb),
+[Visibility implementation](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/course.rb).
+
+UserType.enrollments_connection takes a distinct self-user branch. It selects
+object.enrollments across in-region associated shards, joins courses, applies
+the course ID and orders by enrollment ID. With both boolean filters false and
+no type filter, this branch does not exclude concluded, inactive or deleted
+enrollment rows. It does not invoke Course.section_visibilities_for. The direct
+User.enrollments association has no workflow-state scope in the pinned model.
+Missing joined course records cannot appear; the query is for one existing
+selected course, and every returned node must identify that course explicitly.
+[User resolver](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/types/user_type.rb),
+[User associations and shard helpers](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/user.rb).
+
+The self-user branch depends on a current verified identity, not merely a valid
+ID. A switched administrator account could read another user's enrollments;
+matching response IDs alone cannot detect that. The existing session watcher
+and profile verification remain necessary, with their documented limitations.
+GraphQLNodeLoader checks read_full_profile/read before its explicit self-user
+fallback. Those account-policy dependencies are not bypassed by moving to this
+query. The nested course selection loads only the association and legacy ID.
+Authentication, inherited model hooks and institution-specific behavior still
+belong in the complete-path review.
+[Node loader](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/graphql_node_loader.rb).
 
 The selected Enrollment fields read attributes or the role association. The _id
 and userId resolvers pass through unless_hiding_user_for_anonymous_grading. That
@@ -62,18 +88,18 @@ sets that context. A hidden/null identifier must still fail validation.
 [Enrollment fields](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/types/enrollment_type.rb),
 [Anonymous-grading helper](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/graphql_helpers/anonymous_grading.rb).
 
-Visibility boundary
--------------------
+Why the old visibility path stays excluded
+-----------------------------------------
 
 Course.section_visibilities_for reads the current user's enrollment rows and
-constructs section/type/admin descriptors. It includes concluded roles by default
+constructs section/type/admin descriptors. It loads concluded roles by default
 and treats temporary enrollments separately using their enrollment state.
 enrollment_visibility_level_for calculates full, limited, section or restricted
 visibility from role/permission checks. apply_enrollment_visibility adds SQL
 conditions; the query's final user-ID restriction narrows those results to self.
-These functions contain no explicit progression evaluation or enrollment change,
-but that does not establish the same property for their getters. A returned list
-is constrained by visibility, not a universal account-role audit.
+That does not mean the final roster includes all those rows: subsequent visibility
+filters can remove them. The new self-enrollment query avoids this roster path;
+assignment date overrides can still reach section visibility independently.
 
 Enrollment-state dependency findings
 -----------------------------------
@@ -102,8 +128,9 @@ that all enrollment reads are harmless or all enrollment reads change accounts.
 Enrollment.has_permission_to? delegates to RoleOverride.enabled_for? and caches
 the result in memory. Course.cached_account_users_for reads account memberships
 through a Rails cache; account_membership_allows then invokes AccountUser's
-permission helpers. Those helpers and selected registry callbacks still need
-review. These findings retain the production hold.
+permission helpers. The reviewed account-membership helpers are recorded in the
+[permission review](canvas-metadata-permissions-review.md). Remaining selected
+dependencies and account-wide privilege classification retain the production hold.
 
 Offline response validation
 ---------------------------
@@ -111,7 +138,7 @@ Offline response validation
 src/canvas-enrollment-scope.js validates already-decoded synthetic responses. It
 has no request builder, transport, production registration or authorization result.
 Every page is paired with its requested cursor; the validator requires a complete
-chain, bound course/user IDs, known raw states/types and explicit role/section
+chain, the bound parent user and each node's course/user IDs, known raw states/types and explicit role/section
 fields. It rejects partial GraphQL errors, missing/duplicate identities, cursor
 cycles, empty evidence, excess pages/nodes/bytes and cancellation. Errors exclude
 upstream text. Output copies and freezes selected fields only.
@@ -124,8 +151,10 @@ future transport must enforce request/stream/time limits before decoding; this
 validator's decoded-size checks do not replace that boundary. No evidence is
 persisted, exported or sent to the planner by this module.
 
-Six synthetic tests cover these conditions, including multiple sections and a
-completed teaching role. Runtime admission and permission classification remain
+Seven synthetic tests cover these conditions, including multiple sections, a
+completed teaching role, switched parent identities and foreign-course nodes on
+later pages. Responses shaped like the withdrawn course-rooted query are rejected.
+Runtime admission and permission classification remain
 unimplemented until the dependency review is resolved.
 
 Acceptance and remaining work

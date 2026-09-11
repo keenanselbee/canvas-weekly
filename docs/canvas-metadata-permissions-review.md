@@ -137,6 +137,56 @@ text search. Temporary pinned sources remain under .codex-temp/graphql-review.
 [Role](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/role.rb).
 
 
+Enrollment and permission-query decision (2026-09-10)
+---------------------------------------------------
+
+The course roster query cannot prove a user's complete course-role history:
+apply_enrollment_visibility can remove inactive/concluded enrollments before the
+query's explicit state filter. The enrollment candidate now uses the self-user
+connection, which avoids that roster-visibility branch and includes a course ID
+on each node. The [updated enrollment review](canvas-enrollment-scope.md) records
+the selected resolver and remaining identity/account-policy dependencies.
+
+Course.permissions in the pinned GraphQL schema exposes becomeUser, manageGrades,
+sendMessages, viewAllGrades and viewAnalytics. It exposes neither readAsAdmin nor
+the granular assignment/content permissions. False grade permissions alone cannot
+establish absence of the rights used by differentiated assignment visibility.
+Do not treat this field as a complete privilege preflight.
+
+The REST course permissions endpoint accepts selected permission names, but
+CoursesController.permissions calls get_context. For a course, that populates
+@context_enrollment; the controller's update_enrollment_last_activity_at hook
+then has an enrollment to pass to RecentActivity.record_for_access. This is a
+different controller path from the reviewed context-free GraphQL POST. It is not
+an admitted substitute for the missing GraphQL permission fields. Whether a
+particular response reaches a persistent activity write depends on that helper;
+no live request was used to test it.
+[Course controller](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/controllers/courses_controller.rb),
+[Context and activity hooks](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/controllers/application_controller.rb).
+
+The override helpers reviewed in this pass select existing adhoc, group, tag,
+observer, section and course overrides and apply dates to a readonly clone.
+preload_for_nonactive_enrollment assigns an in-memory flag from enrollment
+workflow rows. user_has_been_admin? and user_has_no_enrollments? use existing
+enrollments and cached existence checks. The lenient administrator-date branch
+requires prior administrator enrollment or no course enrollment, plus granular
+assignment-management permission. Verified student-only enrollment evidence
+therefore addresses that branch; it does not by itself close assignment
+visibility's separate account-permission checks. Section visibility's temporary
+enrollment-state getter remains a separate dependency.
+[Override implementation](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/lib/assignment_override_applicator.rb).
+
+An additional inventory of 26 inherited concerns found no declarations of
+after_find or after_initialize. Reviewed inclusion blocks in ContextModuleItem,
+HasContentTags, LinkedAttachmentHandler, Plannable, Scannable, SmartSearchable,
+MasterCourses::Restrictor, Workflow and SimplyVersioned register associations,
+validation/save/commit hooks or explicit methods. Those declarations do not make
+a selected read call their save hooks. FeatureFlags.persist_result reports
+metrics and can publish sampled analytics; its name does not imply a coursework
+save. This remains a bounded source review: selected overridden getters, other
+concerns and institutional extensions are not certified by a callback-name search.
+Temporary sources are cached as concern--*.rb under .codex-temp/graphql-review.
+
 Remaining review before production admission
 -------------------------------------------
 

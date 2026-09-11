@@ -31,8 +31,8 @@ export function validateEnrollmentScopePages(pages, { courseId, studentId, signa
     bytes += length;
     if (length > 2 * 1024 * 1024 || bytes > 16 * 1024 * 1024 || !object(value)
       || (value.errors !== undefined && (!Array.isArray(value.errors) || value.errors.length))
-      || !object(value.data?.course) || value.data.course._id !== courseId) throw new Error(unavailable);
-    const connection = value.data.course.enrollmentsConnection;
+      || !object(value.data?.user) || value.data.user._id !== studentId) throw new Error(unavailable);
+    const connection = value.data.user.enrollmentsConnection;
     if (!object(connection) || !Array.isArray(connection.nodes) || connection.nodes.length > 100
       || !object(connection.pageInfo) || typeof connection.pageInfo.hasNextPage !== 'boolean'
       || !validCursor(connection.pageInfo.endCursor)) throw new Error(unavailable);
@@ -41,7 +41,8 @@ export function validateEnrollmentScopePages(pages, { courseId, studentId, signa
     if (hasNextPage !== (index < pages.length - 1)) throw new Error(unavailable);
     for (const node of connection.nodes) {
       if (!object(node) || !validId(node._id) || identities.has(node._id)
-        || node.userId !== studentId || !types.has(node.type) || !states.has(node.state)
+        || node.userId !== studentId || !object(node.course) || node.course._id !== courseId
+        || !types.has(node.type) || !states.has(node.state)
         || !validId(node.courseSectionId) || typeof node.limitPrivilegesToCourseSection !== 'boolean'
         || !object(node.role) || !validId(node.role._id) || typeof node.role.name !== 'string'
         || !node.role.name.trim() || node.role.name.length > 256 || /[\u0000-\u001f\u007f]/.test(node.role.name)) throw new Error(unavailable);
