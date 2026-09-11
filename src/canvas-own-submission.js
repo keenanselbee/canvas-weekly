@@ -1,7 +1,7 @@
 import { parseMetadataDate } from './canvas-metadata.js';
 
-// Replacement candidate for the course-wide submission connection. No default
-// transport and no attempt/answer fields. Production collection remains paused.
+// Replacement for the rejected course-wide submission connection. No default
+// transport and no attempt/answer fields. See the bounded admission review.
 const query = `query CanvasWeeklyOwnSubmission($assignmentId: ID!, $studentId: ID!) {
   submission(assignmentId: $assignmentId, userId: $studentId) {
     _id assignmentId state cachedDueDate

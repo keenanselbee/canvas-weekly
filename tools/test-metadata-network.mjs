@@ -257,7 +257,7 @@ try {
   mode = 'student-only';
   const beforeBridge = received.length;
   const bridge = await application.evaluate(() => globalThis.metadataFixture.testConnectionBridge());
-  assert.deepEqual(bridge, { count: 1, pausedBeforeWatch: true, deniedOutsideRun: true, cancelledOnChange: true });
+  assert.deepEqual(bridge, { count: 1, holdBeforeWatch: true, deniedOutsideRun: true, cancelledOnChange: true });
   assert.deepEqual(received.slice(beforeBridge).map(request => request.method === 'GET' ? 'account' : JSON.parse(request.body).operationName),
     ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyOwnSubmission']);
   const beforeOwn = received.length;

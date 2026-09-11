@@ -514,3 +514,19 @@ Work log
   remains paused pending integrated admission and further course-content work.
   No real Canvas/AI requests, personal guide writes or package build ran. Ignored
   fixture profiles and logs remain under .codex-temp for inspection.
+- 2026-09-11: Completed the integrated bounded admission decision and enabled
+  manual metadata refresh through CanvasConnection. The legacy REST collector
+  remains disabled; the shared repair hold now belongs to the connection rather
+  than the withdrawn client. Added visible coverage limits to This week, the
+  connection panel and generated guides. Pinned the three reviewed query hashes
+  in an independent admission regression test. All 121 unit tests, actual local
+  Electron metadata networking, synthetic desktop refresh and connection-panel
+  tests pass. Inspected light/dark coverage screenshots. Built the unsigned
+  Windows installer and passed package tests for matching source/payload, no
+  private state, Desktop default, bundled Codex initialization, document workers,
+  themes and restart. Installer SHA256:
+  f54168ce809d939b4d17e56ad045b5056bda28108eec16809dc0b5effa54cba1.
+  No installer walkthrough, real Canvas/AI request or personal-guide update ran.
+  Live UBC compatibility and automatic Canvas instructions/materials/messages
+  remain incomplete; the broader goal is active. Fixture profiles/logs/screenshots
+  remain in ignored .codex-temp for inspection, and dist contains the local build.

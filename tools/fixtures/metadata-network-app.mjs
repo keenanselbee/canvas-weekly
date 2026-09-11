@@ -6,7 +6,6 @@ import { canvasSessionAuthentication } from '../../src/canvas-csrf.js';
 import { collectEnrollmentScope } from '../../src/canvas-enrollment-scope.js';
 import { collectStudentMetadata } from '../../src/canvas-student-collection.js';
 import { CanvasConnection } from '../../src/canvas-session.js';
-import { CanvasClient } from '../../src/canvas-client.js';
 import assert from 'node:assert/strict';
 
 // Standalone local fixture. Never load the production app or its saved profile.
@@ -47,16 +46,18 @@ globalThis.metadataFixtureReady = app.whenReady().then(async () => {
     const connection = new CanvasConnection({ directory: process.env.CANVAS_METADATA_TEST_DATA, settings, onChange: () => {} });
     connection.session.setCertificateVerifyProc((request, callback) => callback(request.hostname === '127.0.0.1' ? 0 : -3));
     connection.profile = { id: '99', globalId: '90099', name: 'Synthetic student' };
-    const paused = Object.getOwnPropertyDescriptor(CanvasClient.prototype, 'collectionIssue');
+    const paused = Object.getOwnPropertyDescriptor(CanvasConnection.prototype, 'collectionIssue');
     let watchCalls = 0;
     const watch = connection.watchSession.bind(connection);
     connection.watchSession = (...args) => { watchCalls++; return watch(...args); };
+    assert.equal(connection.collectionIssue, null, 'The reviewed metadata collector must be enabled');
+    Object.defineProperty(CanvasConnection.prototype, 'collectionIssue', { configurable: true, get: () => 'Synthetic refresh is paused' });
     await assert.rejects(connection.collectMetadata(), /refresh is paused/);
+    Object.defineProperty(CanvasConnection.prototype, 'collectionIssue', paused);
     assert.equal(watchCalls, 0, 'The connection method must honor the production hold before watching cookies');
     await connection.session.cookies.set({ url: origin, name: '_normandy_session', value: 'fixture-bridge-session', httpOnly: true, secure: true, path: '/' });
     await connection.session.cookies.set({ url: origin, name: '_csrf_token', value: encodeURIComponent(Buffer.alloc(64, 251).toString('base64')), secure: true, path: '/' });
-    // Test-process replacement only. No app setting or production switch exists.
-    Object.defineProperty(CanvasClient.prototype, 'collectionIssue', { configurable: true, get: () => null });
+    // The following run uses the real enabled getter and complete collector.
     try {
       const cookieListeners = connection.session.cookies.listenerCount('changed');
       const records = await connection.collectMetadata();
@@ -71,10 +72,10 @@ globalThis.metadataFixtureReady = app.whenReady().then(async () => {
       } }), { name: 'AbortError' });
       assert.match((await concurrent).message, /already running/);
       assert.equal(connection.session.cookies.listenerCount('changed'), cookieListeners);
-      return { count: records.length, pausedBeforeWatch: true, deniedOutsideRun: true, cancelledOnChange: true };
+      return { count: records.length, holdBeforeWatch: true, deniedOutsideRun: true, cancelledOnChange: true };
     } finally {
       connection.invalidate();
-      Object.defineProperty(CanvasClient.prototype, 'collectionIssue', paused);
+      Object.defineProperty(CanvasConnection.prototype, 'collectionIssue', paused);
     }
   };
   isolated.webRequest.onBeforeRequest((details, callback) => {

@@ -1,5 +1,6 @@
-// Candidate field-level collector. CanvasConnection can run it only after its
-// production hold is removed following the complete admission review.
+// Fixed field-level collector admitted by docs/canvas-metadata-admission.md.
+// This selection does not authorize instruction, module or assessment reads.
+export const METADATA_NOTICE = 'Canvas refresh checks assignments, stored deadlines and submission status. Course instructions and messages are not refreshed; check the marked gaps and last-known information.';
 const queries = Object.freeze({
   assignments: `query CanvasWeeklyAssignments($courseId: ID!, $after: String) {
   course(id: $courseId) {

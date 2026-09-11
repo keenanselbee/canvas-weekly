@@ -1,7 +1,10 @@
 Application architecture
 ========================
 
-Status: implementation target. See implementation-plan.md for delivered scope.
+Status: implementation target with delivered components tracked in implementation-plan.md.
+The admitted Canvas path is the fixed metadata collector described in
+[its admission decision](canvas-metadata-admission.md). Legacy REST body collection
+remains disabled; no general GraphQL or browser-action bridge is exposed.
 
 
 Decisions

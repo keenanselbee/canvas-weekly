@@ -1,6 +1,14 @@
 Canvas enrollment-scope review
 ==============================
 
+Current status, 2026-09-11: the fixed assignment/direct-submission metadata
+collector is admitted for manual refreshes under the
+[bounded admission decision](canvas-metadata-admission.md). Legacy REST body,
+module, quiz and Canvas file-content reads remain disabled. Historical pause
+references below describe earlier repair stages; they do not certify the old
+collector or establish unchanged account history. Full content collection and
+live institutional compatibility remain unfinished.
+
 Reviewed against upstream 1c9f0bb8013ed69c4f2efe11fd483025469b7e6c on
 2026-09-10. This is a preflight design, not production admission or a claim
 about UBC's deployed code. No authenticated request was made.

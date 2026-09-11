@@ -1,28 +1,21 @@
 Candidate Canvas metadata collector
 ===================================
 
-Status: query/parser and network components are implemented in canvas-metadata.js
-and canvas-metadata-transport.js. The CanvasConnection bridge and refresh handler
-are wired behind the production hold; no transport is created while it is paused.
-Live guide refresh remains paused. This is a component of the replacement collector,
-not a completed restoration of automatic collection.
+Status: the fixed metadata collector is enabled for manual refreshes after the
+[bounded admission decision](canvas-metadata-admission.md). CanvasConnection
+uses the verified session, preflights and assignment-bound direct lookups. The
+legacy REST collector remains disabled. The UI and exports identify limited
+coverage, retain last-known dates/content and request verification of gaps.
 
-The [admission decision](canvas-metadata-admission.md) withholds enablement:
-the course submission resolver can reach temporary enrollment-state creation
-through its elevated-permission branch. Separate preflight requests cannot
-freeze server-side roles. A direct self-submission component now binds each lookup
-to assignment IDs actually read by its transport and the verified student. Its
-fallback policies and local tests are documented in the admission decision.
-Collection orchestration now uses these direct lookups. The old course-wide
-query and its network/audit admission were removed. Production remains paused
-pending the integrated admission decision; this change does not complete the
-requested instructions/materials/messages collection.
+The course-wide submission query was removed because its elevated-permission
+branch can create enrollment-state records. Direct lookups avoid that branch.
+The [stored deadline review](canvas-planner-review.md) explains why assignment
+override dates and Planner are excluded. Full instructions/materials/messages
+collection and live institutional validation remain incomplete.
 
-The [Planner and stored deadline review](canvas-planner-review.md) identifies
-cachedDueDate on self-scoped submissions as the revised date source.
-Planner itself still reaches the enrollment-state getter through calendar
-section visibility. The isolated implementation now removes assignment override
-date fields and reads stored student deadlines instead; production remains paused.
+The sections below record the successive implementation and review milestones.
+References to a production hold describe historical stages; the linked admission
+decision is authoritative for the current fixed selection.
 
 Findings
 --------

@@ -186,7 +186,7 @@ else {
     handle('guide:update', async () => {
       requireIdle();
       // Check before profile verification or any other network/storage action.
-      const collectionIssue = canvas.client().collectionIssue;
+      const collectionIssue = canvas.collectionIssue;
       if (collectionIssue) throw new Error(collectionIssue);
       if (!canvas.profile) throw new Error('Connect Canvas before updating your guide.');
       if (!store.value.selectedCourseIds.length) throw new Error('Choose at least one course first.');

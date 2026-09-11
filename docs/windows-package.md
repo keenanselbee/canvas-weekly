@@ -70,3 +70,21 @@ Remaining release checks
 Unsigned builds have no verified publisher identity and may receive Windows
 reputation prompts. No Windows security settings are changed by the build/test
 workflow. ARM64 and other operating systems have not been packaged or verified.
+
+Current validated build (2026-09-11)
+----------------------------------
+
+The local unsigned metadata-refresh build passed test:package with an isolated
+profile. The test verifies the installer payload against win-unpacked and current
+source, private-state exclusions, bundled Codex initialization, PDF/Word workers,
+Desktop output default, appearance and restart persistence. The installer remains
+uninstalled by this milestone; human installer flow and live account use are not
+covered by the smoke test. The default Electron icon is still used.
+
+Artifact: dist/Canvas-Weekly-0.1.0-x64-Setup.exe
+
+SHA256: f54168ce809d939b4d17e56ad045b5056bda28108eec16809dc0b5effa54cba1
+
+This build enables only the reviewed Canvas metadata refresh. It does not restore
+withdrawn instruction/module/assessment/file-content reads. See the
+[admission decision](canvas-metadata-admission.md) for the exact supported scope.

@@ -10,6 +10,7 @@ import { canvasResponseIdentity } from './canvas-identity.js';
 import { CanvasMetadataTransport } from './canvas-metadata-transport.js';
 import { canvasSessionAuthentication } from './canvas-csrf.js';
 import { collectStudentMetadata } from './canvas-student-collection.js';
+import { METADATA_NOTICE } from './canvas-metadata.js';
 
 export class CanvasConnection {
   #metadataTransport = null;
@@ -36,7 +37,8 @@ export class CanvasConnection {
       callback({ cancel: !(this.#metadataTransport?.allows(details) || this.network.allows(details)) });
     });
   }
-  get status() { return { connected: Boolean(this.profile), name: this.profile?.name || null, connecting: Boolean(this.loginWindow), error: this.connectionError, collectionIssue: this.client().collectionIssue }; }
+  get collectionIssue() { return null; }
+  get status() { return { connected: Boolean(this.profile), name: this.profile?.name || null, connecting: Boolean(this.loginWindow), error: this.connectionError, collectionIssue: this.collectionIssue, collectionNotice: METADATA_NOTICE }; }
   invalidate() {
     this.lifetime.abort(new DOMException('Canvas connection changed. Start again with the current account.', 'AbortError'));
     this.lifetime = new AbortController();
@@ -110,9 +112,9 @@ export class CanvasConnection {
       }, audit: event => this.audit.write(event) });
   }
   async collectMetadata({ signal, onProgress = () => {} } = {}) {
-    // Keep a second hold here: direct callers must not bypass guide:update's
-    // production guard. No watcher, credentials, audit or request starts first.
-    const issue = this.client().collectionIssue;
+    // Share any collection hold with guide:update. The legacy REST collector
+    // remains disabled; only the fixed metadata transport below is admitted.
+    const issue = this.collectionIssue;
     if (issue) throw new Error(issue);
     if (this.#metadataRunning) throw new Error('A Canvas collection is already running.');
     const binding = this.capture();

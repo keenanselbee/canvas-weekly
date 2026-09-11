@@ -43,7 +43,9 @@ function renderConnections() {
     element.textContent = connection.connecting ? 'Signing in…' : connection.connected ? 'Connected' : 'Not connected';
     element.dataset.status = connection.connecting ? 'connecting' : connection.connected ? 'connected' : 'disconnected';
   }
-  document.querySelector('#canvas-collection-status').hidden = !state.canvas.collectionIssue;
+  const collectionStatus = document.querySelector('#canvas-collection-status');
+  collectionStatus.hidden = !state.canvas.collectionIssue && !(state.canvas.connected && state.canvas.collectionNotice);
+  collectionStatus.textContent = state.canvas.collectionIssue ? 'Refresh paused' : 'Limited Canvas coverage';
   document.querySelector('#suggestions-status').textContent = state.settings.aiEnabled ? (state.ai.connected ? 'On' : 'Sign in') : 'Off';
   const usage = state.ai.usage;
   const tokens = usage?.tokens;
@@ -98,6 +100,10 @@ function renderWeek() {
     const safety = card('Canvas refresh paused');
     safety.append(node('p', '', state.canvas.collectionIssue));
     main.append(safety);
+  } else if (state.canvas.connected && state.canvas.collectionNotice) {
+    const coverage = card('Check source coverage');
+    coverage.append(node('p', '', state.canvas.collectionNotice));
+    main.append(coverage);
   }
   if (state.guide) { renderGuide(); return; }
   const welcome = card();

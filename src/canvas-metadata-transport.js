@@ -50,7 +50,7 @@ function requireEmptyAccountPage(data, headers, origin) {
 }
 
 // CanvasConnection creates this transport only inside its guarded metadata run.
-// The production refresh hold remains in force before any transport is created.
+// The fixed metadata path is admitted; unrelated Canvas reads stay excluded.
 // Create one instance per course collection using a verified account binding.
 export class CanvasMetadataTransport {
   #assignmentIds = new Set();

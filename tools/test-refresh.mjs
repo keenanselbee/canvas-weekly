@@ -57,6 +57,12 @@ try {
     await window.canvasWeekly.selectCourses(['1']);
     await window.canvasWeekly.chooseOutput();
   });
+  await application.evaluate((_electron, moduleUrl) => {
+    const require = process.getBuiltinModule('module').createRequire(moduleUrl);
+    const { CanvasConnection } = require('./canvas-session.js');
+    globalThis.originalCollectionIssue = Object.getOwnPropertyDescriptor(CanvasConnection.prototype, 'collectionIssue');
+    Object.defineProperty(CanvasConnection.prototype, 'collectionIssue', { configurable: true, get: () => 'Synthetic Canvas refresh is paused' });
+  }, new URL('../src/canvas-session.js', import.meta.url).href);
   await page.reload();
   await page.getByRole('heading', { name: 'Canvas refresh paused', exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Update guide', exact: true }).isDisabled(), true);
@@ -69,13 +75,11 @@ try {
   // test-process replacement is not a production flag or permission bypass.
   await application.evaluate((_electron, moduleUrl) => {
     const require = process.getBuiltinModule('module').createRequire(moduleUrl);
-    const { CanvasClient } = require('./canvas-client.js');
     const { CanvasConnection } = require('./canvas-session.js');
-    globalThis.originalCollectionIssue = Object.getOwnPropertyDescriptor(CanvasClient.prototype, 'collectionIssue');
     globalThis.originalCollect = CanvasConnection.prototype.collectMetadata;
     const capture = CanvasConnection.prototype.capture;
     CanvasConnection.prototype.capture = function (...args) { globalThis.syntheticConnection = this; return capture.apply(this, args); };
-    Object.defineProperty(CanvasClient.prototype, 'collectionIssue', { configurable: true, get: () => null });
+    Object.defineProperty(CanvasConnection.prototype, 'collectionIssue', globalThis.originalCollectionIssue);
     CanvasConnection.prototype.collectMetadata = async function ({ signal } = {}) { signal?.throwIfAborted(); return structuredClone(globalThis.syntheticRecords); };
   }, new URL('../src/canvas-client.js', import.meta.url).href);
   await page.reload();
@@ -287,14 +291,13 @@ try {
   }
   await application.evaluate((_electron, moduleUrl) => {
     const require = process.getBuiltinModule('module').createRequire(moduleUrl);
-    const { CanvasClient } = require('./canvas-client.js');
     const { CanvasConnection } = require('./canvas-session.js');
-    Object.defineProperty(CanvasClient.prototype, 'collectionIssue', globalThis.originalCollectionIssue);
+    Object.defineProperty(CanvasConnection.prototype, 'collectionIssue', globalThis.originalCollectionIssue);
     CanvasConnection.prototype.collectMetadata = globalThis.originalCollect;
   }, new URL('../src/canvas-client.js', import.meta.url).href);
   await page.reload();
-  await page.getByRole('heading', { name: 'Canvas refresh paused', exact: true }).waitFor();
-  assert.equal(await page.getByRole('button', { name: 'Update guide', exact: true }).isDisabled(), true);
+  await page.getByRole('heading', { name: 'Check source coverage', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Update guide', exact: true }).isDisabled(), false);
   const beforeOfflineOpen = await application.evaluate(() => globalThis.syntheticRequestCount);
   await page.evaluate(() => window.canvasWeekly.openGuide());
   assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeOfflineOpen);
@@ -302,7 +305,7 @@ try {
     await page.evaluate(theme => window.canvasWeekly.setTheme(theme), theme);
     await page.locator(`html[data-theme="${theme}"]`).waitFor();
     await page.locator('main').evaluate(node => { node.scrollTop = 0; });
-    await page.screenshot({ path: `.codex-temp/visual/refresh-paused-${theme}.png` });
+    await page.screenshot({ path: `.codex-temp/visual/refresh-coverage-${theme}.png` });
   }
   await application.evaluate(({ session }) => {
     session.fromPartition('persist:canvas').fetch = async () => new Response('', { status: 401 });
@@ -322,6 +325,6 @@ try {
   assert.deepEqual(switched.settings.selectedCourseIds, []);
   assert.equal(switched.guide, null);
   assert.deepEqual(switched.websites, []);
-  console.log('Desktop checks passed: production refresh hold, synthetic profile/website connections, encrypted website login, in-memory course evidence (not Canvas collection), study plan, persistent local checkmarks, offline Open guide, preserved notes, login errors, account-switch isolation and discarded collection after connection change.');
+  console.log('Desktop checks passed: shared refresh hold, enabled metadata coverage notice, synthetic profile/website connections, encrypted website login, in-memory course evidence (not Canvas collection), study plan, persistent local checkmarks, offline Open guide, preserved notes, login errors, account-switch isolation and discarded collection after connection change.');
   await page.evaluate(() => window.canvasWeekly.disconnectCanvas());
 } finally { await application.close(); }

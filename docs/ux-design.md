@@ -17,8 +17,9 @@ into the reading experience.
 The sidebar footer separates Canvas and ChatGPT connection states, with Codex as
 secondary connection detail. A separate study-suggestions row shows Off, On or
 Sign in; connection alone does not imply permission to send course text. The
-Connections header opens Settings. A paused Canvas refresh remains visible even
-when signed in. Both text and checkmarks convey connection status.
+Connections header opens Settings. Limited Canvas coverage stays visible when
+connected, with a source-coverage explanation on This week. A future collection
+hold must remain visible even when signed in. Both text and checkmarks convey connection status.
 
 AI tokens shows the latest reported planning-run total in the current app session,
 with an expandable input/output/cache/reasoning breakdown. No report displays a

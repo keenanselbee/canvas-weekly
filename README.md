@@ -1,8 +1,8 @@
 # Canvas Weekly
 
-Canvas Weekly is a planned Codex-operated course information collector and weekly
-study guide. Canvas access is strictly for gathering information, never completing
-or interacting with assessments.
+Canvas Weekly is a Windows desktop app for weekly study guides and personal
+preparation checklists. Canvas access gathers information; it never starts or
+resumes assessments, submits work, or sends messages.
 
 See [the product plan](PRODUCT_PLAN.md) for the proposed end-user experience,
 delivery options, architecture, milestones, and acceptance criteria.
@@ -17,25 +17,24 @@ artifact paths, installation behavior and remaining release checks.
 
 ## Current implementation
 
-**Canvas refresh is temporarily paused for a safety repair.** A deeper upstream
-review found that page-body responses can mark module items read, while permission
-checks can create progression records. Update guide is disabled and its IPC action
-fails before any network access. Saved guides, local checkmarks and Open guide
-remain available. Do not treat the last saved scan as current. See the
-[read-boundary review](docs/canvas-read-boundary.md) for the finding and replacement
-collector acceptance criteria. This is an unresolved release requirement.
-An isolated [metadata collector candidate](docs/canvas-metadata-design.md) now has
-fixed, schema-validated queries and a bounded transport tested against local
-HTTPS. Guide reconciliation distinguishes fresh deadlines from last-known
-instructions and unknown submission states. Connection and refresh wiring now
-exist behind the production pause; remaining permission review and institutional
-validation are still pending.
+**Manual Canvas refresh now uses a limited, reviewed metadata collector.** It
+collects assignment names, points/types, stored student deadlines and submission
+status through fixed queries. The earlier course-wide submission query and REST
+body collector remain disabled. See the [admission decision](docs/canvas-metadata-admission.md)
+for the selected source paths, request limits and institutional assumptions.
+
+The app labels coverage gaps. Missing submission records remain unknown; missing
+deadlines retain any last-known date and its original age, with verification tasks.
+Instructions, Canvas materials and course messages are not refreshed by this
+collector. Connected external course websites remain a separate supported source.
+Full automatic course-content collection and live UBC compatibility are still
+unresolved release requirements. Tests use isolated local fixtures, not your account.
 
 The Electron desktop shell is implemented with This week, Courses and Settings,
 an explicitly labeled sample guide, native output folder selection, and persisted
 System/Light/Dark appearance. Canvas browser sign-in, optional encrypted API token
 connection and course selection are implemented. The earlier REST collector is
-withdrawn pending a reviewed replacement.
+withdrawn; it is not used by the metadata replacement.
 A live four-course collection has saved 65 assessment records with explicit
 source gaps. Markdown, standalone HTML and Word guides, in-app reading, same-week
 updates, revisions, separate student notes and change reporting are implemented.
@@ -51,8 +50,8 @@ so they remain blocked; see [file access review](docs/canvas-file-access.md) and
 
 Safety audit follow-up: module and module-item reads are now disabled because
 Canvas can create or update student progression during these GET requests.
-The previous collector retained old module evidence as stale. All guide scans are
-now paused after the broader authorization/serialization review.
+Old module evidence remains stale. The replacement metadata selection avoids
+the withdrawn progression/lock paths; it does not restore module collection.
 The earlier live run cannot be certified unchanged: no before/after account
 baseline or complete request ledger was recorded. See the
 [safety audit](docs/safety-audit.md) for evidence and remaining repairs.

@@ -1,12 +1,68 @@
 Canvas metadata admission decision
 ==================================
 
-Decision, 2026-09-11: retain the production hold. The course-wide submission
-query was rejected because elevated permissions can reach an enrollment-state
-write path; separate preflights cannot make that branch unreachable. The query
-has now been removed from collection, body admission and audit admission, and
-replaced with assignment-bound direct lookups. The integrated admission decision
-and full instructions/materials/messages collector remain outstanding.
+Decision, 2026-09-11: admit the fixed metadata collector for manual guide
+refreshes. The course-wide submission query was removed in 999c0ad and cannot be
+constructed, collected or admitted by the current transport. The replacement
+reads existing submissions for freshly observed assignments and the bound user.
+This decision restores assignment metadata, stored student deadlines and status;
+it does not complete or authorize automatic instruction/material/message reads.
+
+Integrated evidence and boundary
+--------------------------------
+
+| Request stage | Evidence | Admission |
+| --- | --- | --- |
+| Profile/session and selected courses | Existing identity validation, stock session-cookie watcher, account-change invalidation and fixed GET admission | Existing connection operations; authentication/access bookkeeping is not promised to be write-free |
+| GET /api/v1/accounts?per_page=1 | Fixed empty-membership preflight, bounded account serializer/policy/model review | Accept only empty negative evidence; stop on errors, nonempty results or pagination contradictions |
+| CanvasWeeklyEnrollmentScope | Self-user lookup, selected permission dispatch and preflight model review; complete enrollment pagination | Bound self/course IDs and stock StudentEnrollment roles; reject mixed/custom/test-student roles |
+| CanvasWeeklyAssignments | Selected course permission preload, differentiated visibility SQL, model/scalar getters, controller hooks and analyzers | Published assignment identity/name/points/type only; no override dates, descriptions or lock information |
+| CanvasWeeklyOwnSubmission | Existing-row loader and fallback policy/anonymity review below | Bound assignment/user; ID, assignment ID, stored state and cachedDueDate only |
+| Collection and persistence | Exact pending-request admission, response identity, shared budgets, cancellation, atomic guide export and account binding | Failures stop the update; null records remain unknown with last-known dates and verification tasks |
+
+The selected paths were reviewed against upstream revision
+1c9f0bb8013ed69c4f2efe11fd483025469b7e6c, including the production special-account
+assumption. The permission-dispatch and included-model findings are recorded in
+[permission review](canvas-metadata-permissions-review.md) and
+[preflight model review](canvas-preflight-model-review.md). The direct lookup
+avoids the known enrollment-state creation branch; no requested resolver in this
+selection was found to start/resume attempts, submit work, send messages, change
+read status or evaluate module progress. This is a bounded source review, not a
+claim that arbitrary reads or every institutional extension are harmless.
+
+User-visible behavior: Update guide is available after connection/selection;
+the app and exports identify limited coverage. Saved instructions and other old
+content retain their age and verification flags. No broader token scopes, retry
+fallbacks, assessment navigation or general-purpose GraphQL access are enabled.
+The legacy REST collector and the removed body/download routes remain disabled.
+The application still supports a shared collection hold for a future repair.
+
+Limits that remain: UBC's deployed revision and live compatibility are unverified;
+authentication, access telemetry and server caches may persist. Separate
+preflights do not freeze server permissions. Response identity rejects wrong-user
+data but cannot undo server processing. No historical account invariance is
+claimed. These limits are disclosed rather than represented as passing tests.
+No real Canvas or AI request was used for this admission milestone.
+
+Query review pins (SHA-256 of the UTF-8 runtime query text):
+
+| Operation | Hash |
+| --- | --- |
+| CanvasWeeklyAssignments | b9866e8b4d87d806ad447bf2b00b75d6793ef8a21aa8de3d7cafc9d7a58adc50 |
+| CanvasWeeklyEnrollmentScope | 42a8bb43889e3bea872e8d5ca3db2f4785cc507b27ebc01edddb947c423b81dc |
+| CanvasWeeklyOwnSubmission | f9207c148426c8d514a3817e6bfb8b4e03f4e36551267dfc4f975db5286cd450 |
+
+The admission regression test pins these selections independently of the request
+builders. Changes require another resolver review; hashes prove selection
+identity, not side-effect freedom. The localhost Electron fixture now exercises
+the real enabled connection method without overriding its hold for collection.
+
+Historical rejection and replacement evidence
+--------------------------------------------
+
+The following sections retain the evidence that led to removal of the former
+course-wide query. References to a production hold describe those earlier stages;
+the bounded decision above is the current admission state.
 
 Why the preflight does not close this path
 -----------------------------------------

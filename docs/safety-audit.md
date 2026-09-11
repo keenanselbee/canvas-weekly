@@ -1,6 +1,14 @@
 Canvas collection safety audit
 ==============================
 
+Current status, 2026-09-11: the fixed assignment/direct-submission metadata
+collector is admitted for manual refreshes under the
+[bounded admission decision](canvas-metadata-admission.md). Legacy REST body,
+module, quiz and Canvas file-content reads remain disabled. Historical pause
+references below describe earlier repair stages; they do not certify the old
+collector or establish unchanged account history. Full content collection and
+live institutional compatibility remain unfinished.
+
 Audited 2026-09-10. Findings describe application code, saved local evidence and
 upstream Canvas source. They do not establish the exact UBC deployed version or
 prove the absence of historical account changes. No authenticated Canvas requests
