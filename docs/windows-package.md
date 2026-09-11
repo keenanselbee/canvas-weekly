@@ -118,3 +118,10 @@ with an isolated profile, matching installer payload and private-state exclusion
 SHA256: 4668fa6fada8160b58d93021dad29f6ff181dd7aa0b3e86bd740e00eec0f3144.
 This supersedes the earlier artifacts. Desktop refresh/export and connection-panel
 checks also passed with synthetic data. No installation or live account test ran.
+
+Timezone-settings rebuild (2026-09-11): added Academic timezone under Weekly files.
+Package inventory, matching installer payload, isolated first-run state and bundled
+runtime checks pass. SHA256:
+c5f340657248edcf063fbf05afbaef724003aeb44324f9b4f17ea5d8c8b75747.
+This is the latest local artifact; installation and live sign-in remain untested.
+See personal-release-review.md for the remaining requirement-level checks.

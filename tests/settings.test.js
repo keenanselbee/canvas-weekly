@@ -14,6 +14,10 @@ test('settings preserve saved appearance and serialize overlapping updates', asy
     assert.equal(reopened.theme, 'dark');
     assert.equal(reopened.timeZone, 'UTC');
     await assert.rejects(store.update({ theme: 'unknown' }));
+    for (const timeZone of [null, undefined, 4, '', 'Invalid/Zone']) {
+      await assert.rejects(store.update({ timeZone }), /valid academic timezone/);
+      assert.equal((await new SettingsStore(directory).load()).timeZone, 'UTC');
+    }
     assert.equal((await new SettingsStore(directory).load()).theme, 'dark');
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });

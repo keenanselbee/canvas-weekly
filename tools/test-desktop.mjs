@@ -28,9 +28,28 @@ try {
   assert.ok(path.isAbsolute(state.outputDirectory));
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
   await assert.rejects(page.evaluate(() => window.canvasWeekly.setTheme('invalid')));
+  await page.getByLabel('Academic timezone').selectOption('America/New_York');
+  await page.getByRole('button', { name: 'Save timezone', exact: true }).click();
+  await page.waitForFunction(async () => (await window.canvasWeekly.getState()).settings.timeZone === 'America/New_York');
+  await page.reload();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  assert.equal(await page.getByLabel('Academic timezone').inputValue(), 'America/New_York');
+  await assert.rejects(page.evaluate(() => window.canvasWeekly.setTimeZone('Invalid/Zone')), /valid academic timezone/);
+  assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).settings.timeZone, 'America/New_York');
+  await page.getByLabel('Academic timezone').selectOption('America/Vancouver');
+  await page.getByRole('button', { name: 'Save timezone', exact: true }).click();
+  await page.waitForFunction(async () => (await window.canvasWeekly.getState()).settings.timeZone === 'America/Vancouver');
+  await page.getByRole('button', { name: 'Dismiss', exact: true }).click();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(theme => window.canvasWeekly.setTheme(theme), theme);
+    await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
+    await page.getByLabel('Academic timezone').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `.codex-temp/visual/timezone-${theme}.png` });
+  }
   await page.screenshot({ path: '.codex-temp/visual/settings.png' });
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(800, 600));
+  await page.getByLabel('Academic timezone').scrollIntoViewIfNeeded();
   await page.screenshot({ path: '.codex-temp/visual/settings-small.png' });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  console.log('Desktop checks passed: navigation, preview, themes, settings, renderer isolation, minimum width.');
+  console.log('Desktop checks passed: navigation, preview, themes, timezone save/reload and invalid input, settings, renderer isolation, minimum width.');
 } finally { await application.close(); }

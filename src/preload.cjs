@@ -9,6 +9,7 @@ async function invoke(channel, ...args) {
 contextBridge.exposeInMainWorld('canvasWeekly', {
   getState: () => invoke('state:get'),
   setTheme: theme => invoke('settings:theme', theme),
+  setTimeZone: timeZone => invoke('settings:timezone', timeZone),
   chooseOutput: () => invoke('settings:output'),
   openOutput: () => invoke('output:open'),
   openCanvasLogin: () => invoke('canvas:login'),

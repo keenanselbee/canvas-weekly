@@ -626,3 +626,17 @@ Work log
   Desktop refresh/export and rebuilt package checks passed with isolated synthetic
   data. Current installer SHA256:
   4668fa6fada8160b58d93021dad29f6ff181dd7aa0b3e86bd740e00eec0f3144.
+- 2026-09-11: The personal-release audit found that academic timezone was stored
+  but unavailable in Settings. Added a supported-timezone selector and explicit
+  save action, validated through a narrow idle-only IPC method. Changes apply to
+  the next refresh; current saved guide state and export bytes remain unchanged.
+  Invalid/null/missing timezone values are rejected without altering settings.
+  All 144 unit tests, desktop save/reload and light/dark/minimum-window checks,
+  refresh-time rejection, unchanged-guide/no-request checks and rebuilt package
+  tests pass. Installer SHA256:
+  c5f340657248edcf063fbf05afbaef724003aeb44324f9b4f17ea5d8c8b75747.
+  Corrected obsolete architecture claims about a total refresh pause and unverified
+  Word rendering. See personal-release-review.md for requirement-level evidence
+  and remaining live acceptance. The goal remains incomplete. The old app is still
+  running; the user's close/sign-in handoff is pending. No real account request,
+  personal setting change or guide export ran during this milestone.

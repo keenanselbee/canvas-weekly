@@ -133,6 +133,15 @@ try {
   const first = await page.evaluate(() => window.refreshFinished);
   await page.getByRole('heading', { name: 'Example assignment', exact: true }).waitFor();
   assert.equal(first.run.busy, false);
+  const savedGuide = structuredClone(first.guide);
+  const savedHtml = await fs.readFile(first.guide.documentPath);
+  const beforeTimezone = await application.evaluate(() => globalThis.syntheticRequestCount);
+  const changedTimezone = await page.evaluate(() => window.canvasWeekly.setTimeZone('UTC'));
+  assert.equal(changedTimezone.settings.timeZone, 'UTC');
+  assert.deepEqual(changedTimezone.guide, savedGuide, 'Changing timezone must preserve the saved guide');
+  assert.deepEqual(await fs.readFile(first.guide.documentPath), savedHtml);
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeTimezone);
+  await page.evaluate(timeZone => window.canvasWeekly.setTimeZone(timeZone), first.settings.timeZone);
   assert.ok(first.guide.outputPath.startsWith(output));
   assert.equal(first.guide.items.length, 2);
   const timingGroup = page.locator('details.study-day').filter({ has: page.locator('summary', { hasText: 'Timing to confirm: DEMO 101' }) });
@@ -282,6 +291,9 @@ try {
       };
     }, new URL('../src/canvas-client.js', import.meta.url).href);
     await page.evaluate(() => { window.changedConnectionResult = window.canvasWeekly.updateGuide().then(() => 'unexpected success', error => error.message); });
+    await application.evaluate(async () => { await globalThis.syntheticCollectionEntered; });
+    await assert.rejects(page.evaluate(() => window.canvasWeekly.setTimeZone('UTC')), /current refresh/);
+    assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).settings.timeZone, first.settings.timeZone);
     await application.evaluate(async (_electron, change) => {
       await globalThis.syntheticCollectionEntered;
       if (change === 'connection') globalThis.syntheticConnection.invalidate();

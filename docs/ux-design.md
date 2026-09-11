@@ -70,6 +70,10 @@ Courses shows accessible courses with checkboxes, term, selected count, and save
 action. Include nonstandard terms such as co-op separately through user selection.
 Settings groups Connections, Output, and Appearance. Output shows the resolved
 path and Change folder native dialog. Appearance is System (default), Light, Dark.
+Weekly files also provides Academic timezone and Save timezone, with Monday-Sunday
+weeks explained next to the control. Choose from runtime-supported timezone names
+or UTC. Saving changes only local settings for the next refresh; it neither
+rewrites the saved guide nor changes Canvas. Refreshes block timezone changes.
 Future scheduling is optional, off by default, and must show local-machine limits.
 
 The implemented weekly screen now leads with Your study plan: suggested starting

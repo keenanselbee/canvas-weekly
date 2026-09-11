@@ -174,6 +174,9 @@ restores the Desktop default. Folder initialization preserves existing contents.
 No passwords, cookies, access tokens, or browser profiles belong in output files.
 
 The default week is Monday-Sunday in America/Vancouver, with a 21-day lookahead.
+Settings > Weekly files exposes Academic timezone. Save the timezone your courses
+follow; it applies on the next Update guide. Existing saved guides retain their
+original timezone, week and dates. Timezone changes are blocked during a refresh.
 Verify the academic timezone against Canvas before publishing real deadlines.
 
 ## Collection boundary

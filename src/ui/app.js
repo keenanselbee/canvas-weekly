@@ -414,6 +414,18 @@ function renderSettings() {
   connections.append(aiOptions);
   const output = card('Weekly files');
   output.append(row('Output folder', state.outputDirectory, button('Change folder', async () => { update(await api.chooseOutput()); render(); })), row('Open your files', 'Weekly guides and your notes stay in the folder you choose.', button('Open folder', () => api.openOutput())));
+  const timeZone = node('select', 'timezone-select');
+  timeZone.setAttribute('aria-label', 'Academic timezone');
+  [...new Set([state.settings.timeZone, 'UTC', ...Intl.supportedValuesOf('timeZone')])].sort().forEach(value => {
+    const option = node('option', '', value.replaceAll('_', ' ')); option.value = value; timeZone.append(option);
+  });
+  timeZone.value = state.settings.timeZone;
+  const timing = node('div', 'actions');
+  timing.append(timeZone, button('Save timezone', async () => {
+    update(await api.setTimeZone(timeZone.value));
+    announce('Timezone saved for the next guide update. Existing guides keep their original timezone.');
+  }));
+  output.append(row('Academic timezone', 'Use the timezone your courses follow, even when travelling. Weeks run Monday to Sunday. Changes apply on the next Update guide; saved guides keep their original dates and timezone.', timing));
   const appearance = card('Appearance');
   const select = node('select');
   select.setAttribute('aria-label', 'Theme');

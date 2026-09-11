@@ -48,20 +48,18 @@ flowchart TD
   Guide --> Export[Versioned weekly exports]
 ```
 
-The legacy Canvas adapter permits only a finite set of GET endpoints and validated
-parameters. It does not accept arbitrary URLs from the AI. Resolve pagination only
-inside the same Canvas origin and endpoint. Disable automatic redirects and
-validate any explicitly followed redirect. Set auto_mark_as_read=false for Inbox
-details. Do not access quiz questions, answers, attempt routes, or external tool
-launch endpoints. Enforce student self-submission scope. Allowing GET alone is
-insufficient: some reads mutate state.
+The legacy CanvasClient.collect refuses all scans. Its remaining operation table
+supports only separately reviewed connection/name reads, never arbitrary AI URLs.
+Assignments, pages, modules and conversation REST bodies are excluded. Setting
+auto_mark_as_read=false alone was insufficient because conversation attachment
+serialization could invoke lock/progression checks. Do not access quiz questions,
+answers, attempt routes or external tool launches. GET alone does not prove safety.
 
-Live guide refresh is currently paused. The main IPC handler checks the client's
-collectionIssue before verification or storage changes, and CanvasClient.collect
-itself refuses all scans. The replacement CanvasConnection.collectMetadata method
-also checks the hold before any watcher, transport or request is created. The
-refresh coordinator calls that guarded method. The UI disables Update guide and
-explains the hold.
+Manual guide refresh instead calls CanvasConnection.collectMetadata, currently
+enabled for the fixed reviewed metadata, syllabus and message operations. Both
+the main IPC handler and connection method retain a collectionIssue guard so a
+future hold fails before requests or storage changes. Connection checks, source
+coverage and retained last-known content remain visible to the student.
 Assignments, quizzes and pages are removed from the REST operation table; the
 network gate therefore rejects their formerly accepted URLs. Downstream rendering,
 reconciliation and export remain independently testable with supplied records.
@@ -77,7 +75,7 @@ The transport is removed on success, failure or cancellation. Concurrent runs
 are rejected. The bridge watches session cookies itself, checks its binding at
 asynchronous boundaries, and discards results after account or course changes.
 The refresh coordinator retains its independent checks before guide persistence.
-Both the IPC handler and bridge enforce the current production pause.
+The generic GraphQL surface remains denied; only pending exact requests are admitted.
 
 Module/module-item listing is disabled after the safety audit: Canvas can create
 and evaluate student progression on these reads. Preserve previous module evidence
@@ -86,7 +84,7 @@ remaining live authentication checks; no live-account invariance claim is suppor
 
 Standard Canvas file views/downloads are also excluded because they can update
 module progress. The retained file-name operation requires only[]=names and is
-not called by the paused scan. Saved file references remain available. The login
+not called by the metadata scan. Saved file references remain available. The login
 guard and separate website adapter reject Canvas file routes even on other hosts. Alternative direct storage access needs separate
 authorization and destination review; see canvas-file-access.md.
 
@@ -110,9 +108,11 @@ A guide run captures a fixed origin, user ID and immutable course-ID list, check
 that binding after asynchronous collection stages, and combines its signal with
 user cancellation through external collection, AI planning and export. Course-list
 loading similarly validates the captured identity before publishing loaded data.
-These are local lifecycle guarantees. They do not establish enrollment roles or
-detect remote session-cookie identity changes; those remain production metadata
-admission requirements. The live collection hold remains in place.
+The local capture object alone does not prove enrollment roles or detect remote
+cookie changes. The metadata path adds session-cookie watchers, identity checks,
+account/enrollment preflights and standard-student-role restrictions described in
+canvas-metadata-admission.md. These source-reviewed checks are implemented and
+tested locally; institution deployment compatibility still requires live evidence.
 
 The isolated Electron connection fixture exercises eight lifecycle scenarios.
 The desktop refresh fixture also deliberately returns data after invalidating the
@@ -188,7 +188,9 @@ Office on the student's computer. The compact reference preset sets Letter paper
 one-inch margins, Calibri 11-point body text and explicit heading/list spacing.
 Native lists, headings, hyperlinks and page-number furniture replace HTML markup;
 remote resources, macros and course-supplied field instructions are never embedded.
-Content/structure tests pass; page rendering is still unverified without LibreOffice.
+Content/structure tests pass. An optional Microsoft Word 16.0 check rendered a
+six-page synthetic guide; every page was inspected. This does not establish
+layout for arbitrary course content or other Office versions. See word-layout-check.md.
 
 Revision changed Markdown/HTML/Word files with a shared revision ID. An ownership
 marker stores separate content hashes; existing unowned or manually edited files

@@ -288,6 +288,11 @@ else {
       }
       return snapshot();
     });
+    handle('settings:timezone', async timeZone => {
+      requireIdle();
+      await store.update({ timeZone });
+      return snapshot();
+    });
     handle('settings:theme', async theme => {
       await store.update({ theme });
       nativeTheme.themeSource = theme;

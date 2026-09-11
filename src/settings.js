@@ -24,7 +24,10 @@ export function validateSettings(value) {
   if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) {
     throw new Error('Enter the Canvas HTTPS address without a page path.');
   }
-  new Intl.DateTimeFormat('en', { timeZone: value.timeZone }).format();
+  try {
+    if (typeof value.timeZone !== 'string' || !value.timeZone || value.timeZone.length > 100) throw new Error();
+    new Intl.DateTimeFormat('en', { timeZone: value.timeZone }).format();
+  } catch { throw new Error('Choose a valid academic timezone, such as America/Vancouver.'); }
   if (value.aiEnabled !== undefined && typeof value.aiEnabled !== 'boolean') throw new Error('Invalid AI preference.');
   if (value.codexExecutable != null && (typeof value.codexExecutable !== 'string' || !path.isAbsolute(value.codexExecutable))) throw new Error('Choose an installed Codex executable.');
   if (!Array.isArray(value.selectedCourseIds) || !value.selectedCourseIds.every(id => /^\d+$/.test(id))) {
