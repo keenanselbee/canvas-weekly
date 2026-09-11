@@ -24,6 +24,9 @@ fails before any network access. Saved guides, local checkmarks and Open guide
 remain available. Do not treat the last saved scan as current. See the
 [read-boundary review](docs/canvas-read-boundary.md) for the finding and replacement
 collector acceptance criteria. This is an unresolved release requirement.
+An isolated [metadata collector candidate](docs/canvas-metadata-design.md) now has
+fixed, schema-validated queries and bounded response handling; authenticated
+transport, remaining permission review and source reconciliation are still pending.
 
 The Electron desktop shell is implemented with This week, Courses and Settings,
 an explicitly labeled sample guide, native output folder selection, and persisted

@@ -238,3 +238,15 @@ Work log
   were visually reviewed. The existing Desktop guide was re-exported with the
   safety notice and original collection timestamp; no production app process was
   running during this check. Historical account changes remain unprovable.
+- 2026-09-10: Implemented a transport-free GraphQL metadata candidate with exact
+  fixed queries, course/student scope, independent assignment/status pagination,
+  typed response validation and bounded failure handling. Upstream review confirms
+  assignment descriptions still invoke lock checks, so they are excluded; a fuller
+  instruction-source solution remains required. Both queries pass validation
+  against the pinned upstream schema. Seven new tests cover mutation/field/scope
+  rejection, null override dates, partial errors, duplicate cursors/identities,
+  cancellation and page/byte limits. Production refresh remains paused and the
+  network gate rejects the candidate POST route. No live account was contacted.
+  All 56 unit tests and the rebuilt Windows package checks pass, including the
+  production refresh hold. The schema and temporary validation dependency remain
+  under ignored .codex-temp/graphql-review; neither is a shipped dependency.

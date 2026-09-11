@@ -81,7 +81,9 @@ Replacement collector acceptance
    or using privileged/unscoped data to get around them.
 3. Enumerate exact operations, fixed parameters/fields, student identity scope,
    pagination, cancellation, redirects, audit behavior and credential handling.
-   Keep attempts, submissions, messages and account mutations unavailable. Any
+   Keep starting/resuming attempts, submitting work, sending messages and editing
+   accounts unavailable. Reading the student's existing submission status is a
+   separate metadata operation requiring review. Any
    transport change must preserve this invariant, not merely a GET-only label.
 4. Test the complete supported path using synthetic institutional responses and
    server behavior representing locks, unavailable content, overrides and failure.
@@ -94,3 +96,8 @@ Replacement collector acceptance
 Local document import remains a useful complementary path while this work is
 pending, not a substitute for the automatic collector. It must retain provenance,
 copy age and uncertainty without contacting Canvas.
+
+The first replacement component is now implemented as a transport-free candidate;
+see [metadata collector design](canvas-metadata-design.md). Its fixed queries have
+passed pinned-schema validation, but it has no production network admission and
+does not yet restore refresh or assignment instructions.
