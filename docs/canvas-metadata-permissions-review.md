@@ -15,7 +15,7 @@ Selected call paths
 | --- | --- | --- |
 | CoursePermissionsPreloader | Calls Course.preload_active_enrollments_for_permissions, which selects existing enrollments and populates enrollment caches. | No progression evaluation or enrollment transition identified in this preloader. |
 | Course permission checks | Course lookup requires read permission. Course policies query enrollment state and delegate role/account permissions. Enrollment.has_permission_to? delegates to RoleOverride.enabled_for?. | Reading permission is not the same as invoking an action named by that permission. Account and role dependencies still need the bounded follow-up below. |
-| Assignment visibility | ScopedToUser calls DifferentiableAssignment.scope_filter, then AbstractAssignment.visible_to_students_in_course_with_da and AssignmentVisibilityService. The repository assembles a visibility SQL query and maps result rows to data objects. | This path selects eligible assignments; it does not call ContextModule.available_for? in the functions reviewed. Shared SQL helpers and feature branches are not fully closed out. |
+| Assignment visibility | ScopedToUser calls DifferentiableAssignment.scope_filter, then AbstractAssignment.visible_to_students_in_course_with_da and AssignmentVisibilityService. The repository and shared helpers assemble visibility SELECT/UNION/EXCEPT queries and map result rows to data objects. Both visibility_performance_improvements branches were reviewed. | Module/section/ADHOC/group joins read eligibility records; they do not instantiate ContextModule or evaluate progression in these functions. Feature configuration and inherited model behavior remain separate dependencies. |
 | Override preloading | DatesOverridable loads assignment/module override records and associated IDs into object attributes. AssignmentOverrideApplicator preloads existing student override rows. | Loading module IDs for date overrides does not itself evaluate module progression. |
 | Date calculation | assignment_with_overrides applies collapsed dates to a clone; setup_overridden_clone marks that clone readonly. Section enrollment flags are in-memory attributes; availability_expired? compares dates. | No assignment/date persistence call identified in these calculation functions. Keep description and lockInfo excluded: those follow a different path. |
 | GraphQL operation hooks | subject and the two post-execution participation hooks match CreateSubmission or CreateDiscussionEntry. Neither matches the candidate's operation names. | The exact operationName is part of the safety boundary, including the JSON envelope, not just the query text. |
@@ -83,14 +83,57 @@ The transport acceptance checks must include:
   raw error messages. Receive response bytes under a limit before JSON parsing.
 
 
+Visibility, analyzers and model-loading follow-up
+------------------------------------------------
+
+The complete VisibilitySqlHelper and AssignmentVisibleToStudentRepository were
+reviewed, including section and ADHOC alternatives controlled by
+visibility_performance_improvements. The shared helper generates SQL fragments;
+the repository executes the composed selection and constructs plain result
+objects. Joining module and content-tag tables here does not call their model
+availability methods. This closes the previously open SQL-builder branches, not
+all account feature checks.
+[Shared SQL helper](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/helpers/visibility_sql_helper.rb).
+
+CanvasSchema registers three analyzers. CanvasAntiabuseAnalyzer counts aliases
+and directives and can emit metrics/errors. LogQueryComplexity logs a computed
+complexity. ConversationComplexityAnalyzer is relevant even though the fixed
+queries contain no createConversation field: when its feature and Redis are
+enabled, result increments a per-user Redis counter by zero and can initialize
+or refresh its expiry. An already-exceeded counter can reject these reads.
+No message is created by that analyzer. Do not call this path free of all server
+state changes or retry a rate-limit failure with different credentials.
+[Schema](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/canvas_schema.rb),
+[Anti-abuse analyzer](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/analyzers/canvas_antiabuse_analyzer.rb),
+[Complexity logger](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/analyzers/log_query_complexity.rb),
+[Conversation analyzer](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/analyzers/conversation_complexity_analyzer.rb).
+
+BaseAnalyzer's extra helpers read query arguments and report Sentry diagnostics;
+GraphQLTuning reads plugin settings. These are not assessment actions. Framework
+tracers and institutional extensions are not certified by that observation.
+[Analyzer base](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/analyzers/base_analyzer.rb),
+[Tuning](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/graphql/graphql_tuning.rb).
+
+The selected model files declare no after_find/after_initialize callbacks:
+Assignment, AbstractAssignment, Submission, Course, Enrollment, CourseSection,
+AssignmentOverride, Account and Role. ApplicationRecord only marks the base class
+abstract. Role's association helper registers a before_save callback, while role
+lookup reads existing rows. This is a direct-declaration inventory, not proof
+about inherited concerns, framework initializers or all getter implementations.
+Those must stay in the remaining review instead of being silently cleared by a
+text search. Temporary pinned sources remain under .codex-temp/graphql-review.
+[ApplicationRecord](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/application_record.rb),
+[Role](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/app/models/role.rb).
+
+
 Remaining review before production admission
 -------------------------------------------
 
 The functions above narrow the review; they do not close the whole call graph.
-Finish the shared visibility SQL feature branches, section/observer/account
-permission dependencies and selected role-registry callbacks. Confirm that
-schema analyzers and any model load callbacks on the selected records do not
-introduce learning-state writes. Complete the verified account/enrollment binding
+Finish section/observer/account permission dependencies and selected permission-
+registry callbacks. Complete inherited model-load concern and selected getter
+review; the direct declarations and registered analyzers above are now inventoried.
+Complete the verified account/enrollment binding
 and institutional session authentication. Actual Electron request-body admission
 has since passed the isolated fixture described in the transport design.
 

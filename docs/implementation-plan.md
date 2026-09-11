@@ -283,3 +283,12 @@ Work log
   no actual Canvas, course-site or AI account request was made, and the user's saved
   guide was not rewritten. Live authentication and the remaining permission/source
   review are still required before enabling collection.
+- 2026-09-10: Closed the shared visibility SQL-builder review, including both
+  performance-feature branches, and inspected all three registered GraphQL
+  analyzers. Found a zero-increment Redis rate-limit/expiry write even for the
+  candidate queries; documented it separately from coursework and message state.
+  Inventoried direct model load callbacks and role lookup without treating that
+  search as proof about inherited concerns. Remaining review is narrowed to
+  permission dependencies, inherited hooks/getters, identity and institutional
+  behavior. This source-review milestone makes no authenticated requests and
+  preserves the production refresh pause.
