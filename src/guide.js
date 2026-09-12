@@ -166,6 +166,19 @@ export function renderMarkdown(guide) {
     if (task.changedSinceDone) lines.push('Source or task changed since you checked it off. Review it again.', '');
     if (task.dueAt) lines.push(`Recorded due time: ${formatDate(task.dueAt, guide.timeZone)}`, '');
     if (task.closesAt) lines.push(`Available until: ${formatDate(task.closesAt, guide.timeZone)}`, '');
+    if (task.posted) {
+      if (task.posted.facts.length) lines.push('**Recorded information**', '', ...task.posted.facts.map(fact => `- ${md(fact)}`), '');
+      if (task.posted.needs.length) lines.push(`**Needs checking:** ${md(task.posted.needs.join('; '))}.`, '');
+      for (const excerpt of task.posted.sources) {
+        const original = sources.get(excerpt.sourceId);
+        lines.push(`**${md(excerpt.title)}${excerpt.stale ? ' (last-known; recheck)' : ''}**`, '', md(excerpt.note), '');
+        if (excerpt.observedAt) lines.push(`Collected: ${formatDate(excerpt.observedAt, guide.timeZone)}.`, '');
+        if (excerpt.text) lines.push(...excerpt.text.split('\n').map(line => `> ${md(line)}`), '');
+        if (original) lines.push(`[Read original material](<${original.sourceUrl}>)`, '');
+      }
+      if (task.posted.more) lines.push(`${task.posted.more} more collected materials appear in Source details.`, '');
+    }
+    lines.push('**Suggested preparation**', '');
     for (const step of task.steps) {
       if (typeof step === 'string') lines.push(`- ${md(step)}`);
       else {

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { localDate, shiftDate } from './dates.js';
+import { factualTask, factualMaterials } from './factual-task.js';
 
 export function guideSources(guide) {
   return [...guide.items, ...guide.courses.flatMap(course => [
@@ -25,19 +26,26 @@ export function buildStudyPlan(guide, progress = {}) {
     const availableDays = Math.max(1, Math.round((Date.parse(`${latestStart}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000) + 1);
     const verify = closed || overdue || item.stale || item.instructionsStale || item.quizDetailsStale || item.dueDateStale || item.availabilityStale || item.status === 'unknown' || !item.dueAt;
     const unscheduled = !item.dueAt && !item.closesAt;
+    const posted = factualTask(item);
+    const decision = closed || overdue || item.stale || item.dueDateStale || item.status === 'unknown' || !item.dueAt;
     const task = {
       id: `${item.id}:prepare`, sourceId: item.id, courseId: item.courseId, courseName: item.courseName,
-      title: `${verify ? 'Check the next step for' : 'Prepare for'} ${item.title}`,
+      title: `${decision ? 'Check the next step for' : 'Prepare for'} ${item.title}`,
       reason: closed ? 'The recorded availability window has ended. Check whether an exception applies before planning further work.'
         : overdue ? 'The recorded deadline has passed. Confirm submission status and any extension before planning further work.'
         : !item.dueAt ? 'No deadline was supplied. Confirm whether this item requires action and when.'
-        : item.stale || item.instructionsStale || item.quizDetailsStale || item.dueDateStale || item.availabilityStale || item.status === 'unknown' ? 'The available record needs verification before you rely on it.'
+        : posted.needs.length ? `Keep the recorded deadline in view. Confirm ${posted.needs.join(', ')} before relying on the full plan.`
         : 'Start preparation before the recorded deadline; use the source for the actual requirements.',
       suggestedDate: unscheduled ? null : verify ? today : shiftDate(today, scheduledCount % availableDays),
       dueAt: item.dueAt, closesAt: item.closesAt, ai: false, needsVerification: verify,
       unscheduled, checks: [],
-      steps: verify ? ['Check the current instructions, availability and your submission status in Canvas.', 'Record any confirmed next step in your student notes.']
-        : ['Read the instructions and linked course materials.', 'Work through the relevant notes or practice, then identify what you still need to understand.', 'Check the deliverable and submission instructions before completing the work yourself.'],
+      posted,
+      steps: [
+        ...(decision ? ['Confirm whether this work still requires action before proceeding.'] : []),
+        ...(posted.needs.length ? [`Check ${posted.needs.join(', ')} in the original source.`] : []),
+        item.instructions ? 'Use the posted instructions to identify the deliverable and required materials.' : 'Find the assignment instructions and identify the deliverable and required materials.',
+        item.type === 'quiz' ? 'Review the relevant course notes and practice before you choose to take the quiz yourself.' : 'Prepare the deliverable described by the instructions, then check the submission requirements.',
+      ],
     };
     tasks.push(task);
     if (!unscheduled) scheduledCount++;
@@ -61,7 +69,7 @@ export function buildStudyPlan(guide, progress = {}) {
       reason: 'Reading, lecture preparation and lab work may matter even when Canvas lists no deadline this week.',
       steps: ['Review the posted course schedule and identify this week’s assigned topics.', 'Separate required reading from optional supplementary material; note anything that is unclear.',
         ...(reviewCount ? [`Review the ${reviewCount} item${reviewCount === 1 ? '' : 's'} under Timing to confirm for this course. Confirm what applies this week before scheduling the work.`] : [])],
-      dueAt: null, closesAt: null, ai: false });
+      dueAt: null, closesAt: null, ai: false, posted: { facts: [], needs: [], ...factualMaterials(course) } });
     const gaps = course.coverage.filter(source => source.status !== 'ok');
     if (gaps.length) check(courseId, `Incomplete coverage: ${course.code || course.name}`, gaps.map(source => `${source.source}: ${source.message || source.status}`).join(' '));
     if ((course.references || []).length) check(courseId, `Check linked materials: ${course.code || course.name}`, 'Linked sites or files are listed in the source details; their contents may not yet be collected. They can contain additional readings, schedules and requirements.');
@@ -99,6 +107,10 @@ export function buildStudyPlan(guide, progress = {}) {
   for (const task of tasks) {
     const source = sourceMap.get(task.sourceId);
     const fingerprint = [task.title, task.steps, task.dueAt, task.closesAt, source?.instructions || source?.body || '', source?.stale || false];
+    if (task.posted) fingerprint.push((task.posted.sourceIds || task.posted.sources.map(source => source.sourceId)).map(id => {
+      const evidence = sourceMap.get(id);
+      return [id, evidence?.title, evidence?.body || evidence?.instructions || '', Boolean(evidence?.stale), Boolean(evidence?.instructionsStale)];
+    }));
     // Preserve existing task hashes unless a newly distinguished source gap
     // changes what the student needs to verify. Repeated refresh times do not.
     if (source?.instructionsStale || source?.quizDetailsStale) fingerprint.push(Boolean(source.instructionsStale), Boolean(source.quizDetailsStale));

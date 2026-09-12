@@ -5,15 +5,36 @@ Proposed next milestone: the default guide should tell a student what is due,
 what the posted instructions say to do, and which specific details need checking.
 AI should be optional refinement, not a requirement for a useful guide.
 
-Current limitations
--------------------
+First implementation milestone
+-------------------------------
+
+Task cards now show recorded submission status and available points/question
+counts, with a specific list of fields needing confirmation. Missing availability
+alone no longer changes an otherwise current dated task into a generic decision
+prompt. It still limits AI refinement and remains clearly flagged.
+
+Short collected instruction bodies are shown in full, preserving conditions and
+optional wording. Longer bodies link to the full source details rather than
+extracting incomplete requirements. Weekly materials tasks list up to six collected
+pages/sites/syllabi with freshness, collection time and source links, plus a count
+of additional sources. Their content is not automatically declared this week's
+required reading. All material changes can reopen local preparation checkmarks;
+new collection timestamps alone do not.
+
+The shared model appears in the app and Markdown, HTML and Word exports. Current
+collection permissions are unchanged. Deadline grouping, a more compact overview,
+improved source discovery and replacing the existing suggested-day distribution
+remain subsequent work; this milestone does not claim a complete weekly summary.
+
+Remaining limitations
+---------------------
 
 `src/study-plan.js` already creates local checklists, chooses a starting point per
 course, groups undated items and flags possible deadline changes in messages.
-However, its non-AI steps are generic. A single stale or unknown field changes a
-task into a broad verification prompt. Suggested starting days are distributed by
-task order rather than a student's availability or measured workload. Full source
-text appears later in the guide, separated from those tasks.
+Its non-AI preparation steps remain generic, now accompanied by collected facts
+and source passages. Suggested starting days are distributed by task order rather
+than a student's availability or measured workload. Full source text also appears
+later in the guide; exports still repeat some information from the task cards.
 
 The metadata collector often cannot supply current instructions or availability.
 Better wording cannot fill those gaps. Improve presentation using information

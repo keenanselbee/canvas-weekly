@@ -245,7 +245,7 @@ try {
   assert.equal(plannedTask.changedSinceDone, true);
   assert.equal(plannedTask.dueAt, first.guide.items[0].dueAt);
   await page.getByText(/ChatGPT refined 1 preparation task/).waitFor();
-  await page.getByText('Preparation steps', { exact: true }).first().click();
+  await page.getByText('Suggested preparation', { exact: true }).first().click();
   await page.getByText(/Required \(AI interpretation\)/).first().waitFor();
   await page.locator('#notice').waitFor({ state: 'hidden', timeout: 6500 });
   await page.screenshot({ path: '.codex-temp/visual/study-plan-ai.png' });

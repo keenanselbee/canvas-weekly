@@ -188,9 +188,22 @@ function renderGuide() {
         content.append(label, node('small', '', `${task.courseName}${task.ai ? ' · AI suggestion' : ''}`));
         if (task.dueAt) content.append(node('small', '', `Recorded due: ${format(task.dueAt)}`));
         if (task.closesAt) content.append(node('small', '', `Available until: ${format(task.closesAt)}`));
+        if (task.posted) {
+          for (const fact of task.posted.facts) content.append(node('small', '', fact));
+          if (task.posted.needs.length) content.append(node('p', 'muted', `Needs checking: ${task.posted.needs.join('; ')}.`));
+          for (const excerpt of task.posted.sources) {
+            const posted = node('details');
+            posted.append(node('summary', '', `${excerpt.title}${excerpt.stale ? ' (last-known; recheck)' : ''}`), node('p', 'muted', excerpt.note));
+            if (excerpt.observedAt) posted.append(node('small', '', `Collected: ${format(excerpt.observedAt)}`));
+            if (excerpt.text) posted.append(node('blockquote', '', excerpt.text));
+            posted.append(button('Read original material', () => api.openSource(excerpt.sourceId), 'link'));
+            content.append(posted);
+          }
+          if (task.posted.more) content.append(node('small', '', `${task.posted.more} more collected materials appear in Source details.`));
+        }
         if (task.changedSinceDone) content.append(node('p', 'muted', 'Changed since you checked it off — review again.'));
         const details = node('details');
-        details.append(node('summary', '', 'Preparation steps'), node('p', '', task.reason));
+        details.append(node('summary', '', 'Suggested preparation'), node('p', '', task.reason));
         const steps = node('ul');
         for (const step of task.steps) {
           const item = node('li');

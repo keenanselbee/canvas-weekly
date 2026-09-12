@@ -871,3 +871,16 @@ Work log
   pass. The green native progress gauge remains pending a supported blue style
   and visual/high-contrast review. The factual-guide improvements proposed in
   factual-guide-plan.md do not change collection permissions or current output yet.
+
+- Implemented the first factual-guide milestone using collected records only:
+  visible status and field-specific gaps, complete short instruction passages,
+  and collected material links beside weekly preparation tasks. A missing
+  availability window no longer hides known dated work behind a generic check
+  prompt. App/Markdown/HTML/Word share the task model, with local completion
+  invalidation on material changes and no additional Canvas access. Broader
+  deadline grouping, source discovery and scheduling improvements remain pending.
+  Validation: all 163 unit tests, the synthetic desktop refresh workflow, and
+  native Word export checks passed. All seven Word pages were visually reviewed:
+  text remains within page bounds and source links are readable. A final wording
+  correction removes a positional reference to instructions; compactness and
+  repetition remain follow-up work. No personal Canvas collection was run.
