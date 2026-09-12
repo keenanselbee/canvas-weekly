@@ -57,15 +57,23 @@ First use:
    optional application/co-op work. Show source coverage and unavailable sources.
 4. Default output to Desktop/Canvas Weekly. Provide a folder picker, academic
    timezone and week boundary, and optional future refresh schedule.
-5. Generate the baseline guide, then open it. Show last refreshed time and any
-   course/source gaps alongside the result.
+5. Collect course information and review the recorded work, source coverage and
+   timestamps. Optionally connect course websites or preview/add local documents.
+6. Export the evidence and prompt for an online AI chat, or explicitly create a
+   weekly guide using connected ChatGPT. Review the resulting tasks and questions.
 
 Routine use:
 
-- Update guide: collect changes, update the current week, show a concise diff.
+- Collect/Refresh course information: update the saved evidence and factual
+  reference, with changes and source coverage. This action does not invoke AI.
+- Export for AI: create the complete local evidence document and copyable prompt.
+- Create my weekly guide: use saved evidence and opted-in study preferences with
+  connected ChatGPT. No new Canvas collection occurs during generation.
 - Open guide: immediately open the latest available document, including offline.
 - View changes: show deadline moves, requirement changes, new items and conflicts.
-- Settings: courses, output folder, timezone, refresh schedule and AI connection.
+- Courses: selection, connected websites, independent website refresh and imported
+  documents. Settings: output folder, timezone, appearance, study preferences and
+  connections. Scheduling remains a later enhancement.
 - Reconnect Canvas: available when login expires, with the previous guide retained.
 
 Use keyboard-accessible controls, readable text, explicit status labels and source
@@ -74,7 +82,10 @@ an optional diagnostics view, not the routine student workflow.
 
 ## Output contract
 
-Each weekly guide has a short actionable opening and detailed course sections:
+An AI weekly guide has a short actionable opening and detailed course sections.
+The factual fallback reports recorded work and source limitations without an
+inferred study timetable. The evidence export preserves all normalized records,
+including material outside the current planning window. The AI guide should cover:
 
 - Top priorities with reasons, estimated effort where grounded, and prerequisites.
 - Due dates, closing times, submission requirements and links to original pages.
@@ -100,22 +111,24 @@ history. It does not automatically move or delete previous exports.
 
 ## Architecture that can grow beyond Codex
 
-Use one core pipeline behind the chat workflow, launcher and eventual app:
+Use a shared saved evidence model behind the desktop app's explicit actions:
 
 ```text
-Canvas read adapter + linked document readers
-                    |
-                    v
-Normalized facts + source snapshots + coverage ledger
-                    |
-                    v
-Deterministic changes, dates, statuses and duplicate reconciliation
-                    |
-                    v
-Optional AI interpretation and prioritization
-                    |
-                    v
-Validated guide model -> Markdown / Word exports -> output folder
+Reviewed Canvas reads + connected websites + local document imports
+                              |
+                              v
+Saved facts, sources, coverage and deterministic changes
+                              |
+                              v
+                  Shared evidence projection
+                   /          |           \
+                  v           v            v
+         Factual reference  Export for AI  Explicit connected AI run
+                  |           |            |
+                  |           |            v
+                  |           |       Validated weekly guide
+                   \          |           /
+                    Versioned local exports
 ```
 
 The collector owns all Canvas access. The AI planner receives selected evidence

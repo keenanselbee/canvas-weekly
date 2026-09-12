@@ -61,19 +61,35 @@ Components
 ```mermaid
 flowchart TD
   UI[Windows desktop UI] --> IPC[Validated preload operations]
-  IPC --> Runner[Refresh coordinator]
+  IPC --> Runner[Collection coordinator]
   IPC --> Settings[Settings and native dialogs]
   IPC --> Login[Separate Canvas and Codex login]
   Runner --> Canvas[Restricted Canvas read adapter]
-  Runner --> Documents[Linked document readers]
+  Runner --> Documents[Connected website readers]
+  IPC --> Documents
+  IPC --> Import[Preview and import local documents]
   Canvas --> State[Normalized state and source coverage]
   Documents --> State
+  Import --> State
   State --> Diff[Deterministic comparison]
-  Diff --> AI[Optional Codex planner]
-  AI --> Guide[Validated guide model]
-  Diff --> Guide
-  Guide --> Export[Versioned weekly exports]
+  Diff --> Pack[Saved evidence projection]
+  Pack --> Factual[Recorded-work reference]
+  Pack --> Manual[Export for online AI chat]
+  IPC --> Generate[Explicit guide generation]
+  Pack --> Generate
+  Generate --> AI[Restricted Codex planner]
+  AI --> Guide[Validated weekly guide]
+  Guide --> Export[Versioned local exports]
+  Factual --> Export
+  Manual --> Export
 ```
+
+Collection does not invoke the planner. Connected website refresh and local
+document import can update the saved evidence without a Canvas connection;
+Canvas record timestamps remain unchanged. Both invalidate current AI output
+for explicit regeneration. The connected projection reserves record identities
+before allocating complete text across courses, with explicit omissions inside
+its serialized byte limit. Manual evidence export retains all normalized text.
 
 The legacy CanvasClient.collect refuses all scans. Its remaining operation table
 supports only separately reviewed connection/name reads, never arbitrary AI URLs.

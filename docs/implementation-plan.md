@@ -25,7 +25,7 @@ Milestone ledger
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Unsigned x64 installer built; package inventory, matching installer payload, first-run themes and bundled Codex tested; installation walkthrough and live reconnect pending |
 | E1 | Shared evidence pack and Export for AI | Full normalized text, source IDs/coverage, explicit AI omissions, offline export and protected files | Implemented; 166 unit tests and synthetic desktop refresh passed |
 | E2 | Full connected weekly guide | Standalone generation from saved evidence; source-linked tasks and questions; failure preserves prior guide | Core generation, shared views and opt-in personal preferences implemented; live quality review pending |
-| E3 | Improve permitted source coverage | Evidence-driven source additions with provenance and safety review | Pending; no collection permissions expanded by E1 |
+| E3 | Improve permitted source coverage | Evidence-driven source additions with provenance and safety review | Independent website refresh, local document import and extraction limitations implemented; live-course inventory and further safe discovery remain pending |
 | E4 | Collection and AI routes in the primary UX | Simple collection/coverage/export/generate flow, useful factual fallback, desktop release checks | Explicit collection/export/generate interface and recorded-work reference implemented; release and live-course review pending |
 
 Scheduling, multi-provider support, public distribution and hosted service are
@@ -1056,3 +1056,17 @@ Work log
   and account-isolation regression passed. The Inno candidate rebuilt with source
   matching and package privacy checks. No personal Canvas or AI requests were
   made. Live model interpretation and online-chat acceptance remain unverified.
+
+- Refreshed the personal release review and product/architecture flows for the
+  evidence-first app, including separate collection/export/generation, website
+  refresh, local imports, input omissions and opt-in preferences. Corrected stale
+  claims about the old suggestion contract and installer dark-mode availability.
+  The review identifies the themed Inno candidate separately from production
+  NSIS packaging and keeps live-account and human-wizard acceptance outstanding.
+  Validation: the current complete candidate payload passed native fixture
+  installation, packaged launch and uninstall in setup-lifecycle-g7y3uj. All 136
+  payload files matched; bundled Codex detection, isolated first-run accounts,
+  native System appearance and retained guide/settings fixtures passed. The test
+  omits shortcuts and scope elevation, so it does not prove personal migration,
+  UAC or the complete interactive wizard. No personal installation or account
+  was used. The development AI saved-login marker remains absent.
