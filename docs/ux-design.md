@@ -220,3 +220,16 @@ Inspect light and dark at normal and minimum window sizes; verify system theme
 changes, manual override persistence, keyboard focus, long course names, empty
 states, partial failures and loading feedback. Use real application screenshots
 for review. Do not alter the user's Windows settings to test theme changes.
+
+
+Adding missing course documents
+-------------------------------
+
+Courses includes Course documents for the saved collection. Choose document
+opens a local file picker, then focuses an inline review with a title, optional
+original link, extracted text and format limitations. Add to evidence pack is
+explicit; Discard preview saves nothing. The complete extracted text is scrollable
+and uses plain text, never active document content. Replace uses the same preview;
+Remove explains that earlier exports and uploads retain copies. The provided
+source link is separate from viewing the imported copy. Controls are available
+offline and blocked during collection, generation or another document operation.

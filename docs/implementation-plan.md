@@ -975,3 +975,24 @@ Work log
   source-byte and package privacy checks. No personal Canvas or AI requests were
   made. This changes presentation only;
   permitted-source coverage improvements remain outstanding.
+
+
+- Added local course-document preview/import as a permitted coverage improvement.
+  PDF/DOCX/TXT/MD copies retain source IDs, import times, fingerprints, optional
+  original links and extraction limitations. Native-picker previews are kept in
+  memory and bound to the saved account/guide. Add/replace/remove use the existing
+  export transaction; they preserve Canvas dates/status and never trigger Canvas
+  requests or AI generation. Current AI output is cleared for explicit regeneration;
+  older exports and revisions retain prior copies. The UI explains limits and
+  removal scope, supports offline use, and links imported AI citations back to
+  the local source review. Canvas's broader-read safety hold is unchanged.
+  Validation: 177 unit tests passed, including PDF/DOCX extraction,
+  malformed/oversized/UTF-8/path/cancel rejection, complete ending conditions,
+  provenance, reconciliation retention, account isolation, manual-edit protection
+  and cancelled export preservation. The import desktop fixture passed preview,
+  replacement/removal, expired-preview and account-switch cases with no Canvas
+  requests from document operations. Light/dark and 800x600 renders were reviewed.
+  The existing synthetic collection/AI/export workflow passed after separating
+  document and website selectors. No personal Canvas or AI requests were made.
+  The Inno candidate rebuilt with source-byte matching and package privacy
+  checks; the installed personal app was not changed.

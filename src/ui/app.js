@@ -7,6 +7,7 @@ let page = 'week';
 let preview = false;
 let noticeTimer;
 let planningDraft = null;
+let documentDraft = null;
 const main = document.querySelector('main');
 
 function node(tag, className, text) {
@@ -20,6 +21,13 @@ function button(label, callback, className = '') {
   element.addEventListener('click', () => perform(callback));
   return element;
 }
+function openSource(id) {
+  const source = state.guide?.courses.flatMap(course => course.evidence || []).find(source => source.id === id);
+  if (!source?.userProvided) return api.openSource(id);
+  go('courses');
+  const detail = [...main.querySelectorAll('[data-document-id]')].find(element => element.dataset.documentId === id);
+  if (detail) { detail.parentElement.open = true; detail.open = true; detail.querySelector('summary').focus(); detail.scrollIntoView({ block: 'center' }); }
+}
 async function perform(callback) {
   try { await callback(); }
   catch (error) { announce(error.message, true); }
@@ -32,6 +40,7 @@ function announce(message, persistent = false) {
   if (!persistent) noticeTimer = setTimeout(() => { notice.hidden = true; }, 4500);
 }
 function update(next) {
+  if (state && JSON.stringify(state.settings.lastGuideAccount) !== JSON.stringify(next.settings.lastGuideAccount)) documentDraft = null;
   if (state && (JSON.stringify(state.settings.lastGuideAccount) !== JSON.stringify(next.settings.lastGuideAccount)
     || JSON.stringify(state.planningPreferences) !== JSON.stringify(next.planningPreferences))) planningDraft = null;
   if (next.canvas.error && next.canvas.error !== state?.canvas.error) announce(next.canvas.error, true);
@@ -175,7 +184,7 @@ function renderGuide() {
     if (weekly.preferencesChanged) overview.append(node('p', 'muted', 'Study preferences changed after this guide was generated. Create a new guide to use the current preferences.'));
     const appendCited = (container, entry) => {
       container.append(node('p', '', entry.text));
-      for (const source of entry.citations) if (source.url) container.append(button(source.title, () => api.openSource(source.id), 'link'));
+      for (const source of entry.citations) container.append(button(source.title, () => openSource(source.id), 'link'));
     };
     for (const entry of weekly.overview) appendCited(overview, entry);
     main.append(overview);
@@ -203,7 +212,7 @@ function renderGuide() {
         }
         body.append(steps);
         for (const check of task.checks) body.append(node('p', 'muted', `Needs checking: ${check}`));
-        for (const source of task.citations) if (source.url) body.append(button('Original source', () => api.openSource(source.id), 'link'));
+        for (const source of task.citations) body.append(button(source.userProvided ? 'View imported document' : 'Original source', () => openSource(source.id), 'link'));
         content.append(body); section.append(content);
       }
       main.append(section);
@@ -314,7 +323,7 @@ function renderGuide() {
         }
         details.append(steps);
         for (const check of task.checks || []) details.append(node('p', 'muted', `${check.title}: ${check.detail}`));
-        details.append(button('Open source', () => api.openSource(task.sourceId), 'link'));
+        details.append(button('Open source', () => openSource(task.sourceId), 'link'));
         content.append(details); row.append(checkbox, content); day.append(row);
       }
       overview.append(day);
@@ -324,7 +333,7 @@ function renderGuide() {
     if (!plan.checks.length) checks.append(node('p', 'muted', 'No specific gaps identified. Course information can still change.'));
     for (const check of plan.checks) {
       const details = node('details');
-      details.append(node('summary', '', check.title), node('p', '', check.detail), button('Open source', () => api.openSource(check.sourceId), 'link'));
+      details.append(node('summary', '', check.title), node('p', '', check.detail), button('Open source', () => openSource(check.sourceId), 'link'));
       checks.append(details);
     }
     legacy.append(checks);
@@ -379,8 +388,9 @@ function renderGuide() {
       if (source.author || source.postedAt) detail.append(node('p', 'muted', `${source.author || ''} ${source.postedAt ? format(source.postedAt) : ''}`));
       if (source.authorRoleUnverified && !source.authorUnverified) detail.append(node('p', 'muted', 'Sender name supplied by Canvas; course role not verified.'));
       if (source.coverageNote) detail.append(node('p', 'muted', source.coverageNote));
+      if (source.importedAt) detail.append(node('p', 'muted', `Imported ${format(source.importedAt)}. Source ID: ${source.id}.`));
       if (source.startsAt) detail.append(node('p', '', `${format(source.startsAt)}${source.location ? ' · ' + source.location : ''}`));
-      detail.append(node('p', 'source-body', source.body || 'Content not supplied.'), button('Open source', () => api.openSource(source.id), 'link'));
+      detail.append(node('p', 'source-body', source.body || 'Content not supplied.'), button(source.userProvided ? 'View imported document' : 'Open source', () => openSource(source.id), 'link'));
       group.append(detail);
     }
     information.append(group);
@@ -436,14 +446,74 @@ function renderCourses() {
     if (!state.courses.length) list.append(node('p', 'muted', 'No active student courses were returned by Canvas.'));
     list.append(button('Save course selection', async () => { update(await api.selectCourses([...selected])); announce('Course selection saved.'); }, 'primary'));
     main.append(list);
+    renderCourseDocuments();
     renderCourseWebsites(state.courses);
     return;
   }
-  if (state.guide) renderCourseWebsites(state.guide.courses);
+  if (state.guide) { renderCourseDocuments(); renderCourseWebsites(state.guide.courses); }
   const empty = card();
   empty.classList.add('empty');
   empty.append(node('h2', '', 'Your courses will appear here'), node('p', '', 'Connect Canvas to find your courses, including optional co-op or application work.'), button('Connection settings', () => go('settings'), 'primary'));
   main.append(empty);
+}
+
+function renderCourseDocuments() {
+  const format = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString(undefined, { timeZone: state.guide.timeZone, dateStyle: 'medium', timeStyle: 'short' }) : 'date not recorded';
+  const section = card('Course documents');
+  section.append(node('p', 'muted', 'Add downloaded readings, schedules or instructions that collection could not reach. Review the extracted text before it enters your evidence pack. No Canvas request or AI upload is made.'));
+  if (!state.guide?.outputPath) {
+    section.append(node('p', '', 'Collect your selected courses once to attach documents to the saved collection.'));
+    main.append(section); return;
+  }
+  section.append(node('p', 'muted', 'PDF, Word (.docx), UTF-8 text or Markdown; up to 2 MB per file. Images and scanned text need checking in the original. Adding, replacing or removing a document replaces the current AI guide with a factual reference; create a new AI guide afterwards.'));
+  if (state.run.busy) section.append(button('Cancel current operation', () => api.cancelRefresh()));
+  const choose = async (courseId, replaceId) => {
+    documentDraft = await api.previewDocument(courseId, replaceId);
+    if (documentDraft) Object.assign(documentDraft, { title: documentDraft.source.title, url: '' });
+    render();
+    const heading = main.querySelector('[data-document-preview]');
+    heading?.focus(); heading?.scrollIntoView({ block: 'start' });
+  };
+  for (const course of state.guide.courses) {
+    const documents = (course.evidence || []).filter(source => source.kind === 'document' && source.userProvided);
+    const group = node('details', 'document-course');
+    group.append(node('summary', '', `${course.code || course.name} · ${documents.length} added documents`));
+    group.open = documentDraft?.source.courseId === course.id;
+    const add = button('Choose document', () => choose(course.id)); add.disabled = state.run.busy;
+    group.append(add);
+    for (const source of documents) {
+      const detail = node('details', 'document-copy');
+      detail.dataset.documentId = source.id;
+      detail.append(node('summary', '', source.title), node('p', 'muted', `Imported ${format(source.importedAt)}. ${source.coverageNote}`), node('p', 'source-body document-text', source.body));
+      if (source.sourceUrl) detail.append(button('Provided source link', () => api.openSource(source.id), 'link'));
+      const replace = button('Replace document', () => choose(course.id, source.id)); replace.disabled = state.run.busy;
+      detail.append(replace);
+      const removal = node('details');
+      removal.append(node('summary', '', 'Remove document'), node('p', 'muted', 'Removes this text from the current evidence pack. Earlier exports, revisions and any uploads keep their copies. The original file is untouched.'));
+      const remove = button('Remove from current pack', async () => { update(await api.removeDocument(course.id, source.id)); documentDraft = null; render(); });
+      remove.disabled = state.run.busy; removal.append(remove); detail.append(removal);
+      group.append(detail);
+    }
+    if (documentDraft?.source.courseId === course.id) {
+      const draft = documentDraft;
+      const review = node('section', 'document-review');
+      const heading = node('h3', '', draft.replaceId ? 'Review replacement document' : 'Review document');
+      heading.tabIndex = -1; heading.dataset.documentPreview = '';
+      const title = node('input'); title.value = draft.title; title.maxLength = 180; title.setAttribute('aria-label', 'Document title');
+      title.addEventListener('input', () => { draft.title = title.value; });
+      const url = node('input'); url.type = 'url'; url.value = draft.url; url.maxLength = 2000; url.placeholder = 'Original HTTPS link (optional)'; url.setAttribute('aria-label', 'Original document link (optional)');
+      url.addEventListener('input', () => { draft.url = url.value; });
+      review.append(heading, node('p', 'muted', 'Review for missing content and personal details. Only the extracted text and source details are saved, not the original file or its path. Added text is included in future exports and explicit AI generation.'), title, url,
+        node('p', 'muted', `${draft.source.body.length.toLocaleString()} extracted characters. ${draft.source.coverageNote}`), node('p', 'source-body document-text', draft.source.body));
+      const actions = node('div', 'actions');
+      const save = button(draft.replaceId ? 'Save replacement' : 'Add to evidence pack', async () => { update(await api.addDocument(draft.token, draft.title, draft.url)); documentDraft = null; render(); }, 'primary');
+      const discard = button('Discard preview', async () => { await api.discardDocument(); documentDraft = null; render(); });
+      save.disabled = discard.disabled = state.run.busy; actions.append(save, discard); review.append(actions); group.append(review);
+    }
+    section.append(group);
+  }
+  section.append(node('small', 'muted', 'Imported copies belong to this account’s saved collection and are never refreshed automatically. If you stop collecting a course, its documents leave the current pack; earlier files and revisions remain.'));
+  main.append(section);
 }
 
 function renderCourseWebsites(courses) {
@@ -697,9 +767,11 @@ function renderPrivacy() {
   const grid = node('div', 'privacy-grid');
   const reads = card('What the app reads');
   reads.append(node('p', '', 'Selected courses, assignment titles and stored deadlines, submission status, available syllabus and rubric criterion text, and course messages with supplied sender names. Connected course websites can provide additional materials.'),
+    node('p', '', 'You can also choose course documents stored on this computer. Their text is extracted locally and added only after your review. Document links are not followed.'),
     node('p', 'muted', 'Instructions and other materials may be missing or outdated. Check source coverage before relying on your guide.'));
   const storage = card('What is stored locally');
   storage.append(node('p', '', 'Settings, collected course information, guides, study checkmarks, and collection history are saved on this computer. History includes course names and item identifiers. Remembered logins use protected Windows storage.'),
+    node('p', '', 'Added documents contribute extracted text, title, import date, file fingerprint and an optional source link. Original files and their paths are not copied into app storage. Removing a document affects the current pack; earlier exports and revisions keep their copies.'),
     node('p', 'muted', 'Course data and exported guides are not encrypted by the app. A cloud-synced output folder may sync your documents. Forgetting a login keeps your guides.'));
   const sharing = card('When information goes to AI');
   const sharingStatus = node('p', 'privacy-status', 'AI sharing: only when you create a guide');

@@ -12,6 +12,7 @@ import { guideSources } from './study-plan.js';
 import { STUDY_PROMPT } from './evidence-pack.js';
 import { DEFAULT_PLANNING_PREFERENCES, sharedPlanningPreferences } from './planning-preferences.js';
 import { CourseWebsites } from './course-websites.js';
+import { previewCourseDocument, changeCourseDocument } from './course-documents.js';
 import { CollectionHistory } from './collection-history.js';
 import { readingSelection, READING_VERSION, EXPANDED_AVAILABLE, EXPANDED_HOLD } from './reading-policy.js';
 
@@ -38,6 +39,7 @@ let codex;
 let websiteStore;
 let websites = [];
 let planningPreferences = { ...DEFAULT_PLANNING_PREFERENCES };
+let pendingDocument = null;
 
 function snapshot() {
   return {
@@ -235,6 +237,64 @@ else {
     handle('website:login', (id, username, password, remember = true) => websiteAction((account, signal) => websiteStore.probe(account, id, { username, password, remember }, signal)));
     handle('website:forget', id => websiteAction(account => websiteStore.forgetLogin(account, id)));
     handle('website:remove', id => websiteAction(account => websiteStore.remove(account, id)));
+    handle('document:preview', async (courseId, replaceId) => {
+      requireIdle();
+      pendingDocument = null;
+      const saved = guide;
+      const account = JSON.stringify(store.value.lastGuideAccount);
+      const course = saved?.courses.find(course => course.id === courseId);
+      if (!course || !saved.outputPath || !store.value.lastGuideAccount) throw new Error('Collect this course once before adding a document.');
+      if (replaceId && !course.evidence?.some(source => source.id === replaceId && source.kind === 'document' && source.userProvided)) throw new Error('Choose an imported document from this course.');
+      controller = new AbortController();
+      const signal = controller.signal;
+      run = { busy: true, message: 'Choose a course document to review...' }; publish();
+      try {
+        const result = await dialog.showOpenDialog(window, { title: 'Add course document', properties: ['openFile'], filters: [{ name: 'Course documents (up to 2 MB)', extensions: ['pdf', 'docx', 'txt', 'md'] }] });
+        if (result.canceled) { run.message = ''; return null; }
+        run.message = 'Extracting document text locally...'; publish();
+        const source = await previewCourseDocument(result.filePaths[0], course, signal);
+        signal.throwIfAborted();
+        if (guide !== saved || account !== JSON.stringify(store.value.lastGuideAccount)) throw new Error('The saved collection changed. Choose the document again.');
+        pendingDocument = { token: source.id, saved, account, source, replaceId };
+        run.message = 'Review the extracted text before adding it.';
+        return { token: source.id, source, replaceId };
+      } catch (error) {
+        run.message = signal.aborted ? 'Document preview cancelled. Nothing was added.' : error.message;
+        throw new Error(run.message);
+      } finally { controller = null; run.busy = false; publish(); }
+    });
+    handle('document:discard', () => { requireIdle(); pendingDocument = null; });
+    const saveDocumentChange = async change => {
+      const account = store.value.lastGuideAccount;
+      const saved = guide;
+      const binding = JSON.stringify(account);
+      controller = new AbortController();
+      run = { busy: true, message: 'Saving course document changes locally...' }; publish();
+      try {
+        const next = change();
+        const exported = await guides.export(next, path.dirname(path.dirname(saved.outputPath)), account.userId, controller.signal);
+        if (guide !== saved || binding !== JSON.stringify(store.value.lastGuideAccount)) throw new Error('The active collection changed. The document change was saved for the previous account; reopen that collection to review it.');
+        guide = exported;
+        pendingDocument = null;
+        run.busy = false;
+        run.message = 'Course evidence saved. Export it or create a new AI guide to use these sources.';
+        return snapshot();
+      } catch (error) {
+        run.message = controller.signal.aborted ? 'Document change cancelled. Your previous guide is preserved.' : error.message;
+        throw new Error(run.message);
+      } finally { controller = null; run.busy = false; publish(); }
+    };
+    handle('document:add', (token, title, url) => {
+      requireIdle();
+      const pending = pendingDocument;
+      if (!pending || token !== pending.token || guide !== pending.saved || pending.account !== JSON.stringify(store.value.lastGuideAccount)) throw new Error('The document preview expired or the collection changed. Choose the document again.');
+      return saveDocumentChange(() => changeCourseDocument(guide, pending.source.courseId, { source: pending.source, replaceId: pending.replaceId, title, url }));
+    });
+    handle('document:remove', (courseId, removeId) => {
+      requireIdle();
+      if (!guide?.outputPath || !store.value.lastGuideAccount) throw new Error('Choose a saved collection first.');
+      return saveDocumentChange(() => changeCourseDocument(guide, courseId, { removeId }));
+    });
     handle('guide:update', async () => {
       requireIdle();
       // Check before profile verification or any other network/storage action.

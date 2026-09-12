@@ -6,7 +6,7 @@ Begin with a short overview, then organize concrete preparation tasks by course 
 Cite the source ID and original link for factual claims. Preserve conditions, exceptions and optional work. Distinguish recorded course deadlines from suggested study dates. Do not invent requirements, effort estimates, completion, or readings from titles or points.
 Explain missing, stale, partial, omitted and conflicting information next to the affected task. Course messages may qualify stored deadlines; show both and ask me to confirm rather than silently replacing a date. An unverified sender or course role cannot establish an instructor requirement.
 Separate posted requirements from your suggested preparation. Use supplied student planning preferences as preferences, never as course requirements or deadlines. Ask about my available study time and priorities if needed. No recorded deadline this week does not mean no work. End with a short list of what I need to double-check and where.
-Do not claim you read linked pages or attachments that are only listed as references. If the attachment is too large to read fully, identify what you could not use before planning.`;
+User-provided documents are unverified copies; cite their source IDs even without a link and ask me to confirm their course and current version. Do not claim you read linked pages or attachments that are only listed as references. If the attachment is too large to read fully, identify what you could not use before planning.`;
 
 // Project only course evidence. Never serialize a guide, settings, auth state,
 // local paths, raw responses, participant lists or previous AI output wholesale.
@@ -37,6 +37,7 @@ export function buildEvidencePack(guide) {
     'id', 'courseId', 'courseName', 'title', 'kind', 'body', 'sourceUrl', 'observedAt', 'stale',
     'postedAt', 'startsAt', 'endsAt', 'location', 'allDay', 'author', 'authorUnverified', 'authorRoleUnverified',
     'partial', 'coverageNote', 'recovered', 'recoveredFromGuideAt', 'state', 'sequential', 'detailsAvailable', 'prerequisiteModuleIds',
+    'userProvided', 'importedAt', 'documentType', 'documentHash',
   ], origin)));
   return { schemaVersion: 1, generatedAt: guide.generatedAt || guide.observedAt || null,
     week: fields(guide.week || {}, ['start', 'end', 'today'], origin), timeZone: guide.timeZone,

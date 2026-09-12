@@ -79,6 +79,12 @@ Milestones:
 3. Improve collection coverage within reviewed boundaries, guided by actual
    missing sources; improve connected-site discovery and consider user-supplied
    documents. Preserve provenance and make per-source limitations visible.
+   Local document import is implemented: preview downloaded PDF/DOCX/TXT/MD text
+   before adding it to the saved account/course pack. Replacement and removal
+   update local output only. Imported copies retain their timestamp, fingerprint
+   and extraction limitations; they do not establish current Canvas facts.
+   Additional Canvas reads remain held; connected-site discovery and live-course
+   coverage review remain pending.
 4. Rework the main screen around collection, coverage and the two AI routes.
    Keep a concise factual deadline view and retire arbitrary rule-based start
    dates. Validate light/dark, keyboard use, installer and live-account limits.

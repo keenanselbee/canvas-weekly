@@ -131,11 +131,14 @@ p { margin:0 0 14px; }
 @media(forced-colors:active) { button.primary,.badge,.nav-item.selected { border:1px solid ButtonText; } .task-marker,.status-dot { background:CanvasText; } }
 @media(forced-colors:active) { .sidebar { color-scheme:light dark; background:Canvas; color:CanvasText; --text:CanvasText; --muted:CanvasText; --border:ButtonBorder; --accent:LinkText; --warning:CanvasText; --surface:Canvas; --hover:Canvas; --selected:Canvas; } }
 @media(prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; } }
-.website-course { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
-.website-course summary { cursor: pointer; font-weight: 600; }
-.website-course .actions { margin: 14px 0; }
-.website-course input, .website-course select { max-width: 100%; min-width: 0; }
+:is(.website-course,.document-course) { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
+:is(.website-course,.document-course) summary { cursor: pointer; font-weight: 600; }
+:is(.website-course,.document-course) .actions { margin: 14px 0; }
+:is(.website-course,.document-course) input, .website-course select { max-width: 100%; min-width: 0; }
 .website-course input[type="url"] { flex: 1; min-width: 230px; }
 .website-course select { width: 100%; margin-top: 16px; }
 .website-connection { margin: 18px 0; padding: 16px; border: 1px solid var(--border); border-radius: 8px; }
 .website-connection h3, .website-connection small { overflow-wrap: anywhere; }
+.document-copy, .document-review { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 16px; overflow-wrap: anywhere; }
+.document-text { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; border: 1px solid var(--border); }
+.document-review input { display: block; width: 100%; margin: 12px 0; box-sizing: border-box; }

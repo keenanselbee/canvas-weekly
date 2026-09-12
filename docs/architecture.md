@@ -291,6 +291,40 @@ installation/uninstallation and clean-machine verification remain incomplete;
 see [Windows packaging](windows-package.md).
 
 
+Local course documents
+----------------------
+
+Courses can attach user-selected local PDF/DOCX/TXT/MD files to an existing
+saved course collection. The main process owns the native picker and an
+in-memory preview bound to the exact guide and account. The renderer receives
+extracted text, never a filesystem capability; it commits using the preview ID,
+title and optional HTTPS source link. Navigation to another account or a changed
+saved guide invalidates that preview. Import/discard never calls Canvas or AI.
+
+The reader rejects network-share paths, nonregular files, unsupported types,
+invalid UTF-8 and files above 2 MB. PDF/DOCX use the existing resource-limited
+worker and timeout. Text is capped at 200,000 characters without clipping, and
+the saved collection permits at most 20 documents / 2 million imported characters.
+The original file is not modified or copied; only normalized, credential-filtered
+text, title, format, SHA-256 fingerprint, import timestamp and optional source
+link enter the snapshot. User review remains necessary for secrets and personal
+information. Links are not fetched. PDF scans/images and Word layout, objects,
+comments or tracked changes may be incomplete or absent.
+
+Imported sources are userProvided, partial and stale with no source-observation
+time. importedAt records local ingestion, not source freshness. They do not
+replace structured deadlines, availability or submission status. Reconciliation
+retains these copies for courses still in the collection; dropping a course
+removes them from the current snapshot. The first version is a snapshot attachment
+feature, not a separate permanent document library.
+
+Add/replace/remove use GuideStore's account-scoped export transaction, revision,
+manual-edit and cancellation guards. Source changes clear current AI output
+and retain the factual reference; explicit regeneration uses the changed pack.
+Older exports/revisions and external uploads are not erased or recalled. Sources
+without an original URL retain an ID citation and can be inspected locally.
+
+
 References
 ----------
 

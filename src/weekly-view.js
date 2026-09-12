@@ -6,7 +6,7 @@ export function weeklyView(guide) {
   const sources = new Map([...guide.items, ...guide.courses.flatMap(course => [
     { id: `course:${course.id}`, title: course.name, sourceUrl: course.sourceUrl }, ...(course.evidence || []),
   ])].map(source => [source.id, source]));
-  const cite = ids => ids.map(id => ({ id, title: sources.get(id)?.title || 'Source unavailable', url: sources.get(id)?.sourceUrl || null }));
+  const cite = ids => ids.map(id => ({ id, title: sources.get(id)?.title || 'Source unavailable', url: sources.get(id)?.sourceUrl || null, userProvided: Boolean(sources.get(id)?.userProvided) }));
   const date = value => new Intl.DateTimeFormat('en-CA', { timeZone: guide.timeZone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
   return {
     generatedAt: guide.aiGuide.generatedAt,
@@ -29,6 +29,7 @@ export function weeklyView(guide) {
         }
         if (source?.stale) checks.push('This source is last-known; check the current version.');
         if (source?.partial) checks.push(source.coverageNote || 'Only part of this source was collected.');
+        if (source?.userProvided) checks.push('This is a user-added copy. Confirm its course, author and current version in the original document.');
         if (source?.authorUnverified || source?.authorRoleUnverified) checks.push('Confirm the message sender and their course role before treating it as instructor guidance.');
         return { ...task, citations: cite([task.sourceId]), recorded, checks: [...new Set(checks)],
           localId: local?.id || null, done: Boolean(local?.done), changedSinceDone: Boolean(local?.changedSinceDone) };
@@ -42,7 +43,7 @@ export function weeklyMarkdown(guide) {
   const view = weeklyView(guide);
   if (!view) return [];
   const md = value => String(value ?? '').replace(/[\\`*_{}\[\]<>|#]/g, '\\$&').replace(/\r?\n/g, ' ');
-  const links = citations => citations.filter(source => source.url).map(source => `[${md(source.title)}](<${source.url}>)`).join(' · ');
+  const links = citations => citations.map(source => source.url ? `[${md(source.title)}](<${source.url}>)` : `${md(source.title)} (source ID: ${md(source.id)}; imported copy)`).join(' · ');
   const lines = ['## Your AI weekly guide', '', view.note, '', `AI generated: ${md(view.generatedAt)}. Collection timestamp remains above.`, ''];
   if (view.preferencesChanged) lines.push('Study preferences changed after this guide was generated. Create a new guide to use the current preferences.', '');
   for (const entry of view.overview) lines.push(`- ${md(entry.text)} ${links(entry.citations)}`, '');

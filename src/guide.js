@@ -161,7 +161,7 @@ export function renderMarkdown(guide) {
   lines.push('## Double-check before relying on this plan', '');
   for (const check of referenceChecks) {
     const source = sources.get(check.sourceId);
-    lines.push(`- **${md(check.title)}:** ${md(check.detail)}${source ? ` [Source](<${source.sourceUrl}>)` : ''}`);
+    lines.push(`- **${md(check.title)}:** ${md(check.detail)}${source?.sourceUrl ? ` [Source](<${source.sourceUrl}>)` : source ? ` (Source ID: ${md(source.id)})` : ''}`);
   }
   if (!referenceChecks.length) lines.push('No specific gaps were identified in the collected records. Course announcements and unpublished requirements can still change.');
   lines.push('');
@@ -171,7 +171,7 @@ export function renderMarkdown(guide) {
       lines.push('## Local preparation record', '', 'These are your local checkmarks, not Canvas submissions. They do not remove recorded deadlines.', '');
       for (const task of marked) {
         const source = sources.get(task.sourceId);
-        lines.push(`- [${task.done ? 'x' : ' '}] ${md(source?.title || task.courseName)}${task.changedSinceDone ? ' — changed since you checked it off; review again' : ' — preparation marked done'}${source ? ` [Source](<${source.sourceUrl}>)` : ''}`);
+        lines.push(`- [${task.done ? 'x' : ' '}] ${md(source?.title || task.courseName)}${task.changedSinceDone ? ' — changed since you checked it off; review again' : ' — preparation marked done'}${source?.sourceUrl ? ` [Source](<${source.sourceUrl}>)` : source ? ` (Source ID: ${md(source.id)})` : ''}`);
       }
       lines.push('');
     }
@@ -217,7 +217,8 @@ export function renderMarkdown(guide) {
       if (source.startsAt) lines.push(`Starts: ${formatDate(source.startsAt, guide.timeZone)}; ends: ${formatDate(source.endsAt, guide.timeZone)}${source.location ? `; location: ${md(source.location)}` : ''}`, '');
       for (const paragraph of source.body.split(/\n+/)) if (paragraph.trim()) lines.push(md(paragraph), '');
       if (!source.body) lines.push('Content was not supplied by Canvas.', '');
-      lines.push(`[Source](<${source.sourceUrl}>)`, '');
+      if (source.importedAt) lines.push(`Imported copy: ${formatDate(source.importedAt, guide.timeZone)}. Source ID: ${md(source.id)}.`, '');
+      lines.push(source.sourceUrl ? `[${source.userProvided ? 'Provided source link (not verified)' : 'Source'}](<${source.sourceUrl}>)` : 'No original link supplied. Review the imported copy and your original document.', '');
     }
     lines.push('', 'Linked and file references:', '');
     for (const reference of course.references) lines.push(`- [${md(reference.title)}](<${reference.sourceUrl}>) — ${md(reference.status)}${reference.stale ? '; last known reference' : ''}`);

@@ -12,6 +12,20 @@ included and can also be copied in the app. Exporting uses saved data and sends
 nothing to Canvas or AI. The pack includes all normalized collected records,
 source coverage and changes, including last-known material. It excludes login
 storage and local notes, but course text may contain personal information.
+
+Under **Courses → Course documents**, add downloaded PDF, Word (.docx), UTF-8
+text or Markdown files after the first collection. Review the extracted text,
+give it a title and optionally supply its original HTTPS link. Adding documents
+works offline and never calls Canvas or AI. The text enters your saved evidence
+pack and future explicit AI generation. Imports support 2 MB per file, 200,000
+characters per document, and 20 documents / 2 million characters per collection.
+Scans, figures and complex layouts need checking in the original; no OCR is used.
+Replace a document to update its copy, or remove it from the current pack.
+Earlier exports/revisions and uploaded copies remain. Imports belong to the
+saved account and course; dropping a course from a later collection also drops
+its imports from the current pack. Source changes replace the current AI guide
+with a factual reference; generate again to use the changed evidence.
+
 The connected ChatGPT path uses the same evidence projection with explicit
 input omissions. **Create my weekly guide** sends saved evidence to the connected
 account and produces an overview, course tasks and questions, with source quotes
@@ -147,6 +161,8 @@ Older saved syllabus and announcement text is recovered locally with a last-know
 label. Opening a saved guide does not make that information current; recheck its
 sources before relying on it.
 Run `npm run test:refresh` for a synthetic desktop collection/export/update test;
+run `npm run test:imports` for local document preview, export, replacement/removal,
+expired-preview and account-isolation checks with synthetic data only;
 it uses isolated test storage and temporary output, never your Canvas account.
 Run `npm run test:connection` for delayed-response, account-change, cancellation
 and local credential-cleanup checks with synthetic responses in an isolated profile.
