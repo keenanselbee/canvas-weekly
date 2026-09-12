@@ -18,7 +18,7 @@ const messageQuery = `query CanvasWeeklyConversationText($conversationId: ID!, $
       _id contextId contextType subject updatedAt
       conversationMessagesConnection(first: 100, after: $after) {
         pageInfo { hasNextPage endCursor }
-        nodes { _id conversationId body createdAt }
+        nodes { _id conversationId body createdAt author { _id name } }
       }
     }
   }
@@ -96,7 +96,11 @@ export function parseConversationText(value, observed) {
     if (!object(message) || !validId(message._id) || ids.has(message._id) || message.conversationId !== observed.id
       || typeof message.body !== 'string' || message.body.length > 128 * 1024) throw new Error(unavailable);
     ids.add(message._id);
-    return { id: message._id, conversationId: observed.id, body: redactCredentials(message.body), createdAt: parseMetadataDate(message.createdAt) };
+    const author = message.author;
+    if (author != null && (!object(author) || !validId(author._id)
+      || !(author.name === null || (typeof author.name === 'string' && author.name.length <= 1024)))) throw new Error(unavailable);
+    return { id: message._id, conversationId: observed.id, body: redactCredentials(message.body), createdAt: parseMetadataDate(message.createdAt),
+      author: author ? { id: author._id, name: author.name === null ? null : redactCredentials(author.name).trim() } : null };
   });
   return { messages, next: page.next };
 }

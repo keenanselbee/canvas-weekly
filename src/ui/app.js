@@ -266,6 +266,7 @@ function renderGuide() {
       detail.append(node('summary', '', `${source.title} · ${source.kind}${source.stale ? ' · Needs recheck' : ''}`));
       if (source.recovered) detail.append(node('p', 'muted', `Recovered from an older saved guide${source.recoveredFromGuideAt ? ` collected ${format(source.recoveredFromGuideAt)}` : ''}. Original source observation time is unavailable.`));
       if (source.author || source.postedAt) detail.append(node('p', 'muted', `${source.author || ''} ${source.postedAt ? format(source.postedAt) : ''}`));
+      if (source.authorRoleUnverified && !source.authorUnverified) detail.append(node('p', 'muted', 'Sender name supplied by Canvas; course role not verified.'));
       if (source.startsAt) detail.append(node('p', '', `${format(source.startsAt)}${source.location ? ' · ' + source.location : ''}`));
       detail.append(node('p', 'source-body', source.body || 'Content not supplied.'), button('Open source', () => api.openSource(source.id), 'link'));
       group.append(detail);
@@ -551,7 +552,7 @@ function renderPrivacy() {
   header('Data & privacy', 'Understand what is read, stored, and shared.');
   const grid = node('div', 'privacy-grid');
   const reads = card('What the app reads');
-  reads.append(node('p', '', 'Selected courses, assignment titles and stored deadlines, submission status, available syllabus text, and course messages. Connected course websites can provide additional materials.'),
+  reads.append(node('p', '', 'Selected courses, assignment titles and stored deadlines, submission status, available syllabus text, and course messages with supplied sender names. Connected course websites can provide additional materials.'),
     node('p', 'muted', 'Instructions and other materials may be missing or outdated. Check source coverage before relying on your guide.'));
   const storage = card('What is stored locally');
   storage.append(node('p', '', 'Settings, collected course information, guides, study checkmarks, and collection history are saved on this computer. History includes course names and item identifiers. Remembered logins use protected Windows storage.'),
@@ -559,7 +560,7 @@ function renderPrivacy() {
   const sharing = card('When information goes to AI');
   const sharingStatus = node('p', 'privacy-status', `Study suggestions: ${state.settings.aiEnabled ? 'On' : 'Off'}${state.settings.aiEnabled && !state.ai.connected ? ' - ChatGPT sign-in needed' : ''}`);
   sharingStatus.id = 'privacy-sharing-status'; sharingStatus.setAttribute('role', 'status');
-  sharing.append(sharingStatus, node('p', '', 'When enabled, relevant course text, including course messages, is sent through Codex to your connected ChatGPT account for preparation suggestions. Canvas login credentials are not provided to the planner.'),
+  sharing.append(sharingStatus, node('p', '', 'When enabled, relevant course text, including course messages and supplied sender names, is sent through Codex to your connected ChatGPT account for preparation suggestions. Canvas login credentials are not provided to the planner.'),
     node('p', 'muted', 'Connecting ChatGPT alone does not enable suggestions. Information sent to the AI service is subject to its data policies and your account settings.'));
   const changes = card('What the app can change');
   changes.append(node('p', '', 'Canvas Weekly does not start or resume quizzes, submit coursework, or send messages. Study checkmarks update your local guide only.'),

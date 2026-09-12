@@ -69,7 +69,8 @@ export function reconcile(records, previous, { origin, now, timeZone }) {
     for (const source of evidence.evidence) {
       if (source.stale) continue;
       const prior = priorCourse?.evidence?.find(old => old.id === source.id);
-      if (!prior || ['body', 'title', 'startsAt', 'endsAt'].some(field => prior[field] !== source[field])) changes.push({ itemId: source.id, title: source.title, courseName: source.courseName, field: prior ? 'course-information' : 'new', sourceUrl: source.sourceUrl });
+      if (!prior || ['body', 'title', 'startsAt', 'endsAt', 'author'].some(field => prior[field] !== source[field])
+        || ['authorUnverified', 'authorRoleUnverified'].some(field => Boolean(prior[field]) !== Boolean(source[field]))) changes.push({ itemId: source.id, title: source.title, courseName: source.courseName, field: prior ? 'course-information' : 'new', sourceUrl: source.sourceUrl });
     }
     courses.push({ id: record.id, name: record.sources.metadata?.course.name || details?.name || priorCourse?.name || `Course ${record.id}`,
       code: record.sources.metadata?.course.code || details?.course_code || priorCourse?.code || `Course ${record.id}`,
@@ -226,6 +227,7 @@ export function renderMarkdown(guide) {
     for (const coverage of course.coverage) lines.push(`- ${md(coverage.source)}: ${coverage.status}${coverage.message ? ` — ${md(coverage.message)}` : ''}`);
     for (const source of course.evidence || []) {
       lines.push('', `#### ${md(source.title)}`, '', `${md(source.kind)}${source.stale ? ' — Last known information; recheck source' : ''}${source.author ? ` · ${md(source.author)}` : ''}`, '');
+      if (source.authorRoleUnverified && !source.authorUnverified) lines.push('Sender name supplied by Canvas; course role not verified.', '');
       if (source.recovered) lines.push(`Recovered from an older saved guide${source.recoveredFromGuideAt ? ` collected ${formatDate(source.recoveredFromGuideAt, guide.timeZone)}` : ''}. Original source observation time is unavailable.`, '');
       if (source.postedAt) lines.push(`Posted: ${formatDate(source.postedAt, guide.timeZone)}`, '');
       if (source.startsAt) lines.push(`Starts: ${formatDate(source.startsAt, guide.timeZone)}; ends: ${formatDate(source.endsAt, guide.timeZone)}${source.location ? `; location: ${md(source.location)}` : ''}`, '');

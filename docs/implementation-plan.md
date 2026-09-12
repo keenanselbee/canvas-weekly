@@ -705,3 +705,17 @@ Work log
   History and privacy layouts were visually inspected. See expanded-reading.md
   for source evidence and remaining milestones. No personal Canvas or AI request
   was made. The installer has not been rebuilt for this source milestone.
+
+- Added supplied sender names to the fixed course-message query after reviewing
+  its author association, stored name/ID getters and existing User model concerns
+  in the pinned Canvas source. No Inbox navigation, mark-read operation, attachment
+  selection or assessment action was added. The guide records attribution changes
+  and asks users to verify sender authority; AI validation rejects required/optional
+  labels when the sender role is unverified. Data & privacy now discloses sender
+  names as collected information and optional AI input. Both queries validate
+  against the pinned schema; all 152 unit tests, the Electron metadata-network
+  fixture and the status/privacy/history fixture pass. Extra missing/null/blank
+  sender cases pass the targeted parser suite. Network tests confirm names reach
+  the guide collection and remain out of audit logs. No personal Canvas or AI
+  request was made. Expanded reading and live UBC compatibility remain unresolved;
+  the installer has not been rebuilt for this source milestone.

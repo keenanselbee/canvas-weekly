@@ -67,6 +67,7 @@ export function buildStudyPlan(guide, progress = {}) {
     if ((course.references || []).length) check(courseId, `Check linked materials: ${course.code || course.name}`, 'Linked sites or files are listed in the source details; their contents may not yet be collected. They can contain additional readings, schedules and requirements.');
     for (const source of course.evidence || []) {
       if (source.kind === 'message' && source.authorUnverified) check(source.id, `Confirm message sender: ${source.title}`, 'Sender details were not collected. Check who wrote this message before treating it as an instructor requirement or deadline exception.');
+      else if (source.kind === 'message' && source.authorRoleUnverified) check(source.id, `Confirm message authority: ${source.title}`, `Canvas supplied the sender name ${source.author}, but their course role was not verified. Check whether this is instructor guidance before relying on requirements or deadline exceptions.`);
       if (['message', 'announcement'].includes(source.kind) && /\b(due|deadline|extend|extension|postpon|reschedul|second try|retake)/i.test(source.title + ' ' + source.body)) {
         check(source.id, `Compare course update: ${source.title}`, 'This message may qualify an assignment date or offer an optional retry. Compare its exact wording with the assignment; the guide has not replaced the recorded deadline.');
       }

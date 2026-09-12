@@ -31,7 +31,7 @@ test('message collection covers all scopes, deduplicates overlaps and finishes t
   const evidence = courseEvidence({ id: '1', sources: { conversation: result.conversation } }, null, 'https://canvas.example', '2026-09-11T18:00:00Z');
   assert.equal(evidence.evidence.length, 2);
   assert.equal(evidence.evidence[0].author, 'Author not supplied');
-  assert.match(result.coverage.message, /confirm who sent/i);
+  assert.match(result.coverage.message, /confirm authority/i);
 });
 
 test('changed threads, duplicate scope rows and repeated listing cursors reject the complete message source', async () => {

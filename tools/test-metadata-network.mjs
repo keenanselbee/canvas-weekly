@@ -70,7 +70,7 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
       const id = input.variables.conversationId;
       const next = id === '40' && input.variables.after === null ? 'message-next' : null;
       response.end(JSON.stringify({ data: { legacyNode: { ...thread(id), conversationMessagesConnection: {
-        nodes: [{ _id: id === '41' ? '52' : next ? '50' : '51', conversationId: id, body: 'Private fixture reading update.', createdAt: null }],
+        nodes: [{ _id: id === '41' ? '52' : next ? '50' : '51', conversationId: id, body: 'Private fixture reading update.', createdAt: null, author: { _id: '77', name: 'Example Sender' } }],
         pageInfo: { hasNextPage: !!next, endCursor: next },
       } } } }));
       return;
@@ -321,11 +321,12 @@ try {
   const messageSource = await application.evaluate(() => globalThis.metadataFixture.collectMessages());
   assert.equal(messageSource.conversation.length, 2);
   assert.equal(messageSource.conversation[0].data.messages.length, 2);
+  assert.deepEqual(messageSource.conversation[0].data.messages[0].author, { id: '77', name: 'Example Sender' });
   assert.equal(messageSource.conversation[1].data.messages.length, 1);
   assert.deepEqual(received.slice(beforeMessages).map(request => JSON.parse(request.body).operationName),
     [...Array(4).fill('CanvasWeeklyCourseConversations'), ...Array(3).fill('CanvasWeeklyConversationText')]);
   const finalAudit = (await Promise.all((await fs.readdir(auditDirectory)).map(file => fs.readFile(path.join(auditDirectory, file), 'utf8')))).join('');
-  assert.doesNotMatch(finalAudit, /Private fixture reading update|thread-next|message-next|Course thread|Read the syllabus|course.example/);
+  assert.doesNotMatch(finalAudit, /Example Sender|Private fixture reading update|thread-next|message-next|Course thread|Read the syllabus|course.example/);
   const messageEvents = finalAudit.split('\n').filter(Boolean).map(line => JSON.parse(line));
   assert.equal(messageEvents.filter(event => event.operation === 'conversationtext' && event.event === 'body-read').length, 9);
   for (const scenario of ['message-unavailable', 'message-identity', 'message-expired']) {

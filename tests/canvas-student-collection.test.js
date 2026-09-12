@@ -117,6 +117,16 @@ test('message evidence reaches the guide without replacing deadlines and a faile
   assert.equal(guide.upcoming[0].dueAt, '2026-09-18T18:00:00.000Z');
   assert.match(renderMarkdown(guide), /Confirm message sender/);
   assert.equal(planningEvidence(guide).sources.find(source => source.kind === 'message').authorUnverified, true);
+  transport.readConversationText = async () => ({ messages: [{ id: '50', conversationId: '40', body: 'The deadline has moved to Thursday.', createdAt: '2026-09-10T18:00:00Z', author: { id: '77', name: 'Example Sender' } }], next: null });
+  const namedRecord = await collectStudentMetadata({ ...binding, transport });
+  const namedGuide = buildGuide(reconcile([namedRecord], snapshot, options), options.now);
+  const named = planningEvidence(namedGuide).sources.find(source => source.kind === 'message');
+  assert.equal(named.author, 'Example Sender');
+  assert.equal(named.authorUnverified, false);
+  assert.equal(named.authorRoleUnverified, true);
+  assert.ok(namedGuide.changes.some(change => change.itemId === message.id && change.field === 'course-information'));
+  assert.match(renderMarkdown(namedGuide), /Confirm message authority/);
+  assert.match(renderMarkdown(namedGuide), /course role not verified/);
   transport.readConversationText = async () => { throw new Error('private-response-body'); };
   const failed = await collectStudentMetadata({ ...binding, transport });
   assert.equal(failed.sources.conversation, undefined);

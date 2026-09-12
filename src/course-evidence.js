@@ -85,10 +85,11 @@ export function courseEvidence(record, previous, origin, now) {
     const conversation = entry.data;
     for (const message of conversation.messages || []) {
       if (message.generated) continue;
-      const author = conversation.participants?.find(person => String(person.id) === String(message.author_id));
+      const author = message.author || conversation.participants?.find(person => String(person.id) === String(message.author_id));
       // Store only the message author, never the whole participant/recipient roster.
       add('message', `${entry.id}:${message.id}`, conversation.subject, '', `${origin}/conversations`, {
-        body: redactCredentials(message.body || ''), author: String(author?.name || 'Author not supplied'), authorUnverified: !author?.name, postedAt: timestamp(message.created_at),
+        body: redactCredentials(message.body || ''), author: redactCredentials(author?.name || 'Author not supplied'), authorUnverified: !author?.name,
+        authorRoleUnverified: true, postedAt: timestamp(message.created_at),
       });
     }
   }

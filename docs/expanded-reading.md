@@ -4,7 +4,9 @@ Expanded course reading and collection history
 Implemented: per-account/per-course requested reading preferences, explicit
 acknowledgement, requested versus effective mode, durable Canvas request history,
 latest-run summaries and history navigation. Limited reading remains the effective
-mode in every run. No new Canvas content operation has been admitted.
+mode in every run. No expanded Canvas content operation has been admitted. The
+existing limited message query now includes supplied sender names after its
+separate review in canvas-message-review.md; sender course roles remain unverified.
 
 Admission blocker
 -----------------
@@ -67,7 +69,7 @@ Remaining implementation sequence
 2. Review instruction/rubric fields and current individual date/availability
    resolvers, including automatic timestamp maintenance. Continue to block unknown
    effects beyond the user's authorized boundary.
-3. Add verified message authors and announcements, then weekly module/page data,
+3. Review sender course roles and announcements, then weekly module/page data,
    documents and quiz introductions. Keep attempt contents, external-tool launches,
    submission endpoints and explicit Mark done unreachable in every mode.
 4. Each admitted expanded operation needs a fixed request definition, course/item

@@ -32,6 +32,8 @@ test('unverified message senders cannot establish required or optional course st
   for (const kind of ['required', 'optional']) {
     const output = result(); output.priorities[0].steps = [{ text: 'Read chapter 1.', kind, quote: 'Read chapter 1 before the lab.' }];
     assert.throws(() => validatePriorities(output, unverified), /unverified message/);
+    const named = { ...evidence, items: evidence.items.map(item => ({ ...item, kind: 'message', author: 'Example Sender', authorUnverified: false, authorRoleUnverified: true })) };
+    assert.throws(() => validatePriorities(output, named), /unverified message/);
   }
   const suggestion = result(); suggestion.priorities[0].steps = [{ text: 'Confirm the sender and deadline in Canvas.', kind: 'suggested', quote: '' }];
   assert.equal(validatePriorities(suggestion, unverified).length, 1);

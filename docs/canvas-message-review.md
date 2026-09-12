@@ -3,8 +3,9 @@ Canvas course-message replacement
 
 Decision, 2026-09-11: admit the two fixed message queries after the existing
 student preflights and assignment/status scan during manual guide refresh. This
-restores course-tagged message text, not attachments, author identities, Canvas
-pages or assessment instructions. The old conversation REST operations remain
+restores course-tagged message text and, after the sender review below, supplied
+sender names. Attachments, Canvas pages and assessment instructions remain outside
+this selection. The old conversation REST operations remain
 removed. Local fixtures pass; UBC's deployed revision and live compatibility are
 not verified. This decision does not prove historical account invariance.
 
@@ -48,10 +49,11 @@ canvas-message-candidate.js has no fetcher, credentials, session or transport.
    overlaps and reports incomplete scopes; using only unread messages would miss
    previously read deadline changes. The course filter is fixed to course_ID.
 2. CanvasWeeklyConversationText reads a previously discovered Conversation through
-   legacyNode and selects message ID, conversation ID, body and creation time.
+   legacyNode and selects message ID, conversation ID, body, creation time and
+   the author's stored ID/name when available.
    It does not request attachments, recipients, reply permissions, submission
-   assets, media or the full participant roster. Author details are not selected
-   yet, so the application must not infer that a message came from an instructor.
+   assets, media or the full participant roster. Course roles are not selected,
+   so the application must not infer that a message came from an instructor.
 
 The self conversation connection returns data only when its User object equals
 current_user. Its course tag handler converts shard-relative IDs and composes a
@@ -134,10 +136,12 @@ Transport and refresh contract
   with their original observation time. Cancellation, identity/authentication,
   interception and audit failures propagate as fatal collection errors, so the
   coordinator preserves the previous guide instead of exporting a mixed run.
-- Sender details are unverified. The study plan asks to confirm the sender and
+- Missing sender names and all sender course roles are unverified. The study plan
+  asks to confirm the sender or authority and
   compare announced exceptions with stored deadlines; it never changes a structured
-  deadline from message text. AI evidence carries authorUnverified, and validation
-  refuses required/optional step labels based on such a source. Suggested checks
+  deadline from message text. AI evidence carries authorUnverified and
+  authorRoleUnverified, and validation refuses required/optional step labels when
+  either is true. Suggested checks
   remain allowed. Message contents are data, never tool instructions.
 
 The independent admission test pins the query text SHA256 values:
@@ -145,7 +149,7 @@ The independent admission test pins the query text SHA256 values:
 | Operation | SHA256 |
 | --- | --- |
 | CanvasWeeklyCourseConversations | f7050e91cd63d766ed19a8c69d18f17e1d2847e034fc3a490523e231d771b824 |
-| CanvasWeeklyConversationText | 3b87e31acba83b8991264a2210df487fe524cf3d81769e9737c6fa153a2c91af |
+| CanvasWeeklyConversationText | cb85cb1b2cc0f4ce42c1097d3c250b20657c575c1033b67170c90ba759f4faab |
 
 Validation: unit coverage exercises parsing, discovery authority, pagination,
 fatal/optional failures, stale-message reconciliation, unchanged deadlines and
@@ -155,3 +159,32 @@ checks redacted audit data. Both fixed queries validate against the pinned schem
 These tests use synthetic data. No real message read or AI request was performed
 for this milestone. Canvas instructions/materials and live compatibility remain
 unfinished parts of the personal study-guide objective.
+
+
+Sender attribution addition
+---------------------------
+
+The same pinned revision exposes ConversationMessageType.author through
+load_association(:author), backed by ConversationMessage.belongs_to :author,
+class_name: User. ApplicationObjectType delegates to AssociationLoader, which
+uses an already-loaded association or ActiveRecord association preloading. The
+selected UserType.name field has no custom resolver; LegacyIDInterface._id reads
+the stored identity. The existing User model/concern review applies (see
+[preflight model review](canvas-preflight-model-review.md)). No additional selected
+path was found to write message read state, evaluate module progress or operate
+on attempts. The existing conversation-participant authorization remains intact.
+This does not establish the deployed UBC implementation or historical account state.
+
+Source paths in the pinned archive: app/graphql/types/conversation_message_type.rb,
+app/models/conversation_message.rb, app/graphql/types/application_object_type.rb,
+app/graphql/loaders/association_loader.rb, app/graphql/types/user_type.rb and
+app/graphql/interfaces/legacy_id_interface.rb. No profile, email, roster, avatar,
+enrollment-role or attachment field was added.
+
+The parser accepts absent/null authors, validates supplied IDs and bounded names,
+and copies only ID/name with credential redaction. Guides disclose that names do
+not verify a course role. Changes to attribution appear in refresh differences.
+Optional AI evidence includes the name and uncertainty flags; required/optional
+claims remain prohibited for unverified roles. Sender names are local guide data
+and optional AI input, never request-history or audit content. Synthetic parser,
+guide/planner and Electron transport tests cover this contract.

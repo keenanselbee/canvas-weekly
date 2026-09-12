@@ -38,10 +38,19 @@ test('candidate retains unread state and course binding while copying only selec
   assert.deepEqual(input, before);
   assert.equal(observed.workflowState, 'unread');
   const value = messages();
+  value.data.legacyNode.conversationMessagesConnection.nodes[0].author = { _id: '77', name: 'Example Sender', email: 'private-email@example.edu' };
   value.data.legacyNode.conversationMessagesConnection.nodes[0].attachments = [{ url: 'private-file-url' }];
   const result = parseConversationText(value, observed);
   assert.equal(result.messages[0].createdAt, '2026-09-10T17:00:00.000Z');
   assert.match(result.messages[0].body, /second try is optional/);
+  assert.deepEqual(result.messages[0].author, { id: '77', name: 'Example Sender' });
+  for (const author of [undefined, null, { _id: '77', name: null }, { _id: '77', name: '  ' }]) {
+    const missing = messages();
+    missing.data.legacyNode.conversationMessagesConnection.nodes[0].author = author;
+    const parsed = parseConversationText(missing, observed).messages[0];
+    assert.equal(Boolean(parsed.author?.name), false);
+  }
+  assert.doesNotMatch(JSON.stringify(result), /private-email/);
   assert.doesNotMatch(JSON.stringify(result), /attachments|private-file-url/);
   value.data.legacyNode.conversationMessagesConnection.nodes[0].body = 'Password: synthetic-course-secret';
   assert.doesNotMatch(parseConversationText(value, observed).messages[0].body, /synthetic-course-secret/);
@@ -67,6 +76,8 @@ test('candidate rejects foreign users, contexts, duplicate identities and partia
     value => { value.data.legacyNode.subject = 'Changed subject'; },
     value => { value.data.legacyNode.conversationMessagesConnection.nodes[0].conversationId = '11'; },
     value => { value.data.legacyNode.conversationMessagesConnection.nodes[0].body = 'x'.repeat(128 * 1024 + 1); },
+    value => { value.data.legacyNode.conversationMessagesConnection.nodes[0].author = { _id: '../77', name: 'Name' }; },
+    value => { value.data.legacyNode.conversationMessagesConnection.nodes[0].author = { _id: '77', name: 'x'.repeat(1025) }; },
     value => { value.data.legacyNode.conversationMessagesConnection.nodes.push(value.data.legacyNode.conversationMessagesConnection.nodes[0]); },
   ]) {
     const value = messages(); mutate(value);

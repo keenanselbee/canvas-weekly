@@ -52,15 +52,16 @@ export async function collectCourseMessages({ transport, courseId, studentId, si
       for (const message of result.messages) {
         if (message.conversationId !== thread.id || messageIds.has(message.id)) throw new Error('Canvas returned duplicate or mismatched messages.');
         messageIds.add(message.id);
-        messages.push({ id: message.id, body: message.body, created_at: message.createdAt });
+        messages.push({ id: message.id, body: message.body, created_at: message.createdAt,
+          author: message.author ? { id: message.author.id, name: message.author.name } : null });
       }
       after = result.next;
       if (after === null) break;
     }
-    // Use the existing evidence adapter without recipient lists or invented
-    // authors. Read state and participant IDs are not exported as study content.
+    // Keep only each message's author, not a participant/recipient roster.
+    // A supplied name does not establish an instructor or TA role.
     conversations.push({ id: thread.id, data: { subject: thread.subject, messages } });
   }
   return { conversation: conversations, coverage: { source: 'course messages', status: 'ok',
-    message: 'Collected course-tagged inbox, archived and sent messages. Author identities and attachments were not collected; confirm who sent any instruction before relying on it.' } };
+    message: 'Collected course-tagged inbox, archived and sent messages, with sender names when supplied. Sender roles and attachments were not collected; confirm authority before relying on instructions.' } };
 }
