@@ -1,4 +1,5 @@
 import { planningSchema, validatePriorities } from './planning-output.js';
+import { weeklyTaskKey } from './weekly-task.js';
 
 const cited = { type: 'object', additionalProperties: false, properties: {
   text: { type: 'string' }, sourceIds: { type: 'array', items: { type: 'string' } },
@@ -40,8 +41,10 @@ export function validateWeeklyGuide(result, evidence) {
     seenCourses.add(course.courseId);
     for (const task of course.tasks) {
       const source = sources.get(task.sourceId);
-      if (!source || source.courseId !== course.courseId || seenTasks.has(task.sourceId) || ++count > 120) throw new Error('The AI guide contains duplicate tasks or a source from another course.');
-      seenTasks.add(task.sourceId);
+      if (!source || source.courseId !== course.courseId || ++count > 120) throw new Error('The AI guide contains too many tasks or a source from another course.');
+      const key = weeklyTaskKey(task);
+      if (seenTasks.has(key)) throw new Error('The AI guide repeats the same preparation action for a source.');
+      seenTasks.add(key);
       validatePriorities({ priorities: [{ ...task, suggestedDate: task.suggestedDate === null ? evidence.week.today : task.suggestedDate }] },
         { ...evidence, items: [...sources.values()], sources: [] });
       if (source.status === 'submitted' && task.steps.some(step => step.kind === 'required')) throw new Error('The AI guide treats submitted work as a new requirement.');

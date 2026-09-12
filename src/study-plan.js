@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { localDate, shiftDate } from './dates.js';
 import { factualTask, factualMaterials } from './factual-task.js';
+import { weeklyTaskKey } from './weekly-task.js';
 
 export function guideSources(guide) {
   return [...guide.items, ...guide.courses.flatMap(course => [
@@ -83,12 +84,30 @@ export function buildStudyPlan(guide, progress = {}) {
     }
   }
   const sourceMap = new Map(guideSources(guide).map(source => [source.id, source]));
+  const weeklyTasks = guide.aiGuide?.courses.flatMap(course => course.tasks);
+  const weeklyByKey = new Map((weeklyTasks || []).map(task => [weeklyTaskKey(task), task]));
+  const sourceCounts = new Map();
+  for (const task of weeklyTasks || []) sourceCounts.set(task.sourceId, (sourceCounts.get(task.sourceId) || 0) + 1);
+  const sharedBases = new Map([...sourceCounts].filter(([, count]) => count > 1)
+    .map(([sourceId]) => [sourceId, tasks.find(task => task.sourceId === sourceId)]));
+  // A split action needs fresh, independent progress. Preserve the old IDs for
+  // single actions; never copy one old completion onto several new actions.
+  for (const base of sharedBases.values()) if (base) tasks.splice(tasks.indexOf(base), 1);
   // AI may refine preparation; recorded deadlines and verification-first tasks
   // remain controlled by source data. Quotes are verified before export/storage.
-  for (const priority of guide.priorities || []) {
+  for (const priority of weeklyTasks || guide.priorities || []) {
     const source = sourceMap.get(priority.sourceId);
     if (!source) continue;
     let task = tasks.find(task => task.sourceId === priority.sourceId);
+    if (sharedBases.has(priority.sourceId)) {
+      const key = weeklyTaskKey(priority);
+      task = { steps: [], ...structuredClone(sharedBases.get(priority.sourceId) || {}),
+        id: `${priority.sourceId}:ai-preparation:${createHash('sha256').update(key).digest('hex')}`,
+        sourceId: priority.sourceId, courseId: source.courseId, courseName: source.courseName,
+        suggestedDate: priority.suggestedDate, dueAt: source.dueAt || null, closesAt: source.closesAt || null };
+      tasks.push(task);
+    }
+    if (task && weeklyTasks) task.weeklyTaskKey = weeklyTaskKey(priority);
     for (const question of priority.checks || []) (task?.unscheduled ? task.checks : checks).push({ sourceId: priority.sourceId, title: `ChatGPT suggests checking: ${source.title}`, detail: question });
     if (source.stale && !guide.aiGuide) continue;
     const steps = priority.steps?.map(step => ({ ...step }));
@@ -100,6 +119,7 @@ export function buildStudyPlan(guide, progress = {}) {
       task = { id: `${priority.sourceId}:ai-preparation`, sourceId: priority.sourceId, courseId: source.courseId, courseName: source.courseName, dueAt: null, closesAt: null, steps: [], suggestedDate: today };
       tasks.push(task);
     }
+    if (weeklyTasks) task.weeklyTaskKey = weeklyTaskKey(priority);
     Object.assign(task, { title: priority.action, reason: priority.reason, ai: true });
     if (priority.suggestedDate) task.suggestedDate = priority.suggestedDate;
     if (steps?.length) task.steps = steps;
@@ -107,7 +127,7 @@ export function buildStudyPlan(guide, progress = {}) {
   for (const task of tasks) {
     const source = sourceMap.get(task.sourceId);
     const fingerprint = [task.title, task.steps, task.dueAt, task.closesAt, source?.instructions || source?.body || '', source?.stale || false];
-    const weeklyTask = guide.aiGuide?.courses.flatMap(course => course.tasks).find(item => item.sourceId === task.sourceId);
+    const weeklyTask = weeklyByKey.get(task.weeklyTaskKey);
     if (weeklyTask) fingerprint.push(weeklyTask);
     if (task.posted) fingerprint.push((task.posted.sourceIds || task.posted.sources.map(source => source.sourceId)).map(id => {
       const evidence = sourceMap.get(id);

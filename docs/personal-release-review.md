@@ -18,9 +18,9 @@ Requirements and evidence
 | Never start/resume quizzes, submit or message; preserve learning/read state | Denied assessment/action routes, exact pending-request admission, reviewed fixed queries, local network fixtures and request ledger | Historical account invariance cannot be certified without the missing earlier baseline; current UBC resolver/deployment assumptions remain unverified |
 | As much useful course information as safely available | Metadata, own submission status, stored syllabus, course-tagged messages, rubric criterion/rating descriptions; retained stale evidence and per-source limitations | Assignment instructions, numeric rubric scoring, Canvas page/file bodies and modules remain excluded. Sender roles and complete course coverage are not verified; do not infer no work from these gaps |
 | Course websites and local documents | Scoped public/HTTP Basic HTML/text/PDF/DOCX adapter; independent website refresh preserves Canvas facts; previewed PDF/DOCX/TXT/MD import, replacement/removal and account isolation; complete extracted text with partial-document warnings | Current-build live course-site coverage needs review. Browser-only website login, scanned pages and diagrams remain unsupported; linked references do not mean content was read |
-| Personal study guide and to-do list with uncertainty | Explicit full weekly-guide generation from saved evidence, per-course tasks, cited quotes/questions, recorded dates and local checkmarks; validated fictional output and shared app/document views; opt-in study preferences | A real full-guide model result and semantic review are missing. Source/quote validation cannot establish correct interpretation; compare real evidence against a manual course inventory |
+| Personal study guide and to-do list with uncertainty | Explicit full weekly-guide generation from saved evidence, per-course tasks, cited quotes/questions, recorded dates and local checkmarks; reviewed live four-course fictional output and shared app/document views; independent split-action checkmarks; opt-in study preferences | Representative real-course and manual online-chat review remain pending. Source/quote validation cannot establish correct interpretation; compare real evidence against a manual course inventory |
 | Export for online AI chat | Offline Course Information.md and copyable prompt; full normalized text/references, credential filtering, source IDs/timestamps and protected revisions; shared projection with connected AI | User must review and upload; provider-specific attachment parsing/limits and guide quality remain unverified. Export is not proof of complete Canvas collection |
-| ChatGPT/Codex connection and usage | Pinned app-server integration, bundled runtime, isolated encrypted login and token panel; earlier live test used the old suggestion contract. Collection never invokes AI | Development profile has no current remembered-login marker as of this review. New full-guide acceptance awaits sign-in; the earlier result is not a quality pass for the new contract |
+| ChatGPT/Codex connection and usage | Pinned app-server integration, bundled runtime, isolated encrypted login and token panel; the current full-guide live test restored the development connection and reported 14,726 tokens with zero tool requests. Collection never invokes AI | One fictional run does not prove interpretation quality for every course or input |
 | Bounded connected AI input | Course/task/source metadata reserved before large text; initial text allowance per course; entire UTF-8 input bounded, whole passages retained or explicitly omitted; excluded coverage/reference counts shown | Size limits still exclude material. Read the full manual pack when omissions matter; no local allocation test proves that the model used every included source |
 | Desktop/Canvas Weekly default and other folder option | Known Desktop folder resolution, native picker, settings/initializer and packaged default checks | No known implementation gap |
 | Academic timezone and Monday-Sunday week identity | Settings control, validated narrow IPC, saved timezone tests; date/rollover/DST tests | Confirm the academic timezone against the student's Canvas setting during live validation |
@@ -53,15 +53,16 @@ refresh never invoke AI. Export for AI creates a local file; Create my weekly gu
 is the explicit connected AI action. Connecting ChatGPT is not consent to an
 automatic run. Review what will be shared before either route.
 
-First complete the fictional four-course live test in ai-guide-acceptance.md after
-development-app sign-in. Review its ten semantic criteria, then separately test
-manual upload in an online chat. Only then evaluate representative real course
-material chosen by the student. A schema-valid or synthetic result is not proof
+The fictional four-course live test in ai-guide-acceptance.md passed its ten
+semantic criteria. Next, separately test manual upload in an online chat. Only
+then evaluate representative real course material chosen by the student.
+A schema-valid or synthetic result is not proof
 of useful personal planning.
 
-Current local validation: 185 unit tests and the synthetic desktop workflow pass
-at 2e372af; the separate Inno candidate rebuilt with source matching and package
-privacy checks. These tests do not authenticate to personal Canvas or AI accounts.
+Current source validation: 188 unit tests and the synthetic desktop workflow pass.
+The separate live test used the development ChatGPT connection with fictional
+data only. The earlier Inno candidate passed source matching and package privacy
+checks; it has not been rebuilt for this milestone.
 The remaining account and human-wizard gates prevent declaring the full goal
 complete. See implementation-plan.md for the current payload lifecycle result.
 

@@ -81,9 +81,10 @@ Milestones:
    previous successful output on failure. The separate Create my weekly guide
    action, validated output, local checkmarks and app/Markdown/HTML/Word views are
    implemented. Optional account-scoped availability, priorities and guide length
-   are implemented with explicit sharing off by default. Live generation-quality
-   review remains pending. Automatic Study suggestions is retired: collection
-   never starts an AI run, including for older saved settings.
+   are implemented with explicit sharing off by default. A live four-course
+   fictional guide passed review; real-course and manual-chat review remain pending.
+   Automatic Study suggestions is retired: collection never starts an AI run,
+   including for older saved settings.
 3. Improve collection coverage within reviewed boundaries, guided by actual
    missing sources; improve connected-site discovery and consider user-supplied
    documents. Preserve provenance and make per-source limitations visible.
@@ -109,6 +110,13 @@ Completion requires both AI routes to be usable, exports to preserve collected
 evidence without silent clipping, connected guides to retain traceable facts,
 and coverage/safety limitations to remain visible. This milestone alone does not
 complete the revised goal or resolve institutional collection restrictions.
+
+A weekly guide may split one source into distinct preparation actions, such as
+reading and drafting. Each action has its own local checkmark. Repeated actions
+for the same source are rejected after normalizing capitalization and whitespace.
+Split-action IDs derive from the source and action, so reordering does not move
+completion between tasks. An older single-source checkmark is not copied to the
+new split actions; changed steps or checks reopen the affected action for review.
 
 Study preferences are stored separately from course evidence in the current
 account's planning-preferences.json. They are not encrypted, and are not course

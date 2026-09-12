@@ -1,4 +1,5 @@
 import { factualTask } from './factual-task.js';
+import { weeklyTaskKey } from './weekly-task.js';
 
 // Shared presentation for the renderer and document exports; no Node or network.
 export function weeklyView(guide) {
@@ -17,7 +18,7 @@ export function weeklyView(guide) {
       name: guide.courses.find(item => item.id === course.courseId)?.code || guide.courses.find(item => item.id === course.courseId)?.name || course.courseId,
       tasks: course.tasks.map(task => {
         const source = sources.get(task.sourceId);
-        const local = guide.studyPlan?.tasks.find(item => item.sourceId === task.sourceId);
+        const local = guide.studyPlan?.tasks.find(item => item.weeklyTaskKey === weeklyTaskKey(task));
         const checks = [...task.checks];
         const recorded = [];
         if (source?.status) {

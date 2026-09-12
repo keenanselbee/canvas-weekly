@@ -64,3 +64,40 @@ test('AI view and exports retain source deadlines, optional wording, uncertainty
   guide.aiGuide.courses[0].tasks[0].checks.push('Confirm the room.');
   assert.equal(buildStudyPlan(guide, progress).tasks.find(item => item.id === task.id).changedSinceDone, true);
 });
+
+test('separate actions for one source keep independent progress across reordering and changes', () => {
+  const { guide, output, evidence } = fixture();
+  guide.aiGuide = validateWeeklyGuide(output, evidence);
+  guide.studyPlan = buildStudyPlan(guide);
+  const oldTask = guide.studyPlan.tasks.find(task => task.sourceId === '1:assignment:10');
+  const oldProgress = { [oldTask.id]: { done: true, fingerprint: oldTask.fingerprint } };
+  output.courses[0].tasks.push({ ...structuredClone(output.courses[0].tasks[0]), action: 'Prepare questions after reading',
+    suggestedDate: '2026-09-11', steps: [{ text: 'Write questions about unclear concepts.', kind: 'suggested', quote: '' }] });
+  guide.aiGuide = validateWeeklyGuide(output, evidence);
+  guide.studyPlan = buildStudyPlan(guide, oldProgress);
+  let tasks = weeklyView(guide).courses[0].tasks;
+  assert.equal(tasks.length, 2);
+  assert.ok(tasks.every(task => task.localId && !task.done), 'Splitting a source never copies old completion onto both actions');
+  assert.notEqual(tasks[0].localId, tasks[1].localId);
+  const first = guide.studyPlan.tasks.find(task => task.id === tasks[0].localId);
+  const progress = { [first.id]: { done: true, fingerprint: first.fingerprint } };
+  guide.aiGuide.courses[0].tasks.reverse();
+  guide.studyPlan = buildStudyPlan(guide, progress);
+  tasks = weeklyView(guide).courses[0].tasks;
+  assert.equal(tasks[0].done, false);
+  assert.equal(tasks[1].done, true);
+  assert.equal(tasks[1].localId, first.id, 'Task order is not its identity');
+  guide.aiGuide.courses[0].tasks[0].checks.push('Confirm the room.');
+  guide.studyPlan = buildStudyPlan(guide, progress);
+  assert.equal(weeklyView(guide).courses[0].tasks[1].done, true, 'Changing the other action does not reopen this one');
+  guide.aiGuide.courses[0].tasks[1].checks.push('Confirm the edition.');
+  guide.studyPlan = buildStudyPlan(guide, progress);
+  assert.equal(weeklyView(guide).courses[0].tasks[1].changedSinceDone, true);
+  assert.equal(weeklyView(guide).courses[0].tasks[1].done, false);
+});
+
+test('weekly output rejects duplicate actions even with different capitalization, whitespace or dates', () => {
+  const { output, evidence } = fixture();
+  output.courses[0].tasks.push({ ...structuredClone(output.courses[0].tasks[0]), action: '  PREPARE  for the lab ', suggestedDate: '2026-09-11' });
+  assert.throws(() => validateWeeklyGuide(output, evidence), /repeats the same preparation action/);
+});

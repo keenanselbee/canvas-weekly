@@ -2,8 +2,9 @@ AI guide acceptance
 ===================
 
 The full weekly-guide contract has deterministic validation and desktop tests.
-The earlier real-model verification exercised the old suggestion format, not
-the current four-course weekly guide. Do not treat it as a current quality pass.
+A reviewed live four-course run also passed the ten criteria below on September
+12, 2026. This is evidence for that fictional fixture, not a guarantee of
+real-course completeness or model behavior across other inputs.
 
 
 Repeatable fictional-course review
@@ -51,12 +52,19 @@ upload limits, parsing or output quality.
 Current evidence and remaining gates
 ------------------------------------
 
-On September 12, 2026, offline preparation and fixture integrity passed. The
-development planner had no current remembered-login marker, so the live check
-stopped before runtime startup or any AI request. Its older encrypted credentials
-were left untouched. Full weekly-guide live model quality remains unverified.
+On September 12, 2026, the restored development connection generated a four-course,
+seven-task guide in 88 seconds using the bundled runtime. All ten content criteria
+passed on review of the exact input and output. The run requested no tools and
+used 14,726 tokens (12,014 input and 2,712 output). Artifacts and the completed
+checklist are under `.codex-temp/weekly-acceptance-oRUUYg`. The HTML overview was
+also visually reviewed using Electron with external requests blocked.
 
-Completion still needs a reviewed live result, manual online-chat review, and
+An earlier response was rejected because it split one assignment into reading
+and drafting tasks. Distinct actions now validate and receive independent local
+checkmarks; replaying that response passed. A later interrupted test had no final
+result and is not counted as a pass. No personal Canvas data entered these tests.
+
+Completion still needs manual online-chat review and
 representative real-course review after the user chooses the material to share.
 Course variations and collection gaps must stay visible. No AI output test can
 prove that past Canvas activity left all server-side progress unchanged.

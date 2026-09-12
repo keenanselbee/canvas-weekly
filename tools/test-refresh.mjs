@@ -266,6 +266,9 @@ try {
         courses: evidence.courses.map(course => ({ courseId: course.id, focus: 'Use the collected instructions to prepare.', tasks: [{
           sourceId: '1:assignment:10', action: 'Prepare the weekly practice', reason: 'Review the concepts before attempting the work.', suggestedDate: null,
           checks: ['Confirm the deadline in the original source.'], steps: [{ text: 'Complete the practice.', kind: 'required', quote: 'Complete the practice.' }],
+        }, {
+          sourceId: '1:assignment:10', action: 'Review questions after practice', reason: 'Identify concepts to revisit.', suggestedDate: null,
+          checks: [], steps: [{ text: 'Write down questions about unclear concepts.', kind: 'suggested', quote: '' }],
         }] })), questions: [{ text: 'How much study time is available?', sourceIds: ['course:1'] }] }, evidence);
     };
   }, { client: new URL('../src/codex-client.js', import.meta.url).href });
@@ -294,6 +297,11 @@ try {
   assert.deepEqual((await page.evaluate(() => window.canvasWeekly.getState())).guide, generated);
   assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeGeneration);
   await application.evaluate(() => { globalThis.weeklyTestMode = 'success'; });
+  await page.getByLabel('Preparation done: Prepare the weekly practice', { exact: true }).check();
+  await page.waitForFunction(async () => (await window.canvasWeekly.getState()).guide.studyPlan.tasks.some(task => task.weeklyTaskKey && task.done));
+  await page.reload();
+  assert.equal(await page.getByLabel('Preparation done: Prepare the weekly practice', { exact: true }).isChecked(), true);
+  assert.equal(await page.getByLabel('Preparation done: Review questions after practice', { exact: true }).isChecked(), false);
   const preferences = { availability: 'Tuesday and Thursday evenings', priorities: 'Practice SQL before the lab', detail: 'brief', includeWithAI: false };
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Available study time', { exact: true }).fill(preferences.availability);

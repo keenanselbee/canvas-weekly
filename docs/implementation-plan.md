@@ -1080,3 +1080,22 @@ Work log
   light/dark cleanup views were reviewed. The candidate installer rebuilt with
   source matching and package privacy checks. No personal credentials were
   removed and the user's active sign-in was not interrupted.
+
+- Allowed distinct weekly preparation actions to share a source, with independent
+  local checkmarks. Duplicate normalized actions remain rejected. Split-task IDs
+  survive reordering, do not inherit a previous single-source completion, and
+  reopen only the affected action when its steps or checks change. Source/course,
+  quote, deadline and tool restrictions are unchanged.
+  Validation: 188 unit tests and the synthetic desktop workflow passed, including
+  independent checkmarks after reload. Replaying the original rejected response
+  passed. A new real-model fictional run in weekly-acceptance-oRUUYg produced four
+  courses and seven tasks in 88 seconds, with zero tool requests and 14,726 tokens
+  (12,014 input, 2,712 output). All ten content criteria passed review: recorded
+  deadlines and the unverified extension stayed distinct, optional conditions and
+  extraction gaps remained visible, preferences were honored, and no assessment
+  answers or invented project work appeared. The HTML overview was reviewed in
+  Electron with external requests blocked. Initial desktop/live session handles
+  disappeared without results; no matching processes remained before retrying.
+  No personal Canvas requests or course uploads were made. Manual online-chat,
+  real-course and installer acceptance remain outstanding; no new installer was
+  built or installed for this source-only milestone.
