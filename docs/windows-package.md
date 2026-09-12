@@ -34,7 +34,12 @@ the mark or artwork source. This uses the installed Electron renderer without
 external resources, writes required assets to `build/branding`, and saves visual
 previews under `.codex-temp/branding`. Commit generated assets with their source.
 
-The installer is `dist/Canvas-Weekly-0.1.0-x64-Setup.exe`. The unpacked app is
+An experimental Inno installer now builds separately with `node tools/build-inno.mjs`.
+It supports system appearance and native install/maintenance, but blocks NSIS
+migration and has not replaced the default build. Its actual fixture and full-payload
+installation checks are described in [installer experience](installer-experience.md).
+
+The default installer is `dist/Canvas-Weekly-0.1.0-x64-Setup.exe`. The unpacked app is
 `dist/win-unpacked/Canvas Weekly.exe`; keep that entire directory together if
 using it directly. Build outputs and test profiles are ignored by Git.
 
@@ -86,7 +91,7 @@ Remaining release checks
   the full 59-page saved reference printout was not reviewed page by page.
   The six-page synthetic native Word layout check passes; see
   [Word layout verification](word-layout-check.md).
-- A dedicated application icon, signing identity and distribution destination
+- A signing identity and distribution destination
   before a polished public release. No installer or update has been published.
 
 Unsigned builds have no verified publisher identity and may receive Windows

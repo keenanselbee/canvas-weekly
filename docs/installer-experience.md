@@ -5,9 +5,10 @@ Requested direction: match the app's Windows light/dark appearance and show usef
 maintenance choices when Canvas Weekly is already installed. The current NSIS
 package has custom artwork and a repaired per-user selection, but no dark wizard
 controls or dedicated maintenance page. A separate Inno Setup appearance preview
-now implements startup theme detection and read-only discovery of existing NSIS
-installations. It cannot install, update or remove anything; production migration
-and maintenance actions remain implementation work.
+implements startup theme detection and read-only discovery of existing NSIS
+installations. A functional installer candidate now supports fresh installation
+and maintenance of its own installations. Migration from NSIS remains blocked;
+neither candidate has replaced production packaging.
 
 
 First installation and maintenance
@@ -94,7 +95,58 @@ Compiler downloads, fixtures and logs stay untracked. The standard build does no
 download or depend on Inno Setup.
 
 
-Acceptance checks
+Functional installer candidate
+------------------------------
+
+`node tools/build-inno.mjs` freshly packages Electron/Codex into
+`dist/inno-candidate/win-unpacked`, checks the application archive boundaries and
+source bytes, then compiles `dist/inno-candidate/Canvas-Weekly-0.1.0-x64-Setup.exe`.
+This is an unsigned candidate, separate from the NSIS outputs and the UI-only
+preview. Do not use it to migrate personal NSIS installations yet.
+
+The candidate uses dynamic Windows appearance and defaults to the current user.
+Its native scope dialog offers all-users installation with elevation. It does not
+launch the app after installation, close running applications automatically, or
+register startup/update tasks. Start Menu access is installed; a Desktop shortcut
+is optional. Exported guides and account settings are outside its payload.
+
+For an existing Inno installation in the selected scope, it shows version/location
+and offers Update or Reinstall and Uninstall. It keeps the recorded folder even
+when a command-line directory override is supplied. Downgrades are blocked, and
+uninstall is never inferred in silent setup. The interactive uninstall action
+accepts only a quoted generated `uninsNNN.exe` path inside that copy's `.setup`
+directory and invokes it directly, without a shell or appended registry arguments.
+It still requires a visual walkthrough of the action and cancellation behavior.
+If only the other scope has an installation, a separate-copy choice is required.
+
+NSIS registration in the selected scope stops setup before installation. The old
+uninstaller may force-close the app and recursively remove the installation folder;
+it is not safe to reuse automatically while promising preservation of unowned files
+inside that folder. Migration needs a separately validated transition of owned
+files, shortcuts and registration. The Inno candidate has no recursive uninstall
+delete rule and removes files through its generated ownership log.
+
+Validation commands:
+
+- `node tools/test-windows-setup.mjs`: actual native fixture install, missing-file
+  reinstall, upgrade, blocked downgrade, retained installation directory and
+  uninstall. A synthetic legacy registration verifies the migration block.
+- `node tools/test-windows-setup.mjs --payload`: install the complete candidate
+  payload under `.codex-temp`, compare every file, launch the installed app with a
+  fresh test profile, and uninstall it. The current run verified 135 payload files,
+  packaged mode, isolated profile, no connected accounts or guide, bundled Codex
+  detection and System theme matching the native Windows preference.
+
+Both checks passed. Student-owned guide files inside the install folder and a
+separate settings fixture survive updates and removal. Each test uses a unique,
+short `cw.fixture.<UUID>` AppId, a temporary HKCU uninstall registration and only
+repository fixture destinations. The generated native uninstaller removes that
+registration; tests do not modify personal Canvas Weekly registrations. Test builds
+omit shortcuts and scope elevation, so these results do not prove those behaviors.
+Compiler output, installed fixtures and logs remain untracked under `.codex-temp`.
+
+
+Remaining acceptance checks
 -----------------
 
 - New per-user installation, with no UAC at scope selection or file installation.

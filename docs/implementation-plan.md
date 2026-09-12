@@ -833,3 +833,15 @@ Work log
   high-contrast and visual wizard walkthroughs remain pending. Production NSIS
   packaging is unchanged; see installer-experience.md for the separate artifact
   and portable compiler instructions. No Canvas or personal guide operations ran.
+
+- Added a functional Inno installer candidate in dist/inno-candidate, retaining
+  the default NSIS builder. It supports dynamic Windows appearance, explicit scope,
+  same-folder reinstall/update, downgrade blocking and a constrained interactive
+  uninstall path. NSIS migration remains blocked rather than invoking its recursive
+  uninstaller automatically. Native lifecycle fixtures pass, including restoration
+  of a missing file and retention of an unowned guide inside the installation
+  directory. The full-payload fixture installed and verified 135 files, launched
+  the actual packaged app with an isolated profile and bundled Codex detection,
+  then uninstalled while preserving guide/settings fixtures. Temporary fixture
+  registrations were removed. All-users elevation, shortcuts, maintenance UI
+  interaction, live accounts and legacy migration still require validation.
