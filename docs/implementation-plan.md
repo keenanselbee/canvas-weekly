@@ -719,3 +719,18 @@ Work log
   the guide collection and remain out of audit logs. No personal Canvas or AI
   request was made. Expanded reading and live UBC compatibility remain unresolved;
   the installer has not been rebuilt for this source milestone.
+
+- Added rubric criterion text through the existing course assignment visibility
+  path after reviewing the rubric association, stored criteria and model callbacks.
+  The fixed query excludes description/lock resolvers, ratings, outcome resolution
+  and assessment feedback. Its optional scan must match the observed assignment
+  set and shares existing request/byte budgets, identity checks and audit ordering.
+  Partial source failures preserve older criteria as stale; fatal connection/audit
+  failures still stop the refresh. Guides and optional AI evidence disclose missing
+  rubric details and add a full-rubric verification task. All 157 unit tests, pinned
+  schema validation, the local Electron network fixture and the desktop refresh
+  fixture pass. Tests verify paginated criteria, later-page failure, account/expiry
+  rejection, content-free audit and Markdown/HTML output alongside existing notes
+  and local checklist preservation. No personal Canvas or AI request was made.
+  See canvas-rubric-review.md. Expanded reading, live UBC compatibility and a rebuilt
+  installer remain outstanding.

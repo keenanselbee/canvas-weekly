@@ -1,6 +1,7 @@
 import { collectEnrollmentScope, enrollmentScopeRequest } from './canvas-enrollment-scope.js';
 import { collectMetadata, metadataRecord } from './canvas-metadata.js';
 import { collectCourseMessages } from './canvas-message-collection.js';
+import { collectCourseRubrics } from './canvas-rubrics.js';
 import { CanvasCollectionStoppedError } from './canvas-metadata-transport.js';
 
 // Fixed metadata orchestration for CanvasConnection. Supply
@@ -60,6 +61,17 @@ export async function collectStudentMetadata({ transport, courseId, studentId, g
     // a successful partial scan; reconciliation retains old evidence as stale.
     record.coverage.push({ source: 'course messages', status: 'error',
       message: 'Course messages could not be fully refreshed. Any previous messages are last-known information. Check Canvas Inbox for updates and sender details.' });
+  }
+  try {
+    const result = await collectCourseRubrics({ transport, assignments: metadata.assignments, signal });
+    signal?.throwIfAborted();
+    record.sources.rubrics = result.rubrics;
+    record.coverage.push(result.coverage);
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (error instanceof CanvasCollectionStoppedError || error?.name === 'AbortError') throw error;
+    record.coverage.push({ source: 'rubric criteria', status: 'error',
+      message: 'Rubric criteria could not be fully refreshed. Any previous criteria are last-known information; check the full rubric in Canvas.' });
   }
   return record;
 }

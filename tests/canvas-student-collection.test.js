@@ -16,6 +16,7 @@ function fixture({ account = { accountMembership: 'none', studentId: binding.stu
     async readCourseSyllabus() { calls.push('syllabus'); return { text: 'Read the syllabus before class.', links: [] }; },
     async readCourseConversations(scope) { calls.push('messages:' + scope); return { nodes: [], next: null }; },
     async readConversationText() { throw new Error('No threads discovered'); },
+    async readCourseRubrics() { calls.push('rubrics'); return { nodes: [{ assignmentId: '20', name: 'Preparation', rubric: null }], next: null }; },
     async readAssignmentPage() {
       calls.push('CanvasWeeklyAssignments');
       return parseMetadataPage({ data: { course: { _id: '1', name: 'Example course', courseCode: 'EX 1', assignmentsConnection: {
@@ -46,7 +47,7 @@ function fixture({ account = { accountMembership: 'none', studentId: binding.stu
 test('student collection completes both preflights before metadata and exports no role evidence', async () => {
   const { calls, transport } = fixture();
   const record = await collectStudentMetadata({ ...binding, transport });
-  const order = ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScopesecond', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'syllabus', 'messages:inbox', 'messages:archived', 'messages:sent'];
+  const order = ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScopesecond', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'syllabus', 'messages:inbox', 'messages:archived', 'messages:sent', 'rubrics'];
   assert.deepEqual(calls, order);
   assert.equal(record.sources.metadata.submissions[0].cachedDueDate, '2026-09-18T18:00:00.000Z');
   assert.doesNotMatch(JSON.stringify(record), /enrollments|StudentEnrollment|accountMembership|10000000000099/);

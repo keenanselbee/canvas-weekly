@@ -7,6 +7,8 @@ latest-run summaries and history navigation. Limited reading remains the effecti
 mode in every run. No expanded Canvas content operation has been admitted. The
 existing limited message query now includes supplied sender names after its
 separate review in canvas-message-review.md; sender course roles remain unverified.
+Stored rubric criteria are also admitted separately in canvas-rubric-review.md;
+the description lock path remains excluded.
 
 Admission blocker
 -----------------
@@ -66,7 +68,7 @@ Remaining implementation sequence
 1. Diagnose the actual CW_SESSION error from the current UBC build; retain the
    identity/session guards while addressing compatibility. No personal refresh
    is needed for UI/history verification.
-2. Review instruction/rubric fields and current individual date/availability
+2. Review instruction fields, remaining rubric details and current individual date/availability
    resolvers, including automatic timestamp maintenance. Continue to block unknown
    effects beyond the user's authorized boundary.
 3. Review sender course roles and announcements, then weekly module/page data,

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { metadataRequest, permittedMetadataBody, parseMetadataPage } from './canvas-metadata.js';
 import { courseSyllabusRequest, parseCourseSyllabus } from './canvas-syllabus.js';
+import { courseRubricsRequest, parseCourseRubrics } from './canvas-rubrics.js';
 import { ownSubmissionRequest, parseOwnSubmission } from './canvas-own-submission.js';
 import { permittedEnrollmentScopeBody } from './canvas-enrollment-scope.js';
 import { canvasResponseIdentity } from './canvas-identity.js';
@@ -151,6 +152,16 @@ export class CanvasMetadataTransport {
     const value = await this.#read({ method: 'POST', path: '/api/graphql', operation: 'coursesyllabus', body, paginated: false }, signal);
     signal?.throwIfAborted(); this.#connectionSignal.throwIfAborted();
     return parseCourseSyllabus(value, this.#courseId, this.#origin);
+  }
+
+  async readCourseRubrics(after = null, signal) {
+    if (!this.#assignmentIds.size) throw new Error('Read assignments from the selected course before checking rubric criteria.');
+    const body = JSON.stringify(courseRubricsRequest(this.#courseId, after));
+    const value = await this.#read({ method: 'POST', path: '/api/graphql', operation: 'courserubrics', body, paginated: after !== null }, signal);
+    signal?.throwIfAborted(); this.#connectionSignal.throwIfAborted();
+    const page = parseCourseRubrics(value, this.#courseId);
+    if (page.nodes.some(node => !this.#assignmentIds.has(node.assignmentId))) throw new Error('Canvas rubric assignments changed during collection.');
+    return page;
   }
 
   // Only validated course-filtered responses establish thread authority for this run.

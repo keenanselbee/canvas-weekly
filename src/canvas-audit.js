@@ -20,7 +20,7 @@ export class CanvasAudit {
       ...(event.itemId ? { itemId: event.itemId } : {}),
     };
     const metadata = record.method === 'POST' && record.path === '/api/graphql'
-      && ['metadataassignments', 'metadataenrollments', 'metadataownsubmission', 'courseconversations', 'conversationtext', 'coursesyllabus'].includes(record.operation) && /^[a-f0-9]{64}$/.test(record.bodyHash);
+      && ['metadataassignments', 'metadataenrollments', 'metadataownsubmission', 'courseconversations', 'conversationtext', 'coursesyllabus', 'courserubrics'].includes(record.operation) && /^[a-f0-9]{64}$/.test(record.bodyHash);
     const accountScope = record.method === 'GET' && record.path === '/api/v1/accounts' && record.operation === 'accountscope' && !record.paginated;
     if (!/^[a-f0-9-]{36}$/.test(record.requestId)
       || [record.courseId, record.itemId].some(id => id !== undefined && (typeof id !== 'string' || !/^[1-9]\d{0,31}$/.test(id)))

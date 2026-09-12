@@ -17,7 +17,7 @@ artifact paths, installation behavior and remaining release checks.
 
 ## Current implementation
 
-**Manual Canvas refresh uses reviewed metadata, syllabus and course-message queries.** It
+**Manual Canvas refresh uses reviewed metadata, syllabus, rubric and course-message queries.** It
 collects assignment names, points/types, stored student deadlines and submission
 status through fixed queries. The earlier course-wide submission query and REST
 body collector remain disabled. See the [admission decision](docs/canvas-metadata-admission.md)
@@ -29,7 +29,10 @@ Course-tagged Inbox messages are checked after metadata, with complete paginatio
 and unverified-sender labels. A message-source failure keeps older messages stale;
 account or audit failures stop the update. See [message admission](docs/canvas-message-review.md).
 Stored Canvas syllabus text and material links are also collected through a
-[separate reviewed field](docs/canvas-syllabus-review.md). Assignment instructions,
+[separate reviewed field](docs/canvas-syllabus-review.md). Available rubric criterion
+text is collected through a [fixed rubric query](docs/canvas-rubric-review.md);
+rating levels, scoring settings and assessment feedback remain uncollected.
+Assignment instructions,
 page bodies and Canvas file contents remain unavailable. Connected external course
 websites remain a separate supported source.
 Full automatic course-content collection and live UBC compatibility are still

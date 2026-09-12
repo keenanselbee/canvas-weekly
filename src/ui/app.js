@@ -267,6 +267,7 @@ function renderGuide() {
       if (source.recovered) detail.append(node('p', 'muted', `Recovered from an older saved guide${source.recoveredFromGuideAt ? ` collected ${format(source.recoveredFromGuideAt)}` : ''}. Original source observation time is unavailable.`));
       if (source.author || source.postedAt) detail.append(node('p', 'muted', `${source.author || ''} ${source.postedAt ? format(source.postedAt) : ''}`));
       if (source.authorRoleUnverified && !source.authorUnverified) detail.append(node('p', 'muted', 'Sender name supplied by Canvas; course role not verified.'));
+      if (source.coverageNote) detail.append(node('p', 'muted', source.coverageNote));
       if (source.startsAt) detail.append(node('p', '', `${format(source.startsAt)}${source.location ? ' · ' + source.location : ''}`));
       detail.append(node('p', 'source-body', source.body || 'Content not supplied.'), button('Open source', () => api.openSource(source.id), 'link'));
       group.append(detail);
@@ -527,7 +528,7 @@ function renderCollectionHistory() {
   const section = card('Collection history'); section.id = 'collection-history'; section.tabIndex = -1;
   section.append(node('p', 'muted', 'Canvas requests for this account, recorded locally. Course website coverage is separate in your guide. Requests can reach Canvas even if collection fails. Viewing effects are not measured or undone; study checkmarks remain yours to control. Earlier app versions are not reconstructed here.'));
   if (!state.collectionHistory?.length) section.append(node('p', '', 'No collection runs recorded for this account yet.'));
-  const operations = { profile: 'Verify account', accountscope: 'Check account permissions', metadataenrollments: 'Check student enrollment', metadataassignments: 'Read assignment metadata', metadataownsubmission: 'Read own submission status', coursesyllabus: 'Read syllabus text', courseconversations: 'Find course messages', conversationtext: 'Read course message text', courses: 'List courses' };
+  const operations = { profile: 'Verify account', accountscope: 'Check account permissions', metadataenrollments: 'Check student enrollment', metadataassignments: 'Read assignment metadata', metadataownsubmission: 'Read own submission status', coursesyllabus: 'Read syllabus text', courserubrics: 'Read rubric criteria', courseconversations: 'Find course messages', conversationtext: 'Read course message text', courses: 'List courses' };
   for (const run of state.collectionHistory || []) {
     const details = node('details', 'connection-options');
     details.append(node('summary', '', `${new Date(run.startedAt).toLocaleString()} · ${run.status} · ${run.requests.length} requests`));
@@ -552,7 +553,7 @@ function renderPrivacy() {
   header('Data & privacy', 'Understand what is read, stored, and shared.');
   const grid = node('div', 'privacy-grid');
   const reads = card('What the app reads');
-  reads.append(node('p', '', 'Selected courses, assignment titles and stored deadlines, submission status, available syllabus text, and course messages with supplied sender names. Connected course websites can provide additional materials.'),
+  reads.append(node('p', '', 'Selected courses, assignment titles and stored deadlines, submission status, available syllabus and rubric criterion text, and course messages with supplied sender names. Connected course websites can provide additional materials.'),
     node('p', 'muted', 'Instructions and other materials may be missing or outdated. Check source coverage before relying on your guide.'));
   const storage = card('What is stored locally');
   storage.append(node('p', '', 'Settings, collected course information, guides, study checkmarks, and collection history are saved on this computer. History includes course names and item identifiers. Remembered logins use protected Windows storage.'),

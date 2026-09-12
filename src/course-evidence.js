@@ -105,6 +105,14 @@ export function courseEvidence(record, previous, origin, now) {
       if (target) references.set(target, { title: target, sourceUrl: target, foundOn: base + `/assignments/${assignment.id}`, status: 'Linked contents not collected' });
     }
   }
+  for (const item of record.sources.rubrics || []) {
+    const rubric = item.rubric;
+    if (!rubric?.criteria.some(criterion => criterion.description || criterion.longDescription)) continue;
+    add('rubric', item.assignmentId, `${item.name || 'Assignment'}: rubric`, '', base + `/assignments/${item.assignmentId}`, {
+      body: [rubric.title, ...rubric.criteria.map(criterion => [criterion.description, criterion.longDescription].filter(Boolean).join(': '))].filter(Boolean).join('\n'),
+      partial: true, coverageNote: 'Criterion text only. Rating levels, scoring settings and assessment feedback were not collected; check the full rubric.',
+    });
+  }
   for (const file of record.sources.files || []) {
     const url = base + `/files/${file.id}`;
     references.set(url, { title: String(file.display_name || file.filename || 'Course file'), sourceUrl: url, foundOn: base + '/files', status: file.locked_for_user ? 'File is locked' : 'Contents not collected: Canvas file views and downloads can update module progress. Check the original yourself.' });

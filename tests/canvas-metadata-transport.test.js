@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { CanvasMetadataTransport, CanvasCollectionStoppedError } from '../src/canvas-metadata-transport.js';
 import { courseSyllabusRequest } from '../src/canvas-syllabus.js';
+import { courseRubricsRequest } from '../src/canvas-rubrics.js';
 import { CanvasAudit } from '../src/canvas-audit.js';
 import { metadataRequest } from '../src/canvas-metadata.js';
 import { enrollmentScopeRequest } from '../src/canvas-enrollment-scope.js';
@@ -31,6 +32,31 @@ function fixture(options = {}) {
     }, ...options });
   return { transport, connection, events, sent, details };
 }
+
+test('rubric reads require observed assignments, reject generic bodies and keep content out of audit', async () => {
+  let value = { data: { course: { _id: '1', name: 'Example course', courseCode: 'EX 1', assignmentsConnection: {
+    nodes: [{ _id: '10', courseId: '1', name: 'Preparation', state: 'published', pointsPossible: 5, submissionTypes: ['online_upload'],
+      rubric: { _id: '40', title: 'Private rubric title', criteria: [{ _id: 'c1', description: 'Private rubric criterion', longDescription: null }] } }],
+    pageInfo: { hasNextPage: false, endCursor: null },
+  } } } };
+  const setup = fixture({ fetcher: async (_url, init) => {
+    assert.equal(setup.transport.allows(setup.details(init, { uploadData: [{ bytes: Buffer.from(init.body + ' ') }] })), false);
+    assert.equal(setup.transport.allows(setup.details(init)), true);
+    return new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json', 'x-canvas-user-id': '90099' } });
+  } });
+  await assert.rejects(setup.transport.readCourseRubrics(), /Read assignments/);
+  await assert.rejects(setup.transport.request(courseRubricsRequest('1')), /not permitted/);
+  assert.equal(setup.events.length, 0);
+  await setup.transport.readAssignmentPage();
+  const result = await setup.transport.readCourseRubrics();
+  assert.equal(result.nodes[0].rubric.criteria[0].description, 'Private rubric criterion');
+  assert.doesNotMatch(JSON.stringify(setup.events), /Private rubric/);
+  assert.ok(setup.events.some(event => event.operation === 'courserubrics' && event.event === 'body-read'));
+  value.data.course.assignmentsConnection.nodes[0]._id = '11';
+  await assert.rejects(setup.transport.readCourseRubrics(), /changed during collection/);
+  setup.connection.abort();
+  await assert.rejects(setup.transport.readCourseRubrics(), { name: 'AbortError' });
+});
 
 test('direct submission reads require fresh validated assignment scope and keep exact transport binding', async () => {
   let authCalls = 0;

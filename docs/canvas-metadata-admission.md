@@ -11,6 +11,9 @@ it does not authorize automatic instruction/material reads. The subsequent
 queries after metadata using the same bound transport. The later
 [syllabus admission](canvas-syllabus-review.md) also adds the stored course syllabus
 field; it does not allow assignment descriptions or their lock resolver.
+The [rubric admission](canvas-rubric-review.md) adds stored rubric criterion text
+through the same assignment connection, without description/lock or assessment
+resolvers. It remains a partial source and does not enable expanded reading.
 
 Integrated evidence and boundary
 --------------------------------

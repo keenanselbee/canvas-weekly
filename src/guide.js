@@ -228,6 +228,7 @@ export function renderMarkdown(guide) {
     for (const source of course.evidence || []) {
       lines.push('', `#### ${md(source.title)}`, '', `${md(source.kind)}${source.stale ? ' — Last known information; recheck source' : ''}${source.author ? ` · ${md(source.author)}` : ''}`, '');
       if (source.authorRoleUnverified && !source.authorUnverified) lines.push('Sender name supplied by Canvas; course role not verified.', '');
+      if (source.coverageNote) lines.push(md(source.coverageNote), '');
       if (source.recovered) lines.push(`Recovered from an older saved guide${source.recoveredFromGuideAt ? ` collected ${formatDate(source.recoveredFromGuideAt, guide.timeZone)}` : ''}. Original source observation time is unavailable.`, '');
       if (source.postedAt) lines.push(`Posted: ${formatDate(source.postedAt, guide.timeZone)}`, '');
       if (source.startsAt) lines.push(`Starts: ${formatDate(source.startsAt, guide.timeZone)}; ends: ${formatDate(source.endsAt, guide.timeZone)}${source.location ? `; location: ${md(source.location)}` : ''}`, '');

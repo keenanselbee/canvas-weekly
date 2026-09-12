@@ -33,8 +33,9 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
     const input = request.method === 'POST' ? JSON.parse(Buffer.concat(chunks)) : null;
     const messageFailure = mode.startsWith('message-') && input?.operationName === 'CanvasWeeklyConversationText' && input.variables.after === 'message-next';
     const syllabusFailure = mode.startsWith('syllabus-') && input?.operationName === 'CanvasWeeklyCourseSyllabus';
-    response.writeHead((messageFailure || syllabusFailure) && mode.endsWith('-expired') ? 401 : mode === 'account-denied' ? 403 : 200, { 'content-type': 'application/json',
-      ...(mode === 'missing-identity' ? {} : { 'x-canvas-user-id': mode === 'other-identity' || ((messageFailure || syllabusFailure) && mode.endsWith('-identity')) ? '90100' : '90099' }),
+    const rubricFailure = mode.startsWith('rubric-') && input?.operationName === 'CanvasWeeklyCourseRubrics' && input.variables.after !== null;
+    response.writeHead((messageFailure || syllabusFailure || rubricFailure) && mode.endsWith('-expired') ? 401 : mode === 'account-denied' ? 403 : 200, { 'content-type': 'application/json',
+      ...(mode === 'missing-identity' ? {} : { 'x-canvas-user-id': mode === 'other-identity' || ((messageFailure || syllabusFailure || rubricFailure) && mode.endsWith('-identity')) ? '90100' : '90099' }),
       ...(mode === 'account-next' ? { link: `<https://${request.headers.host}/api/v1/accounts?per_page=1&page=2>; rel="next"` } : {}),
       ...(mode === 'impersonated-identity' ? { 'x-canvas-real-user-id': '90100' } : {}) });
     if (mode === 'large') { response.end('"' + 'x'.repeat(2 * 1024 * 1024) + '"'); return; }
@@ -47,7 +48,7 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
       response.end(mode === 'account-present' ? '[{"id":1,"name":"private-admin-account"}]' : '[]');
       return;
     }
-    if (messageFailure || syllabusFailure) { response.end(JSON.stringify({ errors: [{ message: 'private-message-fixture-error' }] })); return; }
+    if (messageFailure || syllabusFailure || rubricFailure) { response.end(JSON.stringify({ errors: [{ message: 'private-message-fixture-error' }] })); return; }
     if (input.operationName === 'CanvasWeeklyCourseSyllabus') {
       assert.deepEqual(input.variables, { courseId: '1' });
       response.end(JSON.stringify({ data: { course: { _id: '1', syllabusBody: '<p>Read the syllabus before class.</p><a href="https://course.example/syllabus">Full syllabus</a>' } } }));
@@ -90,16 +91,16 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
       const node = { _id: next ? '31' : '32', userId: '99', course: { _id: '1' },
         type: next ? 'StudentEnrollment' : 'TeacherEnrollment', state: next ? 'active' : 'completed',
         courseSectionId: '2', limitPrivilegesToCourseSection: false, role: { _id: next ? '3' : '4', name: next ? 'StudentEnrollment' : 'TeacherEnrollment' } };
-      if (mode === 'student-only' || mode.startsWith('message-') || mode.startsWith('syllabus-')) Object.assign(node, { type: 'StudentEnrollment', state: 'active', role: { _id: '3', name: 'StudentEnrollment' } });
+      if (mode === 'student-only' || mode.startsWith('message-') || mode.startsWith('syllabus-') || mode.startsWith('rubric-')) Object.assign(node, { type: 'StudentEnrollment', state: 'active', role: { _id: '3', name: 'StudentEnrollment' } });
       response.end(JSON.stringify({ data: { user: { _id: mode === 'foreign-enrollment' ? '100' : '99',
         enrollmentsConnection: { nodes: [node], pageInfo: { hasNextPage: next !== null, endCursor: next } } } } }));
       return;
     }
-    assert.equal(input.operationName, 'CanvasWeeklyAssignments', 'No course-wide submission query is admitted');
+    assert.ok(['CanvasWeeklyAssignments', 'CanvasWeeklyCourseRubrics'].includes(input.operationName), 'Only reviewed assignment and rubric queries reach this fixture');
     const next = input.variables.after === null ? 'next' : null;
     const id = input.variables.after === null ? '10' : '11';
     const nodes = [{ _id: id, courseId: '1', name: 'Synthetic preparation', state: 'published', pointsPossible: 5,
-      submissionTypes: ['online_upload'] }];
+      submissionTypes: ['online_upload'], ...(input.operationName === 'CanvasWeeklyCourseRubrics' ? { rubric: { _id: '60', title: 'Fixture rubric', criteria: [{ _id: 'c1', description: 'Private fixture criterion', longDescription: 'Explain the tradeoffs.' }] } } : {}) }];
     response.end(JSON.stringify({ data: { course: { _id: '1', name: 'Example course', courseCode: 'DEMO 1',
       assignmentsConnection: { nodes, pageInfo: { hasNextPage: next !== null, endCursor: next } } } } }));
   });
@@ -262,13 +263,15 @@ try {
     } else {
       const courseRecord = await application.evaluate(() => globalThis.metadataFixture.collectStudent());
       assert.equal(courseRecord.sources.metadata.assignments.length, 2);
+      assert.equal(courseRecord.sources.rubrics.length, 2);
+      assert.equal(courseRecord.sources.rubrics[0].rubric.criteria[0].description, 'Private fixture criterion');
       assert.doesNotMatch(JSON.stringify(courseRecord), /enrollments|StudentEnrollment|accountMembership/);
     }
     const operations = received.slice(start).map(request => request.method === 'GET' ? 'account' : JSON.parse(request.body).operationName);
     const expected = ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope'];
     if (scenario === 'student-only') expected.push('CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyCourseSyllabus',
       'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations',
-      'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText');
+      'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText', 'CanvasWeeklyCourseRubrics', 'CanvasWeeklyCourseRubrics');
     assert.deepEqual(operations, expected, 'Every enrollment page must pass before the first assignment request');
   }
   const logFiles = await fs.readdir(path.join(directory, 'canvas-audit'));
@@ -293,7 +296,7 @@ try {
   assert.deepEqual(received.slice(beforeBridge).map(request => request.method === 'GET' ? 'account' : JSON.parse(request.body).operationName),
     ['account', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyEnrollmentScope', 'CanvasWeeklyAssignments', 'CanvasWeeklyAssignments', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyOwnSubmission', 'CanvasWeeklyCourseSyllabus',
       'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations', 'CanvasWeeklyCourseConversations',
-      'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText']);
+      'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText', 'CanvasWeeklyConversationText', 'CanvasWeeklyCourseRubrics', 'CanvasWeeklyCourseRubrics']);
   const beforeOwn = received.length;
   const ownAuditDirectory = path.join(directory, 'canvas-audit');
   const beforeOwnLog = (await Promise.all((await fs.readdir(ownAuditDirectory)).map(file => fs.readFile(path.join(ownAuditDirectory, file), 'utf8')))).join('');
@@ -326,9 +329,21 @@ try {
   assert.deepEqual(received.slice(beforeMessages).map(request => JSON.parse(request.body).operationName),
     [...Array(4).fill('CanvasWeeklyCourseConversations'), ...Array(3).fill('CanvasWeeklyConversationText')]);
   const finalAudit = (await Promise.all((await fs.readdir(auditDirectory)).map(file => fs.readFile(path.join(auditDirectory, file), 'utf8')))).join('');
-  assert.doesNotMatch(finalAudit, /Example Sender|Private fixture reading update|thread-next|message-next|Course thread|Read the syllabus|course.example/);
+  assert.doesNotMatch(finalAudit, /Private fixture criterion|Fixture rubric|Explain the tradeoffs|Example Sender|Private fixture reading update|thread-next|message-next|Course thread|Read the syllabus|course.example/);
   const messageEvents = finalAudit.split('\n').filter(Boolean).map(line => JSON.parse(line));
   assert.equal(messageEvents.filter(event => event.operation === 'conversationtext' && event.event === 'body-read').length, 9);
+  for (const scenario of ['rubric-unavailable', 'rubric-identity', 'rubric-expired']) {
+    mode = scenario;
+    await application.evaluate(() => globalThis.metadataFixture.reset('session'));
+    if (scenario === 'rubric-unavailable') {
+      const record = await application.evaluate(() => globalThis.metadataFixture.collectStudent());
+      assert.equal(record.sources.rubrics, undefined, 'A failed later page does not export partial rubric success');
+      assert.equal(record.coverage.find(source => source.source === 'rubric criteria').status, 'error');
+      assert.doesNotMatch(JSON.stringify(record), /private-message-fixture-error/);
+    } else {
+      await assert.rejects(application.evaluate(() => globalThis.metadataFixture.collectStudent()), /Reconnect Canvas/);
+    }
+  }
   for (const scenario of ['message-unavailable', 'message-identity', 'message-expired']) {
     mode = scenario;
     await application.evaluate(() => globalThis.metadataFixture.reset('session'));
@@ -356,7 +371,7 @@ try {
       await assert.rejects(application.evaluate(() => globalThis.metadataFixture.collectStudent()), /Reconnect Canvas/);
     }
   }
-  console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, fixed account preflight, paginated metadata/enrollment/messages, stored syllabus, optional-source recovery, fatal-message identity/login rejection, foreign-user rejection, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
+  console.log('Metadata network checks passed: real Electron CSRF-cookie extraction and rejection, POST/body admission, fixed account preflight, paginated metadata/enrollment/messages/rubrics, stored syllabus, optional-source recovery, fatal identity/login rejection, foreign-user rejection, renderer denial, session/token separation, manual redirects, response limits, GraphQL errors, connection cancellation and sanitized audit. Local HTTPS only.');
   console.log('Fixture profile: ' + directory);
 } finally {
   if (application) await application.close();

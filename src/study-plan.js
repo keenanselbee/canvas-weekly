@@ -66,6 +66,7 @@ export function buildStudyPlan(guide, progress = {}) {
     if (gaps.length) check(courseId, `Incomplete coverage: ${course.code || course.name}`, gaps.map(source => `${source.source}: ${source.message || source.status}`).join(' '));
     if ((course.references || []).length) check(courseId, `Check linked materials: ${course.code || course.name}`, 'Linked sites or files are listed in the source details; their contents may not yet be collected. They can contain additional readings, schedules and requirements.');
     for (const source of course.evidence || []) {
+      if (source.kind === 'rubric' && source.partial) check(source.id, `Review the full rubric: ${source.title}`, source.coverageNote);
       if (source.kind === 'message' && source.authorUnverified) check(source.id, `Confirm message sender: ${source.title}`, 'Sender details were not collected. Check who wrote this message before treating it as an instructor requirement or deadline exception.');
       else if (source.kind === 'message' && source.authorRoleUnverified) check(source.id, `Confirm message authority: ${source.title}`, `Canvas supplied the sender name ${source.author}, but their course role was not verified. Check whether this is instructor guidance before relying on requirements or deadline exceptions.`);
       if (['message', 'announcement'].includes(source.kind) && /\b(due|deadline|extend|extension|postpon|reschedul|second try|retake)/i.test(source.title + ' ' + source.body)) {

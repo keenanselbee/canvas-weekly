@@ -17,6 +17,7 @@ try {
     globalThis.syntheticRecords = [{ id: '1', coverage: ['course', 'assignments', 'pages'].map(source => ({ source, status: 'ok', checkedAt: deadline })), sources: {
       course: { id: 1, name: 'Example course', course_code: 'DEMO 101', syllabus_body: '<p>Read the notes first.</p>' },
       syllabus: { text: 'Fresh Canvas syllabus: read before class.', links: ['https://course.example/syllabus'] },
+      rubrics: [{ assignmentId: '10', name: 'Example assignment', rubric: { id: '40', title: 'Design criteria', criteria: [{ id: 'c1', description: 'Explain tradeoffs', longDescription: 'Compare the alternatives you considered.' }] } }],
       assignments: [{ id: 10, name: 'Example assignment', due_at: deadline, description: '<p>Complete the practice. Extra examples are optional.</p>', submission: { workflow_state: 'unsubmitted' } },
         { id: 11, name: 'Practice exam 2020', due_at: null, description: '<p>Check the current syllabus for applicability.</p>' }],
       pages: [{ page_id: 2, url: 'course-site', title: 'Course website', body: '<p>Read the external syllabus.</p><p>Password: example-password</p>' }],
@@ -159,6 +160,9 @@ try {
   assert.ok(!(await fs.readFile(first.guide.outputPath, 'utf8')).includes('example-password'));
   assert.equal(first.guide.courses[0].syllabus, 'Fresh Canvas syllabus: read before class.');
   assert.match(await fs.readFile(first.guide.documentPath, 'utf8'), /Fresh Canvas syllabus: read before class/);
+  assert.match(await fs.readFile(first.guide.documentPath, 'utf8'), /Compare the alternatives you considered/);
+  assert.match(await fs.readFile(first.guide.outputPath, 'utf8'), /Criterion text only/);
+  assert.equal(first.guide.courses[0].evidence.find(source => source.kind === 'rubric').partial, true);
   assert.ok(first.guide.courses[0].references.some(link => link.sourceUrl === 'https://course.example/syllabus'));
   assert.ok(first.guide.courses[0].evidence.some(source => source.kind === 'website' && source.body.includes('Supplementary readings are optional.')));
   assert.ok(!(await fs.readFile(first.guide.outputPath, 'utf8')).includes('website-fixture-password'));
