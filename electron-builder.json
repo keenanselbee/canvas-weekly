@@ -5,7 +5,7 @@
   "files": ["src/**/*", "package.json"],
   "asar": true,
   "asarUnpack": ["node_modules/@openai/codex-win32-*/**/*"],
-  "extraResources": [{ "from": "build/branding", "to": "icons", "filter": ["icon.ico", "icon-dark.ico"] }],
+  "extraResources": [{ "from": "build/branding", "to": "icons", "filter": ["icon.ico"] }],
   "npmRebuild": false,
   "electronDist": "node_modules/electron/dist",
   "win": {

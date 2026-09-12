@@ -99,7 +99,7 @@ try {
       await page.getByRole('button', { name: 'Settings', exact: true }).click();
       for (const theme of ['dark', 'light', 'system']) {
         await page.getByLabel('Theme', { exact: true }).selectOption(theme);
-        const expected = theme === 'dark' ? 'assets/mark-dark.svg' : 'assets/mark.svg';
+        const expected = 'assets/mark.svg';
         await page.waitForFunction(expected => {
           const image = document.querySelector('.brand-icon');
           return image.getAttribute('src') === expected && image.complete && image.naturalWidth > 0;
@@ -110,10 +110,13 @@ try {
   if (!fullPayload) {
     await fs.unlink(path.join(install, 'Canvas Weekly.exe'));
     assert.equal(run('0.1.0', 'reinstall-missing-file'), 0);
+    assert.match(await fs.readFile(path.join(scratch, 'reinstall-missing-file.log'), 'utf8'), /maintenance-update=0 reinstall=1/);
     assert.equal(await fs.readFile(path.join(install, 'Canvas Weekly.exe'), 'utf8'), 'fixture application version one');
     await assertPreserved();
     assert.equal(run('0.1.1', 'upgrade'), 0);
+    assert.match(await fs.readFile(path.join(scratch, 'upgrade.log'), 'utf8'), /maintenance-update=1 reinstall=0/);
     assert.ok([1, 7].includes(run('0.0.9', 'downgrade')), 'Downgrade must abort navigation or fail the pre-install guard');
+    assert.match(await fs.readFile(path.join(scratch, 'downgrade.log'), 'utf8'), /maintenance-update=0 reinstall=0/);
     assert.match(execFileSync('reg.exe', ['query', registryKey, '/v', 'DisplayVersion'], options), /0\.1\.1/);
     const redirect = path.join(scratch, 'must-not-relocate');
     assert.equal(run('0.1.1', 'relocate', [`/DIR=${redirect}`]), 0);

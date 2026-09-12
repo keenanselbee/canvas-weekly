@@ -28,12 +28,12 @@ to build and verify in `dist/preview` while the ordinary unpacked app is running
 The preview switch changes only the build directory; it does not create a separate
 personal application profile. Package tests still use fresh isolated test profiles.
 
-The SVGs in `src/ui/assets/mark.svg` and `mark-dark.svg` supply the app logo. Regenerate their
+The SVG in `src/ui/assets/mark.svg` supplies the app logo. Regenerate its
 Windows icon and NSIS artwork with `node tools/build-branding.mjs` after changing
 the mark or artwork source. This uses the installed Electron renderer without
 external resources, writes required assets to `build/branding`, and saves visual
-previews under `.codex-temp/branding`. Native window PNGs also live beside the SVGs;
-both shortcut ICOs are packaged in `resources/icons`. Commit generated assets with
+previews under `.codex-temp/branding`. The native window PNG also lives beside the SVG;
+the white shortcut ICO is packaged in `resources/icons`. Commit generated assets with
 their source. The executable uses the white calendar by default.
 
 An experimental Inno installer now builds separately with `node tools/build-inno.mjs`.

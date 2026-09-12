@@ -111,7 +111,8 @@ register startup/update tasks. Start Menu access is installed; a Desktop shortcu
 is optional. Exported guides and account settings are outside its payload.
 
 For an existing Inno installation in the selected scope, it shows version/location
-and offers Update or Reinstall and Uninstall. It keeps the recorded folder even
+and shows Update, Reinstall and Uninstall. Update is disabled unless this package
+is newer; Reinstall is enabled only for the same version. It keeps the recorded folder even
 when a command-line directory override is supplied. Downgrades are blocked, and
 uninstall is never inferred in silent setup. The interactive uninstall action
 accepts only a quoted generated `uninsNNN.exe` path inside that copy's `.setup`
@@ -131,10 +132,13 @@ Power-loss recovery and partial registration recovery are not automated yet.
 The new uninstaller uses its generated ownership log, with no recursive delete
 rule. Old files absent from the new payload remain untouched.
 
-The candidate installs both calendar icon variants. Start Menu and Desktop
-shortcuts select the dark icon when Windows is dark at setup time; otherwise they
-use the white calendar, including high contrast. Running setup again refreshes
-that choice. Ordinary shortcuts do not switch live when Windows changes theme.
+The candidate uses the white calendar icon for every Windows theme and has no
+accent stripe on the navy sidebar. The native progress bar retains the installer's
+standard color. A blue progress bar is a design follow-up: the supported scripting
+class exposes progress/state/style but no color property. A custom wizard style
+needs visual and high-contrast validation before adoption; do not replace the
+accessible native gauge with a decorative progress imitation. See the
+[official scripting classes](https://jrsoftware.org/ishelp/topic_scriptclasses.htm).
 An existing standard Desktop shortcut is retained during migration. Shortcut
 creation and adoption still need a human Windows check; fixture builds omit them.
 
@@ -149,7 +153,7 @@ Validation commands:
   fresh test profile, and uninstall it. The check verifies every payload file,
   packaged mode, isolated profile, no connected accounts or guide, bundled Codex
   detection and System theme matching the native Windows preference. It also
-  checks that explicit Dark uses the dark calendar and Light/System use white.
+  checks that Light, Dark and System all use the white calendar.
 
 Both checks passed. Student-owned guide files inside the install folder and a
 separate settings fixture survive updates and removal. Each test uses a unique,

@@ -34,7 +34,6 @@ function update(next) {
   const connectionChanged = state && (JSON.stringify(state.canvas) !== JSON.stringify(next.canvas) || ['connected', 'connecting', 'error', 'available'].some(key => state.ai[key] !== next.ai[key]) || JSON.stringify(state.ai.runtime) !== JSON.stringify(next.ai.runtime));
   state = next;
   document.documentElement.dataset.theme = state.appearance.dark ? 'dark' : 'light';
-  document.querySelector('.brand-icon').src = state.appearance.source === 'dark' ? 'assets/mark-dark.svg' : 'assets/mark.svg';
   renderConnections();
   if (runChanged) { if (state.run.message) announce(state.run.message, state.run.busy); render(); }
   else if (connectionChanged || (page === 'privacy' && sharingChanged)) render();

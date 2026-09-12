@@ -38,26 +38,23 @@ if (!process.versions.electron) {
       if (image.getSize().width !== width || image.getSize().height !== height) throw new Error('Unexpected branding render size');
       return image;
     }
-    for (const suffix of ['', '-dark']) {
-      const iconMark = suffix ? await fs.readFile(path.join(root, 'src/ui/assets/mark-dark.svg'), 'utf8') : mark;
-      const frames = [];
-      for (const size of [16, 20, 24, 32, 40, 48, 64, 128, 256]) frames.push({ size, png: (await render(iconMark, size, size)).toPNG() });
-      const directory = Buffer.alloc(6 + frames.length * 16);
-      directory.writeUInt16LE(1, 2); directory.writeUInt16LE(frames.length, 4);
-      let offset = directory.length;
-      frames.forEach(({ size, png }, index) => {
-        const at = 6 + index * 16;
-        directory[at] = size === 256 ? 0 : size; directory[at + 1] = directory[at];
-        directory.writeUInt16LE(1, at + 4); directory.writeUInt16LE(32, at + 6);
-        directory.writeUInt32LE(png.length, at + 8); directory.writeUInt32LE(offset, at + 12);
-        offset += png.length;
-      });
-      await fs.writeFile(path.join(output, `icon${suffix}.ico`), Buffer.concat([directory, ...frames.map(frame => frame.png)]));
-      await fs.writeFile(path.join(output, `installer-mark${suffix}.png`), frames.at(-1).png);
-      await fs.writeFile(path.join(root, `src/ui/assets/mark${suffix}.png`), frames.at(-1).png);
-      await fs.writeFile(path.join(previews, `mark${suffix}.png`), frames.at(-1).png);
-    }
-    const sidebar = svg(164, 314, `<rect width="164" height="314" fill="#0b2545"/><path d="M0 0h5v314H0z" fill="#8cc8ff"/><g transform="translate(24 28) scale(.875)">${innerMark}</g><g fill="#fff" font-family="Segoe UI, sans-serif"><text x="24" y="124" font-size="23" font-weight="600">Canvas</text><text x="24" y="152" font-size="23" font-weight="600">Weekly</text><text x="24" y="184" fill="#c0cfdf" font-size="12">Your week, simplified.</text><path d="M24 224h116" stroke="#35516f"/><text x="24" y="251" font-size="12">Your courses.</text><text x="24" y="272" font-size="12">Your weekly plan.</text></g>`);
+    const frames = [];
+    for (const size of [16, 20, 24, 32, 40, 48, 64, 128, 256]) frames.push({ size, png: (await render(mark, size, size)).toPNG() });
+    const directory = Buffer.alloc(6 + frames.length * 16);
+    directory.writeUInt16LE(1, 2); directory.writeUInt16LE(frames.length, 4);
+    let offset = directory.length;
+    frames.forEach(({ size, png }, index) => {
+      const at = 6 + index * 16;
+      directory[at] = size === 256 ? 0 : size; directory[at + 1] = directory[at];
+      directory.writeUInt16LE(1, at + 4); directory.writeUInt16LE(32, at + 6);
+      directory.writeUInt32LE(png.length, at + 8); directory.writeUInt32LE(offset, at + 12);
+      offset += png.length;
+    });
+    await fs.writeFile(path.join(output, 'icon.ico'), Buffer.concat([directory, ...frames.map(frame => frame.png)]));
+    await fs.writeFile(path.join(output, 'installer-mark.png'), frames.at(-1).png);
+    await fs.writeFile(path.join(root, 'src/ui/assets/mark.png'), frames.at(-1).png);
+    await fs.writeFile(path.join(previews, 'mark.png'), frames.at(-1).png);
+    const sidebar = svg(164, 314, `<rect width="164" height="314" fill="#0b2545"/><g transform="translate(24 28) scale(.875)">${innerMark}</g><g fill="#fff" font-family="Segoe UI, sans-serif"><text x="24" y="124" font-size="23" font-weight="600">Canvas</text><text x="24" y="152" font-size="23" font-weight="600">Weekly</text><text x="24" y="184" fill="#c0cfdf" font-size="12">Your week, simplified.</text><path d="M24 224h116" stroke="#35516f"/><text x="24" y="251" font-size="12">Your courses.</text><text x="24" y="272" font-size="12">Your weekly plan.</text></g>`);
     const header = svg(150, 57, `<rect width="150" height="57" fill="#fff"/><path d="M0 55h150" stroke="#d4dde6"/><g transform="translate(104 8) scale(.625)">${innerMark}</g>`);
     for (const [name, source, width, height] of [['installer-sidebar', sidebar, 164, 314], ['installer-header', header, 150, 57]]) {
       const image = await render(source, width, height);

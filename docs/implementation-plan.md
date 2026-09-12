@@ -862,3 +862,12 @@ Work log
   The rebuilt candidate's full installation check verified 137 payload files,
   exercised Light/Dark/System through the actual Settings control, and removed
   its temporary installation while preserving guide/settings fixtures.
+
+- Simplified installer branding after user review: removed the bright sidebar
+  stripe and dark calendar variant, using the white calendar in all app themes
+  and shortcuts. Maintenance now keeps three visible actions: Update enabled only
+  for a newer package, Reinstall for the same version, and Uninstall (still disabled
+  until a legacy copy is migrated). Native version-state and lifecycle fixtures
+  pass. The green native progress gauge remains pending a supported blue style
+  and visual/high-contrast review. The factual-guide improvements proposed in
+  factual-guide-plan.md do not change collection permissions or current output yet.

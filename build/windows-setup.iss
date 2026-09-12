@@ -57,9 +57,9 @@ Source: "{#PayloadDir}\intentionally-missing-fixture.bin"; DestDir: "{app}"; Fla
 Name: desktopicon; Description: "Create a desktop shortcut"; Flags: unchecked; Check: not KeepLegacyDesktop
 
 [Icons]
-Name: "{autoprograms}\Canvas Weekly"; Filename: "{app}\Canvas Weekly.exe"; IconFilename: "{code:ShortcutIcon}"; AppUserModelID: "app.canvasweekly.desktop"
-Name: "{autodesktop}\Canvas Weekly"; Filename: "{app}\Canvas Weekly.exe"; IconFilename: "{code:ShortcutIcon}"; Tasks: desktopicon; AppUserModelID: "app.canvasweekly.desktop"
-Name: "{autodesktop}\Canvas Weekly"; Filename: "{app}\Canvas Weekly.exe"; IconFilename: "{code:ShortcutIcon}"; Check: KeepLegacyDesktop; AppUserModelID: "app.canvasweekly.desktop"
+Name: "{autoprograms}\Canvas Weekly"; Filename: "{app}\Canvas Weekly.exe"; IconFilename: "{app}\resources\icons\icon.ico"; AppUserModelID: "app.canvasweekly.desktop"
+Name: "{autodesktop}\Canvas Weekly"; Filename: "{app}\Canvas Weekly.exe"; IconFilename: "{app}\resources\icons\icon.ico"; Tasks: desktopicon; AppUserModelID: "app.canvasweekly.desktop"
+Name: "{autodesktop}\Canvas Weekly"; Filename: "{app}\Canvas Weekly.exe"; IconFilename: "{app}\resources\icons\icon.ico"; Check: KeepLegacyDesktop; AppUserModelID: "app.canvasweekly.desktop"
 #endif
 
 [Messages]
@@ -77,7 +77,7 @@ var
   MaintenancePage: TInputOptionWizardPage;
   SeparatePage: TInputOptionWizardPage;
   ExistingPath, ExistingVersion, ExistingUninstaller: String;
-  ExistingCopy, OtherCopy, IsDowngrade, UninstallCompleted: Boolean;
+  ExistingCopy, OtherCopy, IsDowngrade, IsUpgrade, UninstallCompleted: Boolean;
   ScopeRoot: Integer;
   LegacyCopy, LegacyMoved, LegacyBackupReady, MigrationCommitted, CreatedBackupFolder: Boolean;
   LegacyExecutable, LegacyBackup, RollbackFolder: String;
@@ -95,13 +95,6 @@ end;
 function KeepLegacyDesktop: Boolean;
 begin
   Result := LegacyCopy and FileExists(ExpandConstant('{autodesktop}\Canvas Weekly.lnk'));
-end;
-
-function ShortcutIcon(Param: String): String;
-begin
-  if IsWinDark and not HighContrastActive then
-    Result := ExpandConstant('{app}\resources\icons\icon-dark.ico')
-  else Result := ExpandConstant('{app}\resources\icons\icon.ico');
 end;
 
 #ifdef FixtureBuild
@@ -200,6 +193,7 @@ begin
       exit;
     end;
     IsDowngrade := ComparePackedVersion(Version, OfferedVersion) > 0;
+    IsUpgrade := ComparePackedVersion(Version, OfferedVersion) < 0;
     Log('CW_SETUP existing-version=' + ExistingVersion);
   end;
   if LegacyCopy and not SafeDestination(LegacyExecutable) then begin
@@ -211,26 +205,28 @@ end;
 
 procedure InitializeWizard;
 var
-  Action, Scope: String;
+  Scope: String;
 begin
   if IsAdminInstallMode then Scope := 'All users (administrator permission)' else Scope := 'Only me';
-  if ExistingVersion = '{#AppVersion}' then Action := 'Reinstall this version' else Action := 'Update to {#AppVersion}';
-  if IsDowngrade then Action := 'Keep the newer installed version';
   MaintenancePage := CreateInputOptionPage(wpWelcome, 'Manage Canvas Weekly',
     Scope + ' - installed version ' + ExistingVersion,
     ExistingPath + #13#10#13#10 + 'Choose an action. Guides and saved account settings are kept.', True, False);
-  MaintenancePage.Add(Action);
+  MaintenancePage.Add('Update to {#AppVersion}');
+  MaintenancePage.Add('Reinstall version {#AppVersion}');
   MaintenancePage.Add('Uninstall Canvas Weekly');
-  MaintenancePage.SelectedValueIndex := 0;
+  MaintenancePage.CheckListBox.ItemEnabled[0] := IsUpgrade;
+  MaintenancePage.CheckListBox.ItemEnabled[1] := ExistingCopy and not IsUpgrade and not IsDowngrade;
+  if IsUpgrade then MaintenancePage.SelectedValueIndex := 0
+  else if ExistingCopy and not IsDowngrade then MaintenancePage.SelectedValueIndex := 1
+  else MaintenancePage.SelectedValueIndex := -1;
   if LegacyCopy then begin
-    MaintenancePage.CheckListBox.ItemEnabled[1] := False;
-    MaintenancePage.SubCaptionLabel.Caption := Scope + ' - upgrade the earlier installer in this folder';
+    MaintenancePage.CheckListBox.ItemEnabled[2] := False;
+    MaintenancePage.SubCaptionLabel.Caption := Scope + ' - update or reinstall to migrate the earlier installer';
   end;
-  if IsDowngrade then begin
-    MaintenancePage.CheckListBox.ItemEnabled[0] := False;
-    MaintenancePage.SelectedValueIndex := -1;
+  if IsDowngrade then
     MaintenancePage.SubCaptionLabel.Caption := 'A newer version is installed. Downgrades are blocked.';
-  end;
+  Log('CW_SETUP maintenance-update=' + IntToStr(Ord(IsUpgrade)) +
+    ' reinstall=' + IntToStr(Ord(ExistingCopy and not IsUpgrade and not IsDowngrade)));
   SeparatePage := CreateInputOptionPage(MaintenancePage.ID, 'Another installation exists',
     'This setup is for ' + Scope + '.',
     'Canvas Weekly is already registered in the other scope. Go back by cancelling and reopening setup to manage that copy, or explicitly choose a separate installation.', False, False);
@@ -280,7 +276,7 @@ begin
     Result := False;
   end;
   if (CurPageID = SeparatePage.ID) and not SeparatePage.Values[0] then Result := False;
-  if (CurPageID = MaintenancePage.ID) and (MaintenancePage.SelectedValueIndex = 1) then begin
+  if (CurPageID = MaintenancePage.ID) and (MaintenancePage.SelectedValueIndex = 2) then begin
     Result := False;
     { Silent setup must never infer an uninstall action from a disabled update. }
     if WizardSilent then exit;
