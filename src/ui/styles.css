@@ -101,6 +101,7 @@ p { margin:0 0 14px; }
 .setting-row>div { min-width:0; }
 .setting-row button,.setting-row select { flex:none; }
 .connection-options { padding:12px 0; }
+.reading-acknowledgement { display:block; margin:12px 0 16px; }
 .connection-options summary { cursor:pointer; color:var(--accent); margin-bottom:12px; }
 .connection-options .actions { margin:10px 0; }
 .connection-options p { overflow-wrap:anywhere; }

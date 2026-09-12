@@ -726,7 +726,7 @@ function renderReadingSettings() {
   }
   const acknowledgement = node('input'); acknowledgement.type = 'checkbox'; acknowledgement.disabled = state.run.busy;
   acknowledgement.setAttribute('aria-label', 'I understand the possible viewing effects');
-  const label = node('label', 'remember-login'); label.append(acknowledgement, document.createTextNode(' I understand the possible viewing effects. App access does not mean I studied the material.'));
+  const label = node('label', 'remember-login reading-acknowledgement'); label.append(acknowledgement, document.createTextNode(' I understand the possible viewing effects. App access does not mean I studied the material.'));
   section.append(label, button('Save reading preferences', async () => {
     update(await api.setCourseReading([...expanded], acknowledgement.checked)); render();
     announce(state.reading?.available ? 'Course reading preferences saved.' : 'Preferences saved. Limited reading remains active while additional sources are reviewed.');
