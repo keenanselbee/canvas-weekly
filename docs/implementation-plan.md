@@ -822,3 +822,14 @@ Work log
   change was retained. Guide tests and the rebuilt package checks pass. Documented
   the proposed maintenance screen and Inno Setup theme candidate separately;
   installer dark mode and the full human installation flow remain incomplete.
+
+- Added a separate UI-only Inno Setup preview with native startup light/dark
+  detection, shared branding and read-only NSIS installation discovery. This
+  computer has both per-user and all-users registrations; the preview requires
+  choosing a copy when both exist. Its payload and install/uninstall actions are
+  deliberately absent while migration remains unvalidated. Native silent fixtures
+  pass for dynamic dark, forced light/dark and style suppression, with pre-install
+  aborts and no destination or preview registration created. Actual Windows-light,
+  high-contrast and visual wizard walkthroughs remain pending. Production NSIS
+  packaging is unchanged; see installer-experience.md for the separate artifact
+  and portable compiler instructions. No Canvas or personal guide operations ran.

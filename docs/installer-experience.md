@@ -4,7 +4,10 @@ Installer experience
 Requested direction: match the app's Windows light/dark appearance and show useful
 maintenance choices when Canvas Weekly is already installed. The current NSIS
 package has custom artwork and a repaired per-user selection, but no dark wizard
-controls or dedicated maintenance page. These remain implementation work.
+controls or dedicated maintenance page. A separate Inno Setup appearance preview
+now implements startup theme detection and read-only discovery of existing NSIS
+installations. It cannot install, update or remove anything; production migration
+and maintenance actions remain implementation work.
 
 
 First installation and maintenance
@@ -33,8 +36,8 @@ Theme implementation direction
 Prefer a supported installer theme implementation with consistent native controls,
 keyboard focus and high-contrast fallback. Inno Setup documents
 `WizardStyle=modern dynamic`, which reads Windows appearance at startup, supports
-dark wizard controls, and avoids custom styles in high contrast. It is a candidate
-for the next installer prototype; it has not replaced the NSIS production build.
+dark wizard controls, and avoids custom styles in high contrast. The appearance
+preview uses this setting; it has not replaced the NSIS production build.
 Its dynamic mode is startup detection, not live switching while Setup remains open.
 
 Retain electron-builder for packaging Electron and Codex. Before changing the
@@ -48,6 +51,47 @@ or prototype work.
 
 Primary references: [Inno Setup theme behavior](https://jrsoftware.org/ishelp/topic_setup_wizardstyle.htm)
 and [installation-scope options](https://jrsoftware.org/ishelp/topic_setup_privilegesrequiredoverridesallowed.htm).
+
+
+Appearance preview
+------------------
+
+Build with `node tools/build-installer-preview.mjs`, then open
+`dist/installer-prototype/Canvas-Weekly-Setup-Preview.exe`. This is a small UI-only
+executable, separate from both standard and preview NSIS app installers. It uses
+the shared calendar icon, navy artwork and "Your week, simplified." tagline.
+Its transparent 256px header mark works on light and dark surfaces.
+
+The preview reads the known Canvas Weekly NSIS registration keys in HKCU/HKLM's
+64-bit view. It displays registered scope/version and location, without checking
+application integrity or executing any registry command. With two copies, neither
+is selected automatically. It contains no payload, uninstall program, shortcuts,
+registry-write section or external process launch. Both page navigation and a
+pre-install guard prevent installation, including silent mode. Close preview exits
+without installing. It does not read guides, saved logins or Canvas content.
+
+`node tools/test-installer-preview.mjs` compiles and runs isolated silent fixtures
+for dynamic, forced light, forced dark and `/NOSTYLE`. On this dark Windows session,
+the native wizard reports dynamic dark correctly and discovers two registrations.
+Forced light/dark and style suppression pass. Each run aborts before installation,
+creates no destination folder and leaves the preview's uninstall registration
+unchanged. These checks inspect native runtime state; they do not certify visual
+layout, keyboard navigation, high contrast, a light Windows session or a complete
+upgrade/uninstall. Human wizard review is still pending.
+
+Build prerequisite: official **Inno Setup 7.1.0 x64** compiler, extracted in portable
+mode to `.codex-temp/inno/compiler` (the compiler architecture does not determine
+the generated wizard's architecture). Obtain `innosetup-7.1.0-x64.exe` from the
+[official release](https://github.com/jrsoftware/issrc/releases/tag/is-7_1_0).
+The verified download SHA-256 is
+`0362a383ed217d4c4239b5933866dd96d3eb2102737da92f80f6057a4b40df2f`;
+its Authenticode signature was valid for **Pyrsys B.V.**. Verify both before running.
+Inno's own installer supports `/PORTABLE=1 /CURRENTUSER /VERYSILENT /SP- /NORESTART`
+with `/DIR="<absolute repository path>\.codex-temp\inno\compiler"`; portable mode
+disables registration, shortcuts and file associations. See the
+[official portable-mode notes](https://jrsoftware.org/ishelp/topic_technotes.htm).
+Compiler downloads, fixtures and logs stay untracked. The standard build does not
+download or depend on Inno Setup.
 
 
 Acceptance checks
