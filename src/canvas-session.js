@@ -1,5 +1,6 @@
 import { BrowserWindow, session, safeStorage } from 'electron';
 import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { CanvasClient, blockedAssessmentUrl } from './canvas-client.js';
 import { atomicJson } from './settings.js';
@@ -38,7 +39,11 @@ export class CanvasConnection {
     this.attachSession();
   }
   attachSession() {
+    if (this.cookieListener) this.session.cookies.removeListener('changed', this.cookieListener);
     this.session = session.fromPartition(this.settings.value.rememberCanvas === false ? 'canvas-private' : 'persist:canvas');
+    this.browserLoginData = false;
+    this.cookieListener = () => { void this.refreshLoginData(); };
+    this.session.cookies.on('changed', this.cookieListener);
     this.network = new CanvasNetwork({ origin: () => new URL(this.settings.value.canvasBaseUrl).origin,
       loginContentsId: () => this.loginWindow?.webContents.id,
       fetcher: (url, init) => this.session.fetch(url, init) });
@@ -49,7 +54,21 @@ export class CanvasConnection {
     });
   }
   get collectionIssue() { return null; }
-  get status() { return { connected: Boolean(this.profile), name: this.profile?.name || null, connecting: Boolean(this.loginWindow), error: this.connectionError, collectionIssue: this.collectionIssue, collectionNotice: METADATA_NOTICE }; }
+  get status() { return { connected: Boolean(this.profile), canForget: Boolean(this.profile || this.token || this.browserLoginData || existsSync(this.file) || existsSync(this.savedSession.file)), name: this.profile?.name || null, connecting: Boolean(this.loginWindow), error: this.connectionError, collectionIssue: this.collectionIssue, collectionNotice: METADATA_NOTICE }; }
+  async refreshLoginData() {
+    const currentSession = this.session;
+    const check = Symbol();
+    this.loginDataCheck = check;
+    let present;
+    // Include identity-provider cookies left by an incomplete sign-in. Only a
+    // boolean leaves this process; expired/unreadable saved files remain clearable.
+    try { present = (await currentSession.cookies.get({})).length > 0; }
+    catch { present = true; }
+    if (this.session !== currentSession || this.loginDataCheck !== check) return;
+    const changed = this.browserLoginData !== present;
+    this.browserLoginData = present;
+    if (changed) this.onChange();
+  }
   invalidate() {
     this.lifetime.abort(new DOMException('Canvas connection changed. Start again with the current account.', 'AbortError'));
     this.lifetime = new AbortController();
@@ -79,6 +98,7 @@ export class CanvasConnection {
     return Object.freeze({ origin, userId, globalUserId, courseIds, signal, assertCurrent });
   }
   async restore() {
+    await this.refreshLoginData();
     const { signal } = this.lifetime;
     if (this.settings.value.rememberCanvas === false) {
       await this.writeCredential(async () => {
@@ -331,6 +351,7 @@ export class CanvasConnection {
       await this.savedSession.remove();
       await this.session.clearStorageData();
     });
+    await this.refreshLoginData();
     this.onChange();
   }
 }

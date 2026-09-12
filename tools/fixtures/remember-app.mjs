@@ -57,6 +57,7 @@ globalThis.rememberResults = app.whenReady().then(async () => {
     } else {
       await canvas.restore();
       assert.equal(canvas.profile, null, 'Restored credentials alone must not claim connected');
+      assert.equal(canvas.status.canForget, true, 'A saved session can be forgotten before verification');
       assert.equal((await canvas.session.cookies.get({ name: '_normandy_session' }))[0].value, secret);
       await canvas.verify();
       const watch = await canvas.watchSession(canvas.capture(), new AbortController().signal);
@@ -64,12 +65,14 @@ globalThis.rememberResults = app.whenReady().then(async () => {
       await canvas.disconnect();
       await assert.rejects(fs.access(canvas.savedSession.file), { code: 'ENOENT' });
       assert.equal((await canvas.session.cookies.get({})).length, 0);
+      assert.equal(canvas.status.canForget, false, 'Forgetting clears the action when no login data remains');
       await canvas.connectToken('synthetic-api-token-private');
       assert.equal((await fs.readFile(canvas.file, 'utf8')).includes('synthetic-api-token-private'), false);
       await canvas.setRemember(false);
       canvas.session.fetch = profileResponse;
       assert.equal(canvas.session.isPersistent(), false);
       await canvas.connectToken('synthetic-memory-token-private');
+      assert.equal(canvas.status.canForget, true, 'Session-only logins can also be cleared');
       await assert.rejects(fs.access(canvas.file), { code: 'ENOENT' });
       await canvas.disconnect();
       await canvas.setRemember(true);

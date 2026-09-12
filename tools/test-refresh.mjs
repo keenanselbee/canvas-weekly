@@ -87,6 +87,13 @@ try {
   await page.getByRole('button', { name: 'Courses', exact: true }).click();
   await page.getByRole('button', { name: 'Save course selection', exact: true }).click();
   await page.getByText('Course selection saved.', { exact: true }).waitFor();
+  const beforeReadingPreference = await application.evaluate(() => globalThis.syntheticRequestCount);
+  await assert.rejects(page.evaluate(() => window.canvasWeekly.setCourseReading(['1'], false)), /Acknowledge/);
+  await assert.rejects(page.evaluate(() => window.canvasWeekly.setCourseReading(['999'], true)), /connected account/);
+  const reading = await page.evaluate(() => window.canvasWeekly.setCourseReading(['1'], true));
+  assert.equal(reading.reading.courses[0].requested, 'expanded');
+  assert.equal(reading.reading.courses[0].effective, 'limited');
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeReadingPreference, 'Saving consent must not read Canvas');
   await page.locator('#notice').waitFor({ state: 'hidden', timeout: 6500 });
   await page.locator('.website-course > summary').click();
   await page.getByRole('textbox', { name: 'Course website for Example course', exact: true }).fill('https://course.example/data311/');
@@ -321,6 +328,8 @@ try {
     assert.equal(rejectedState.run.busy, false);
     assert.equal(rejectedState.run.message.includes('private-diagnostic-fixture'), false);
     assert.deepEqual(rejectedState.guide, repeatedMetadata);
+    assert.equal(rejectedState.collectionHistory[0].status, 'failed');
+    assert.equal(rejectedState.collectionHistory[0].requests.length, 0, 'Session rejection must not invent accessed items');
     assert.deepEqual(await Promise.all(protectedExports.map(file => fs.readFile(file))), beforeConnectionChange, 'Session diagnostics must preserve all guide formats');
   }
   await application.evaluate(async ({ session }) => {
@@ -363,6 +372,8 @@ try {
   assert.deepEqual(switched.settings.selectedCourseIds, []);
   assert.equal(switched.guide, null);
   assert.deepEqual(switched.websites, []);
+  assert.deepEqual(switched.collectionHistory, [], 'A different account cannot see the previous collection history');
+  assert.deepEqual(switched.reading.courses, []);
   console.log('Desktop checks passed: shared refresh hold, enabled metadata coverage notice, synthetic profile/website connections, encrypted website login, in-memory course evidence (not Canvas collection), study plan, persistent local checkmarks, offline Open guide, preserved notes, login errors, account-switch isolation and discarded collection after connection change.');
   await page.evaluate(() => window.canvasWeekly.disconnectCanvas());
 } finally { await application.close(); }

@@ -5,7 +5,12 @@ Settings has separate Remember on this computer controls for Canvas and ChatGPT.
 They default to on, matching the earlier persistent-connection behavior. Turning
 either off removes its saved login and signs out locally. Future sign-ins use
 memory-only storage until the preference changes. Forget Canvas login and Forget
-ChatGPT login also work from the disconnected state. Guide files are retained.
+ChatGPT login also work from the disconnected state when local login data remains.
+Forget actions are hidden when there is nothing to clear. Canvas includes saved
+credential files, active tokens and browser cookies, including an incomplete
+sign-in; unreadable saved files remain removable. ChatGPT includes active sign-in
+and saved-login records. These indicators do not establish that credentials are
+valid. Guide files are retained.
 Remembering ChatGPT never enables Study suggestions.
 
 Canvas

@@ -18,6 +18,11 @@ button.link { border:0; background:transparent; color:var(--accent); padding:0; 
 small { display:block; color:var(--muted); font-size:12px; font-weight:400; }
 .brand small { margin-top:2px; }
 nav { display:grid; gap:5px; }
+.privacy-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+.privacy-grid .card { margin-bottom:0; }
+.privacy-status { color:var(--accent); font-weight:600; }
+.privacy-details summary { cursor:pointer; font-weight:600; }
+@media(max-width:1050px) { .privacy-grid { grid-template-columns:1fr; } }
 .nav-item { display:flex; align-items:center; gap:12px; padding:11px 16px; text-align:left; background:transparent; border:0; position:relative; }
 .nav-item span { width:18px; font-size:18px; }
 .nav-item.selected { background:var(--selected); }

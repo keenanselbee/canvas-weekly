@@ -28,6 +28,7 @@ function announce(message, persistent = false) {
   if (!persistent) noticeTimer = setTimeout(() => { notice.hidden = true; }, 4500);
 }
 function update(next) {
+  const sharingChanged = state && state.settings.aiEnabled !== next.settings.aiEnabled;
   if (next.canvas.error && next.canvas.error !== state?.canvas.error) announce(next.canvas.error, true);
   const runChanged = state && (state.run?.busy !== next.run?.busy || state.run?.message !== next.run?.message);
   const connectionChanged = state && (JSON.stringify(state.canvas) !== JSON.stringify(next.canvas) || ['connected', 'connecting', 'error', 'available'].some(key => state.ai[key] !== next.ai[key]) || JSON.stringify(state.ai.runtime) !== JSON.stringify(next.ai.runtime));
@@ -35,7 +36,7 @@ function update(next) {
   document.documentElement.dataset.theme = state.appearance.dark ? 'dark' : 'light';
   renderConnections();
   if (runChanged) { if (state.run.message) announce(state.run.message, state.run.busy); render(); }
-  else if (connectionChanged) render();
+  else if (connectionChanged || (page === 'privacy' && sharingChanged)) render();
 }
 function renderConnections() {
   for (const [id, connection] of [['connection-status', state.canvas], ['ai-status', state.ai]]) {
@@ -96,6 +97,10 @@ function renderWeek() {
   }
   if (!preview && state.guide) actions.append(button('Open guide', () => api.openGuide()));
   header('This week', preview ? 'September 14 – 20, 2026' : state.guide ? `${state.guide.week.start} to ${state.guide.week.end}` : 'A clear plan for the week ahead', actions);
+  if (!preview) {
+    if (state.reading?.courses.some(course => course.requested === 'expanded')) main.append(node('p', 'muted', state.reading.available ? 'Expanded reading enabled for selected courses.' : 'Expanded reading requested. Limited reading is active pending safety validation.'));
+    renderCollectionSummary();
+  }
   if (preview) { renderPreview(); return; }
   if (state.canvas.collectionIssue) {
     const safety = card('Canvas refresh paused');
@@ -269,6 +274,7 @@ function renderGuide() {
   }
   main.append(information);
   const coverage = card('Source coverage');
+  coverage.id = 'source-coverage'; coverage.tabIndex = -1;
   for (const course of guide.courses) {
     coverage.append(node('h3', '', course.name));
     for (const source of course.coverage) coverage.append(node('small', '', `${source.source}: ${source.status}${source.message ? ` — ${source.message}` : ''}`));
@@ -396,7 +402,7 @@ function renderSettings() {
   } else {
     canvasActions.append(button('Sign in to Canvas', async () => { update(await api.openCanvasLogin()); render(); }, 'primary'), button('Check connection', async () => { announce('Checking Canvas connection…'); update(await api.verifyCanvas()); announce('Canvas connected. Choose your courses.'); go('courses'); }));
   }
-  canvasActions.append(button('Forget Canvas login', async () => { update(await api.disconnectCanvas()); render(); announce('Saved Canvas connection forgotten. Guide files are kept.'); }));
+  if (state.canvas.canForget) canvasActions.append(button('Forget Canvas login', async () => { update(await api.disconnectCanvas()); render(); announce('Saved Canvas connection forgotten. Guide files are kept.'); }));
   const canvasSettings = row('Canvas', state.canvas.connected ? `Connected as ${state.canvas.name}` : 'Sign in in the Canvas window, then close it and check the connection.', canvasActions);
   canvasSettings.id = 'canvas-settings';
   connections.append(canvasSettings);
@@ -423,7 +429,7 @@ function renderSettings() {
   connections.append(advanced);
   const aiActions = node('div', 'actions');
   if (!state.ai.connected) aiActions.append(button(state.ai.connecting ? 'Sign-in open' : 'Connect ChatGPT', async () => { update(await api.connectChatGPT()); render(); }), button('Check sign-in', async () => { update(await api.checkChatGPT()); render(); }));
-  aiActions.append(button('Forget ChatGPT login', async () => { update(await api.disconnectChatGPT()); render(); announce('Saved ChatGPT connection forgotten.'); }));
+  if (state.ai.canForget) aiActions.append(button('Forget ChatGPT login', async () => { update(await api.disconnectChatGPT()); render(); announce('Saved ChatGPT connection forgotten.'); }));
   const aiSettings = row('ChatGPT via Codex', state.ai.connected ? 'Connected. Your account usage limits apply.' : state.ai.error || 'Sign in through the official ChatGPT page to add study suggestions.', aiActions);
   aiSettings.id = 'ai-settings';
   connections.append(aiSettings);
@@ -468,7 +474,113 @@ function renderSettings() {
   select.value = state.settings.theme;
   select.addEventListener('change', () => perform(async () => { update(await api.setTheme(select.value)); }));
   appearance.append(row('Theme', 'Follow Windows, or choose a look for this app.', select));
-  main.append(connections, output, appearance);
+  main.append(connections);
+  renderReadingSettings();
+  main.append(output, appearance);
+}
+
+function renderReadingSettings() {
+  const section = card('Course reading');
+  section.append(node('p', '', 'Limited reading is the default. Expanded reading may record views, satisfy view-based module requirements, or make subsequent material available. Assessment attempts, submissions, messages and explicit Mark done actions remain forbidden.'),
+    node('p', 'muted', state.reading?.hold || 'Additional material reads are pending safety validation.'));
+  if (!state.canvas.connected) {
+    section.append(node('p', 'muted', 'Connect Canvas to choose reading preferences per course.')); main.append(section); return;
+  }
+  const consent = (state.settings.courseReading || []).find(entry => entry.origin === state.settings.canvasBaseUrl && entry.userId === state.settings.lastGuideAccount?.userId && entry.version === 1);
+  const expanded = new Set(consent?.courseIds || []);
+  for (const course of state.courses) {
+    const choice = node('select'); choice.setAttribute('aria-label', `Course reading for ${course.name}`);
+    for (const [value, label] of [['limited', 'Limited reading'], ['expanded', state.reading?.available ? 'Expanded course reading' : 'Expanded (pending validation)']]) {
+      const option = node('option', '', label); option.value = value; choice.append(option);
+    }
+    choice.value = expanded.has(String(course.id)) ? 'expanded' : 'limited';
+    choice.disabled = state.run.busy;
+    choice.addEventListener('change', () => choice.value === 'expanded' ? expanded.add(String(course.id)) : expanded.delete(String(course.id)));
+    section.append(row(course.name, '', choice));
+  }
+  const acknowledgement = node('input'); acknowledgement.type = 'checkbox'; acknowledgement.disabled = state.run.busy;
+  acknowledgement.setAttribute('aria-label', 'I understand the possible viewing effects');
+  const label = node('label', 'remember-login'); label.append(acknowledgement, document.createTextNode(' I understand the possible viewing effects. App access does not mean I studied the material.'));
+  section.append(label, button('Save reading preferences', async () => {
+    update(await api.setCourseReading([...expanded], acknowledgement.checked)); render();
+    announce(state.reading?.available ? 'Course reading preferences saved.' : 'Preferences saved. Limited reading remains active while additional sources are reviewed.');
+  }));
+  main.append(section);
+}
+
+function renderCollectionSummary() {
+  const latest = state.collectionHistory?.[0];
+  if (!latest) return;
+  const summary = card('Latest collection');
+  const effects = latest.requests.filter(request => request.effectKind === 'possible-view');
+  summary.append(node('p', '', `${new Date(latest.startedAt).toLocaleString()} · ${latest.status} · ${latest.requests.length} recorded requests`),
+    node('p', 'muted', effects.length ? `${effects.length} requests may have affected viewing progress. A failed or cancelled update may still have reached Canvas.` : 'No expanded Canvas material reads were attempted. This is a request history, not proof that Canvas account state stayed unchanged.'),
+    button('Review collection history', () => {
+      go('privacy'); const target = document.getElementById('collection-history'); target?.scrollIntoView({ block: 'start' }); target?.focus({ preventScroll: true });
+    }));
+  main.append(summary);
+  if (Number.isSafeInteger(latest.changes)) summary.append(node('p', 'muted', `${latest.changes} new or changed information entries in the guide.`));
+}
+
+function renderCollectionHistory() {
+  const section = card('Collection history'); section.id = 'collection-history'; section.tabIndex = -1;
+  section.append(node('p', 'muted', 'Canvas requests for this account, recorded locally. Course website coverage is separate in your guide. Requests can reach Canvas even if collection fails. Viewing effects are not measured or undone; study checkmarks remain yours to control. Earlier app versions are not reconstructed here.'));
+  if (!state.collectionHistory?.length) section.append(node('p', '', 'No collection runs recorded for this account yet.'));
+  const operations = { profile: 'Verify account', accountscope: 'Check account permissions', metadataenrollments: 'Check student enrollment', metadataassignments: 'Read assignment metadata', metadataownsubmission: 'Read own submission status', coursesyllabus: 'Read syllabus text', courseconversations: 'Find course messages', conversationtext: 'Read course message text', courses: 'List courses' };
+  for (const run of state.collectionHistory || []) {
+    const details = node('details', 'connection-options');
+    details.append(node('summary', '', `${new Date(run.startedAt).toLocaleString()} · ${run.status} · ${run.requests.length} requests`));
+    for (const course of run.courses) details.append(node('p', '', `${course.name}: ${course.effective} reading${course.requested !== course.effective ? ' (expanded requested; pending validation)' : ''}`));
+    if (!run.requests.length) details.append(node('p', 'muted', 'No collector request intents were recorded. Collection may have stopped during local session verification.'));
+    for (const request of run.requests) {
+      const item = node('div', 'setting-row'); const text = node('div');
+      const course = run.courses.find(course => course.courseId === request.courseId);
+      text.append(node('h3', '', `${operations[request.operation] || request.operation}${course ? ` · ${course.name}` : ''}${request.itemId ? ` · Assignment ${request.itemId}` : ''}`),
+        node('p', '', `${request.outcome}${request.httpStatus ? ` (HTTP ${request.httpStatus})` : ''}. ${request.effect}`));
+      if (request.outcome === 'requested' || request.outcome === 'failed') text.append(node('p', 'muted', 'The request may have reached Canvas; its final server-side effect is unknown.'));
+      item.append(text);
+      if (course) item.append(button(request.itemId || request.operation === 'coursesyllabus' ? 'Open source' : 'Open course', () => api.openHistorySource(run.id, request.id)));
+      details.append(item);
+    }
+    section.append(details);
+  }
+  main.append(section);
+}
+
+function renderPrivacy() {
+  header('Data & privacy', 'Understand what is read, stored, and shared.');
+  const grid = node('div', 'privacy-grid');
+  const reads = card('What the app reads');
+  reads.append(node('p', '', 'Selected courses, assignment titles and stored deadlines, submission status, available syllabus text, and course messages. Connected course websites can provide additional materials.'),
+    node('p', 'muted', 'Instructions and other materials may be missing or outdated. Check source coverage before relying on your guide.'));
+  const storage = card('What is stored locally');
+  storage.append(node('p', '', 'Settings, collected course information, guides, study checkmarks, and collection history are saved on this computer. History includes course names and item identifiers. Remembered logins use protected Windows storage.'),
+    node('p', 'muted', 'Course data and exported guides are not encrypted by the app. A cloud-synced output folder may sync your documents. Forgetting a login keeps your guides.'));
+  const sharing = card('When information goes to AI');
+  const sharingStatus = node('p', 'privacy-status', `Study suggestions: ${state.settings.aiEnabled ? 'On' : 'Off'}${state.settings.aiEnabled && !state.ai.connected ? ' - ChatGPT sign-in needed' : ''}`);
+  sharingStatus.id = 'privacy-sharing-status'; sharingStatus.setAttribute('role', 'status');
+  sharing.append(sharingStatus, node('p', '', 'When enabled, relevant course text, including course messages, is sent through Codex to your connected ChatGPT account for preparation suggestions. Canvas login credentials are not provided to the planner.'),
+    node('p', 'muted', 'Connecting ChatGPT alone does not enable suggestions. Information sent to the AI service is subject to its data policies and your account settings.'));
+  const changes = card('What the app can change');
+  changes.append(node('p', '', 'Canvas Weekly does not start or resume quizzes, submit coursework, or send messages. Study checkmarks update your local guide only.'),
+    node('p', 'muted', 'Collection uses restricted requests and stops when required safety checks fail. Opening an original source uses your browser, outside these collection protections.'));
+  grid.append(reads, storage, sharing, changes);
+  const protections = node('details', 'card privacy-details');
+  protections.append(node('summary', '', 'How collection is protected'),
+    node('p', '', 'The collector uses fixed, reviewed requests bound to your account and selected courses. Known reads that can affect module progress are excluded. The AI planner has no Canvas tools. Request logs record operations and outcomes, without credentials or response bodies.'),
+    node('p', 'muted', 'Canvas may record sign-ins and access activity. Institutional behavior can vary; these safeguards do not prove that all server-side state or past progress stayed unchanged. Check flagged requirements and deadlines against the original source.'));
+  const actions = node('div', 'actions');
+  actions.append(button('Manage saved logins', () => go('settings')), button('Open output folder', () => api.openOutput()));
+  const coverage = button('View source coverage', () => {
+    preview = false; go('week');
+    const target = document.getElementById('source-coverage');
+    target?.scrollIntoView({ block: 'start' }); target?.focus({ preventScroll: true });
+  });
+  coverage.disabled = !state.guide;
+  actions.append(coverage);
+  main.append(grid, node('p', 'muted', 'Canvas may record sign-ins and access activity. Coverage varies; confirm flagged information at its source.'), protections, actions);
+  if (!state.guide) main.append(node('p', 'muted', 'Source coverage is available after your first guide update.'));
+  renderCollectionHistory();
 }
 
 function render() {
@@ -477,7 +589,7 @@ function render() {
     item.classList.toggle('selected', item.dataset.page === page);
     if (item.dataset.page === page) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
   });
-  ({ week: renderWeek, courses: renderCourses, settings: renderSettings })[page]();
+  ({ week: renderWeek, courses: renderCourses, settings: renderSettings, privacy: renderPrivacy })[page]();
 }
 document.querySelectorAll('[data-page]').forEach(item => item.addEventListener('click', () => go(item.dataset.page)));
 document.querySelector('#connection-settings').addEventListener('click', () => go('settings'));

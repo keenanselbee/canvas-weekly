@@ -10,6 +10,8 @@ import { CodexClient, planningEvidence } from './codex-client.js';
 import { referenceUrl } from './content.js';
 import { guideSources } from './study-plan.js';
 import { CourseWebsites } from './course-websites.js';
+import { CollectionHistory } from './collection-history.js';
+import { readingSelection, READING_VERSION, EXPANDED_AVAILABLE, EXPANDED_HOLD } from './reading-policy.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const uiUrl = pathToFileURL(path.join(directory, 'ui/index.html')).href;
@@ -22,6 +24,8 @@ if (app.isPackaged && testMode) {
 if (!app.isPackaged) app.setPath('userData', path.resolve(directory, '../.local', testMode ? 'test-app' : 'app'));
 const store = new SettingsStore(app.getPath('userData'));
 const guides = new GuideStore(path.join(app.getPath('userData'), 'guides'));
+const history = new CollectionHistory(path.join(app.getPath('userData'), 'collection-history'));
+let historyAccount = null;
 let window;
 let canvas;
 let courses = [];
@@ -42,7 +46,10 @@ function snapshot() {
     websites,
     guide,
     run,
-    ai: codex ? { ...codex.state, runtime: codex.runtime } : { connected: false },
+    reading: { available: EXPANDED_AVAILABLE, hold: EXPANDED_HOLD,
+      courses: canvas?.profile ? readingSelection(store.value, store.value.canvasBaseUrl, canvas.profile.id, store.value.selectedCourseIds) : [] },
+    collectionHistory: historyAccount === JSON.stringify(store.value.lastGuideAccount) ? structuredClone(history.entries) : [],
+    ai: codex ? { ...codex.state, canForget: codex.canForget, runtime: codex.runtime } : { connected: false },
   };
 }
 
@@ -89,6 +96,8 @@ else {
     if (store.value.lastGuideAccount) {
       try { websites = await websiteStore.list(store.value.lastGuideAccount); }
       catch (error) { run.message = error.message; }
+      try { await history.load(store.value.lastGuideAccount.origin, store.value.lastGuideAccount.userId); historyAccount = JSON.stringify(store.value.lastGuideAccount); }
+      catch (error) { run.message = error.message; }
     }
     const loadCourses = async () => {
       const binding = canvas.capture({ includeCourses: false });
@@ -108,6 +117,8 @@ else {
       courses = loadedCourses;
       guide = loadedGuide;
       websites = loadedWebsites;
+      await history.load(binding.origin, binding.userId);
+      historyAccount = JSON.stringify(store.value.lastGuideAccount);
     };
     canvas = new CanvasConnection({ directory: app.getPath('userData'), settings: store, onChange: publish, onConnected: async () => {
       try { await loadCourses(); run = { busy: false, message: 'Canvas connected. Choose your courses.' }; }
@@ -175,6 +186,19 @@ else {
       await store.update({ selectedCourseIds: [...new Set(selectedCourseIds)] });
       return snapshot();
     });
+    handle('settings:reading', async (courseIds, acknowledged) => {
+      requireIdle();
+      if (!canvas.profile || canvas.loginWindow || !Array.isArray(courseIds)
+        || courseIds.some(id => typeof id !== 'string' || !courses.some(course => String(course.id) === id))) throw new Error('Choose courses from the connected account.');
+      if (courseIds.length && acknowledged !== true) throw new Error('Acknowledge the possible viewing effects before saving expanded reading.');
+      const origin = store.value.canvasBaseUrl;
+      const userId = canvas.profile.id;
+      const preferences = (store.value.courseReading || []).filter(entry => entry.origin !== origin || entry.userId !== userId);
+      preferences.push({ origin, userId, version: READING_VERSION, courseIds: [...new Set(courseIds)] });
+      canvas.invalidate();
+      await store.update({ courseReading: preferences });
+      return snapshot();
+    });
     const websiteAction = async callback => {
       requireIdle();
       const account = store.value.lastGuideAccount;
@@ -213,8 +237,15 @@ else {
       controller = new AbortController();
       let signal = AbortSignal.any([controller.signal, binding.signal]);
       let sessionWatch;
+      let historyId;
+      let historyFinished = false;
       run = { busy: true, message: 'Checking Canvas connection…' }; publish();
       try {
+        const modes = readingSelection(store.value, binding.origin, userId, binding.courseIds);
+        historyId = await history.begin(binding.origin, userId, modes.map(mode => ({ ...mode,
+          name: courses.find(course => String(course.id) === mode.courseId)?.name || `Course ${mode.courseId}` })));
+        historyAccount = JSON.stringify({ origin: binding.origin, userId });
+        canvas.audit.onEvent = event => history.record(historyId, event);
         sessionWatch = await canvas.watchSession(binding, signal);
         if (sessionWatch) signal = AbortSignal.any([signal, sessionWatch.signal]);
         await canvas.verify();
@@ -254,14 +285,30 @@ else {
         binding.assertCurrent();
         run = { busy: true, message: 'Saving your weekly guide…' }; publish();
         guide = await guides.export(next, snapshot().outputDirectory, userId, signal);
+        await history.finish(historyId, 'completed', next.changes.length); historyFinished = true;
         run = { busy: false, message: records.some(record => record.coverage.some(source => source.status !== 'ok')) ? 'Guide updated with some information unavailable. Review source coverage.' : 'Weekly guide updated.' };
         return snapshot();
       } catch (error) {
         run = { busy: false, message: controller.signal.aborted ? 'Refresh cancelled. Your previous guide is preserved.' : error.message };
         throw new Error(run.message);
-      } finally { sessionWatch?.dispose(); controller = null; publish(); }
+      } finally {
+        canvas.audit.onEvent = null;
+        try { if (historyId && !historyFinished) await history.finish(historyId, controller.signal.aborted ? 'cancelled' : 'failed'); }
+        finally { sessionWatch?.dispose(); controller = null; publish(); }
+      }
     });
     handle('guide:cancel', () => { controller?.abort(); return snapshot(); });
+    handle('history:source', async (runId, requestId) => {
+      const account = store.value.lastGuideAccount;
+      if (!account || historyAccount !== JSON.stringify(account)) throw new Error('Choose history for the current account.');
+      const entry = history.entries.find(entry => entry.id === runId);
+      const request = entry?.requests.find(request => request.id === requestId);
+      if (!request?.courseId || !entry.courses.some(course => course.courseId === request.courseId)) throw new Error('This request has no course source.');
+      const route = `/courses/${request.courseId}${request.itemId ? `/assignments/${request.itemId}` : request.operation === 'coursesyllabus' ? '/assignments/syllabus' : ''}`;
+      const url = referenceUrl(new URL(route, account.origin).href, account.origin);
+      if (!url) throw new Error('This source is unavailable.');
+      await shell.openExternal(url);
+    });
     handle('guide:task', async (taskId, done) => {
       requireIdle();
       const account = store.value.lastGuideAccount;

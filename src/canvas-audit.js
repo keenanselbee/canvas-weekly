@@ -16,11 +16,14 @@ export class CanvasAudit {
       paginated: Boolean(event.paginated), preservesUnread: Boolean(event.preservesUnread),
       ...(Number.isInteger(event.status) ? { status: event.status } : {}),
       ...(event.method === 'POST' ? { bodyHash: event.bodyHash } : {}),
+      ...(event.courseId ? { courseId: event.courseId } : {}),
+      ...(event.itemId ? { itemId: event.itemId } : {}),
     };
     const metadata = record.method === 'POST' && record.path === '/api/graphql'
       && ['metadataassignments', 'metadataenrollments', 'metadataownsubmission', 'courseconversations', 'conversationtext', 'coursesyllabus'].includes(record.operation) && /^[a-f0-9]{64}$/.test(record.bodyHash);
     const accountScope = record.method === 'GET' && record.path === '/api/v1/accounts' && record.operation === 'accountscope' && !record.paginated;
     if (!/^[a-f0-9-]{36}$/.test(record.requestId)
+      || [record.courseId, record.itemId].some(id => id !== undefined && (typeof id !== 'string' || !/^[1-9]\d{0,31}$/.test(id)))
       || !(metadata || accountScope ? ['request', 'response', 'network-error', 'body-read', 'read-error'] : ['request', 'response', 'network-error']).includes(record.event)
       || !/^[a-z]+$/.test(record.operation)
       || !/^https:\/\/[^/?#@]+$/.test(record.origin)
@@ -34,5 +37,6 @@ export class CanvasAudit {
     this.pending = task;
     try { await task; }
     catch { throw new Error('Canvas request audit could not be saved. Collection stopped for this source. Check local storage and try again.'); }
+    await this.onEvent?.(record);
   }
 }

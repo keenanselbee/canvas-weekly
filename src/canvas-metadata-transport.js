@@ -140,7 +140,7 @@ export class CanvasMetadataTransport {
   async readOwnSubmission(assignmentId, signal) {
     if (!this.#assignmentIds.has(assignmentId)) throw new Error('Read this assignment from the selected course before checking its submission.');
     const body = JSON.stringify(ownSubmissionRequest(assignmentId, this.#studentId));
-    const value = await this.#read({ method: 'POST', path: '/api/graphql', operation: 'metadataownsubmission', body, paginated: false }, signal);
+    const value = await this.#read({ method: 'POST', path: '/api/graphql', operation: 'metadataownsubmission', body, itemId: assignmentId, paginated: false }, signal);
     return parseOwnSubmission(value, assignmentId);
   }
 
@@ -178,7 +178,7 @@ export class CanvasMetadataTransport {
     return this.#read({ method: 'GET', path: '/api/v1/accounts', query: '?per_page=1', operation: 'accountscope', paginated: false }, signal);
   }
 
-  async #read({ method, path, query = '', operation, body, paginated }, signal) {
+  async #read({ method, path, query = '', operation, body, itemId, paginated }, signal) {
     if (this.#identityRejected) throw new CanvasCollectionStoppedError('Reconnect Canvas before reading metadata.');
     if (this.#accountScopeRejected) throw new CanvasCollectionStoppedError(accountScopeUnavailable);
     if (this.#busy) throw new Error('A Canvas metadata read is already running.');
@@ -190,7 +190,7 @@ export class CanvasMetadataTransport {
     const timer = setTimeout(() => timeout.abort(), 30000);
     timer.unref?.();
     this.#busy = true;
-    const evidence = { requestId: randomUUID(), operation,
+    const evidence = { requestId: randomUUID(), operation, courseId: this.#courseId, ...(itemId ? { itemId } : {}),
       origin: this.#origin, path, method, paginated,
       ...(body === undefined ? {} : { bodyHash: createHash('sha256').update(body).digest('hex') }) };
     let intent = false;

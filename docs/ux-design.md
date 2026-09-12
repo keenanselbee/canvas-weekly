@@ -8,11 +8,28 @@ Target: a personal Windows app usable without a terminal or writing prompts.
 Primary flow
 ------------
 
-The navigation has three destinations: This week, Courses, and Settings. A fixed
+The navigation has four destinations: This week, Courses, Settings, and Data & privacy. A fixed
 sidebar carries the product name, navigation, and connection status. This week
 leads with the academic week, last refresh, and a single primary Update guide
 button. Open guide is secondary. Course selection and configuration are not mixed
 into the reading experience.
+
+Data & privacy explains collection, local storage, AI sharing and permitted
+changes in four compact cards. It shows the live Study suggestions preference,
+including when sign-in is still needed. Login settings, the output folder and
+saved-guide source coverage are directly accessible; coverage is unavailable
+until a guide exists. Expandable protection details explain restricted reads and
+institutional limits without promising unchanged server state. The page also
+distinguishes protected login storage from ordinary course data and documents,
+cloud-folder syncing, and AI-service data policies.
+
+Settings includes per-course reading preferences and an explicit acknowledgement
+of possible view-based effects. Expanded preferences currently remain pending
+validation, with limited reading displayed as the effective mode. This week shows
+the latest Canvas collection status even after a failed update, with a link to
+account-specific Collection history in Data & privacy. History includes incomplete
+requests and interrupted runs without claiming that access or progress was undone.
+See expanded-reading.md for the remaining source-admission work.
 
 The sidebar footer separates Canvas and ChatGPT connection states, with Codex as
 secondary connection detail. A separate study-suggestions row shows Off, On or

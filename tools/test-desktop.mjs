@@ -27,6 +27,20 @@ try {
   assert.equal(state.appearance.source, 'system');
   assert.ok(path.isAbsolute(state.outputDirectory));
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
+  assert.equal(await page.getByRole('button', { name: 'Forget Canvas login', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Forget ChatGPT login', exact: true }).count(), 0);
+  // Unusable saved credentials must still be removable, even while disconnected.
+  const testProfile = await application.evaluate(({ app }) => app.getPath('userData'));
+  await fs.writeFile(path.join(testProfile, 'canvas-session.encrypted.json'), 'synthetic-unreadable-login');
+  const planner = path.join(testProfile, 'planner');
+  await fs.mkdir(planner, { recursive: true });
+  await fs.writeFile(path.join(planner, 'remembered-login.json'), '{}');
+  await page.reload();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: 'Forget ChatGPT login', exact: true }).count(), 1);
+  await page.getByRole('button', { name: 'Forget Canvas login', exact: true }).click();
+  await page.waitForFunction(() => ![...document.querySelectorAll('button')].some(button => button.textContent === 'Forget Canvas login'));
+  await fs.rm(path.join(planner, 'remembered-login.json'));
   await assert.rejects(page.evaluate(() => window.canvasWeekly.setTheme('invalid')));
   for (const [label, key] of [['Remember Canvas on this computer', 'rememberCanvas'], ['Remember ChatGPT on this computer', 'rememberChatGPT']]) {
     await page.getByRole('checkbox', { name: label, exact: true }).uncheck();

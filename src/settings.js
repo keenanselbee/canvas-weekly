@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { validateReadingPreferences } from './reading-policy.js';
 
 export const defaults = {
   schemaVersion: 1,
@@ -14,6 +15,7 @@ export const defaults = {
   aiEnabled: false,
   rememberCanvas: true,
   rememberChatGPT: true,
+  courseReading: [],
 };
 
 export function validateSettings(value) {
@@ -31,6 +33,7 @@ export function validateSettings(value) {
     new Intl.DateTimeFormat('en', { timeZone: value.timeZone }).format();
   } catch { throw new Error('Choose a valid academic timezone, such as America/Vancouver.'); }
   if (value.aiEnabled !== undefined && typeof value.aiEnabled !== 'boolean') throw new Error('Invalid AI preference.');
+  validateReadingPreferences(value.courseReading);
   for (const key of ['rememberCanvas', 'rememberChatGPT']) {
     if (value[key] !== undefined && typeof value[key] !== 'boolean') throw new Error('Invalid remember-login preference.');
   }

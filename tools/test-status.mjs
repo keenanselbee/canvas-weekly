@@ -1,6 +1,7 @@
 import { _electron as electron } from 'playwright';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import { buildGuide } from '../src/guide.js';
 
 await fs.mkdir('.codex-temp/visual', { recursive: true });
 const environment = { ...process.env, CANVAS_WEEKLY_TEST: '1' };
@@ -90,5 +91,48 @@ try {
     await options.scrollIntoViewIfNeeded();
     await options.screenshot({ path: `.codex-temp/visual/runtime-${runtime.source}.png` });
   }
-  console.log('Connection panel checks passed: both themes, usage, setup navigation, runtime detection states, small window. Synthetic state only.');
+  await page.getByRole('button', { name: 'Data & privacy', exact: true }).click();
+  await page.getByRole('heading', { name: 'Data & privacy', exact: true }).waitFor();
+  for (const enabled of [false, true, false]) {
+    state.settings.aiEnabled = enabled;
+    await send(state);
+    await page.waitForFunction(enabled => document.querySelector('#privacy-sharing-status')?.textContent === `Study suggestions: ${enabled ? 'On - ChatGPT sign-in needed' : 'Off'}`, enabled);
+  }
+  assert.equal(await page.getByRole('button', { name: 'View source coverage', exact: true }).isDisabled(), true);
+  for (const [width, height] of [[1140, 900], [800, 600]]) {
+    await application.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
+    for (const theme of ['light', 'dark']) {
+      state.appearance.dark = theme === 'dark'; await send(state);
+      await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth || document.querySelector('main').scrollWidth > document.querySelector('main').clientWidth), false);
+      await page.locator('h1').scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `.codex-temp/visual/privacy-${width}-${theme}.png` });
+    }
+  }
+  await page.getByText('How collection is protected', { exact: true }).click();
+  assert.ok((await page.locator('.privacy-details').textContent()).includes('past progress stayed unchanged'));
+  state.guide = buildGuide({ observedAt: '2026-09-11T12:00:00Z', timeZone: 'America/Vancouver', origin: 'https://canvas.example.edu', courses: [], items: [], changes: [] });
+  await send(state);
+  await page.getByRole('button', { name: 'Data & privacy', exact: true }).click();
+  await page.getByRole('button', { name: 'View source coverage', exact: true }).click();
+  await page.getByRole('heading', { name: 'Source coverage', exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'source-coverage');
+  await page.getByRole('button', { name: 'Data & privacy', exact: true }).click();
+  await page.getByRole('button', { name: 'Manage saved logins', exact: true }).click();
+  await page.getByRole('heading', { name: 'Settings', exact: true }).waitFor();
+  state.canvas = { connected: true };
+  state.settings.lastGuideAccount = { origin: state.settings.canvasBaseUrl, userId: '1' };
+  state.courses = [{ id: '9', name: 'Example course' }];
+  state.reading = { available: false, hold: 'Additional material reads are pending safety validation.', courses: [{ courseId: '9', requested: 'expanded', effective: 'limited' }] };
+  state.collectionHistory = [{ id: 'synthetic-run', startedAt: '2026-09-11T12:00:00Z', status: 'failed', courses: [{ courseId: '9', name: 'Example course', requested: 'expanded', effective: 'limited' }],
+    requests: [{ id: 'synthetic-request', operation: 'metadataownsubmission', courseId: '9', itemId: '10', outcome: 'failed', effect: 'No view-based effect identified in the admitted request.' }] }];
+  await send(state);
+  await page.getByRole('heading', { name: 'Course reading', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Data & privacy', exact: true }).click();
+  const history = page.locator('#collection-history');
+  await history.locator('summary').click();
+  assert.ok((await history.textContent()).includes('final server-side effect is unknown'));
+  assert.ok((await history.textContent()).includes('limited reading (expanded requested; pending validation)'));
+  await history.screenshot({ path: '.codex-temp/visual/collection-history.png' });
+  console.log('Connection, privacy and history checks passed: themes, usage, setup navigation, runtime detection, live sharing, privacy links, reading controls, unknown request effects and small window. Synthetic state only.');
 } finally { await application.close(); }

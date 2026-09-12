@@ -689,3 +689,19 @@ Work log
   session-verification failure remain outstanding; see remembered-connections.md.
   Rebuilt package checks pass; installer SHA256:
   74df0419795b47efe600b67467aac6494af7adeb19ba96249b276ea262b86d7c.
+
+- Added contextual Forget actions and a Data & privacy navigation page, then
+  introduced per-account course-reading preferences and durable Canvas collection
+  history. Expanded reading is explicitly pending validation: the reviewed
+  assignment-description lock path also schedules assignment/submittable timestamp
+  maintenance, beyond the proposed viewing exception. No new Canvas read or broader
+  network permission was enabled. The latest-run summary and history distinguish
+  requested/effective reading modes, failures, cancellation and interrupted runs.
+  Request intent is persisted before transmission, and history storage failures
+  stop collection. Account changes isolate history; login removal retains local
+  guide/history files. All 152 unit tests and the synthetic status/refresh fixtures
+  pass, including preference acknowledgement, cross-account separation, zero reads
+  after failed session verification and unknown effects after failed requests.
+  History and privacy layouts were visually inspected. See expanded-reading.md
+  for source evidence and remaining milestones. No personal Canvas or AI request
+  was made. The installer has not been rebuilt for this source milestone.

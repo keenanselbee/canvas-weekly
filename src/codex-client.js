@@ -56,6 +56,9 @@ export class CodexClient extends EventEmitter {
   async hasSavedLogin() {
     return this.remember && (runtimeFile(this.authMarker) || runtimeFile(this.legacyAuth) || runtimeFile(this.legacyBackup.file));
   }
+  get canForget() {
+    return Boolean(this.state.connected || this.state.connecting || runtimeFile(this.authMarker) || runtimeFile(this.legacyAuth) || runtimeFile(this.legacyBackup.file));
+  }
   async protectLegacyLogin() {
     try {
       const value = await fs.readFile(this.legacyAuth, 'utf8');

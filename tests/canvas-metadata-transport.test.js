@@ -167,7 +167,7 @@ test('isolated enrollment transport uses exact admission and distinct content-fr
   assert.deepEqual(JSON.parse(setup.sent[0].init.body), enrollmentScopeRequest('1', '99', 'private-cursor'));
   assert.deepEqual(setup.events.map(event => event.operation), ['metadataenrollments', 'metadataenrollments', 'metadataenrollments']);
   assert.equal(setup.events[0].paginated, true);
-  assert.doesNotMatch(JSON.stringify(setup.events), /private-cursor|StudentEnrollment|courseId|studentId|query/);
+  assert.doesNotMatch(JSON.stringify(setup.events), /private-cursor|StudentEnrollment|studentId|query/);
 });
 
 test('account preflight cancels pending reads and does not invalidate another read merely for being busy', async () => {
@@ -260,7 +260,8 @@ test('session and token requests use fixed headers and sanitized audit records',
     assert.deepEqual(setup.events.map(event => event.event), ['request', 'response', 'body-read']);
     assert.match(setup.events[0].bodyHash, /^[a-f0-9]{64}$/);
     assert.equal(setup.events[0].method, 'POST');
-    assert.doesNotMatch(JSON.stringify(setup.events), /private-fixture|csrf|Authorization|courseId|studentId|query/);
+    assert.equal(setup.events[0].courseId, '1', 'History identifies the course without storing query bodies or student IDs');
+    assert.doesNotMatch(JSON.stringify(setup.events), /private-fixture|csrf|Authorization|studentId|query/);
   }
   for (const auth of [{ kind: 'session', value: 'bad\nheader' }, { kind: 'unknown', value: 'x' }, { kind: 'token', value: '' }]) {
     const setup = fixture({ authentication: async () => auth });

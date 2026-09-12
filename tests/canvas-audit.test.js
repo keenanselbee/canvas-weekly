@@ -53,3 +53,14 @@ test('network failure is recorded separately without serializing sensitive excep
   assert.equal(events[0].preservesUnread, false);
   assert.doesNotMatch(JSON.stringify(events), /private-network-detail/);
 });
+
+test('history persistence failure prevents transmission even when the low-level audit succeeds', async () => {
+  await fs.mkdir('.codex-temp', { recursive: true });
+  const directory = await fs.mkdtemp(path.resolve('.codex-temp/history-audit-'));
+  const journal = new CanvasAudit(directory);
+  journal.onEvent = async () => { throw new Error('History unavailable'); };
+  let calls = 0;
+  const client = new CanvasClient({ origin: 'https://canvas.example', audit: event => journal.write(event), fetcher: async () => { calls++; } });
+  await assert.rejects(client.read('profile'), /History unavailable/);
+  assert.equal(calls, 0);
+});
