@@ -31,8 +31,8 @@ test('study plan includes preparation, honest uncertainties and suggested days w
   assert.ok(plan.checks.some(check => check.title.startsWith('Compare course update')));
   assert.ok(plan.checks.some(check => check.detail.includes('Module reads disabled')));
   const markdown = renderMarkdown(guide);
-  assert.ok(markdown.indexOf('Your study plan') < markdown.indexOf('This week and overdue'));
-  assert.match(markdown, /not a timetable or new course deadlines/);
+  assert.ok(markdown.indexOf('Recorded course work') < markdown.indexOf('This week and overdue'));
+  assert.match(markdown, /not a complete workload/);
   assert.match(markdown, /Double-check/);
 });
 
@@ -55,7 +55,7 @@ test('undated backlog stays complete without invented start dates or changing da
   assert.ok(plan.reviewGroups[0].tasks.every(task => task.checks.some(check => check.title.startsWith('Confirm timing'))));
   assert.equal(plan.checks.some(check => check.title.includes('Practice exam 2020')), false);
   const markdown = renderMarkdown(guide);
-  assert.ok(markdown.indexOf('Timing to confirm') > markdown.indexOf('Suggested start:'));
+  assert.doesNotMatch(markdown, /Suggested start:/);
   assert.ok(markdown.includes('Practice exam 2020 number 129'));
   assert.ok(!markdown.includes('Suggested start: null'));
   assert.match(markdown, /Available until:/);
@@ -102,7 +102,7 @@ test('starting points cover each course, flag shared deadlines and advance after
   assert.equal(changed.focus.find(item => item.courseId === '1').sharedDeadlineCount, 3, 'Preparation completion does not mean submission');
   assert.ok(guide.items.every(item => item.status !== 'submitted'));
   const markdown = renderMarkdown(guide);
-  assert.ok(markdown.indexOf('### Start here') < markdown.indexOf('### Full preparation checklist'));
+  assert.ok(markdown.indexOf('Recorded course work') < markdown.indexOf('This week and overdue'));
   assert.match(markdown, /3 outstanding items share this recorded due time/);
 });
 
@@ -131,7 +131,7 @@ test('local completion survives refresh and restart, reopens on changed requirem
     assert.equal(marked.items.find(item => item.assignmentId === '1').status, 'not-submitted');
     assert.equal((await new GuideStore(path.join(directory, 'state')).load(options.origin, 'student1')).studyPlan.tasks.find(task => task.id === id).done, true);
     const saved = await store.export(guide, output, 'student1');
-    assert.match(await fs.readFile(saved.outputPath, 'utf8'), /\[x\] \*\*Prepare for Lab/);
+    assert.match(await fs.readFile(saved.outputPath, 'utf8'), /\[x\] Lab — preparation marked done/);
     await assert.rejects(store.setTaskDone(options.origin, 'student2', id, true), /saved guide/);
     await assert.rejects(store.setTaskDone(options.origin, 'student1', '../../other', true), /saved guide/);
     const edited = record(); edited.sources.assignments[0].description = '<p>Read the NEW notes.</p>';

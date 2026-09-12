@@ -23,8 +23,12 @@ saved evidence to connected ChatGPT; the older automatic sharing setting is reti
 
 Refreshing course information replaces this week's output with a factual
 reference. Previous generated files remain in Revisions; generate again to make
-an AI guide from the new collection. The basic preparation checklist remains
-available under a collapsed section during the factual-reference redesign.
+an AI guide from the new collection. The factual reference starts with course
+counts, earliest recorded deadlines, shared due times and coverage gaps. It keeps
+details for outstanding work in the lookahead, source material and local completion records, without generated study
+dates or generic preparation steps. The older checklist remains collapsed in the
+app so existing local checkmarks are still accessible. The separate
+Course Information.md export also contains submitted and later assessment records.
 
 Settings also has optional **Study preferences** for available time, priorities
 and guide length. They are saved per Canvas account. Sharing is off by default;

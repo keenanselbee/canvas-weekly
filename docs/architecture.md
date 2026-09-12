@@ -13,6 +13,10 @@ Export for AI is a local operation, with no collection or
 AI request. Its Course Information.md file uses the existing account ownership,
 manual-edit protection, revision and rollback behavior of GuideStore.
 Generation keeps the collection timestamp and records a distinct AI timestamp.
+The app and factual document share a recorded-work overview with course counts,
+deadline clusters and collection gaps. It does not consume planner advice or
+local progress when counting outstanding assessments. Factual exports omit
+generic study dates and steps; local completion records remain separate.
 It captures the account and saved-guide identity, checks cancellation and scope
 before export, and replaces state only after a successful export. Failures retain
 the previous guide. The shared weekly view model supplies source-recorded dates

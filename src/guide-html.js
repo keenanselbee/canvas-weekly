@@ -61,19 +61,13 @@ export function renderHtml(guide) {
     }
   }
   const escape = markdown.utils.escapeHtml;
-  // Keep one copy of every heading/source in the document. Only the full
-  // checklist and reference sections are hidden for a deliberately chosen
-  // print overview; the main verification section and source counts stay included.
-  const prefixEnd = tokens.findIndex((token, index) => token.type === 'heading_open'
-    && ((token.tag === 'h3' && /^(Full preparation checklist|Suggested start:)/.test(tokens[index + 1].content))
-      || (token.tag === 'h2' && tokens[index + 1].content !== 'Your study plan')));
+  // Print the factual overview and checks while leaving full source details
+  // in the default document. AI guides always print their complete content.
   const checksStart = tokens.findIndex((token, index) => token.type === 'heading_open' && token.tag === 'h2' && tokens[index + 1].content === 'Double-check before relying on this plan');
   const nextSection = tokens.findIndex((token, index) => index > checksStart && token.type === 'heading_open' && token.tag === 'h2');
   const checksEnd = nextSection < 0 ? tokens.length : nextSection;
-  const overviewAvailable = !guide.aiGuide && prefixEnd >= 0 && checksStart >= prefixEnd;
+  const overviewAvailable = !guide.aiGuide && checksStart >= 0;
   const render = (from, to) => markdown.renderer.render(tokens.slice(from, to), markdown.options, {});
-  const focusStarts = tokens.flatMap((token, index) => index < prefixEnd && token.type === 'heading_open' && token.tag === 'h4' ? [index] : []);
-  const prefix = focusStarts.length ? render(0, focusStarts[0]) + focusStarts.map((start, index) => `<section class="starting-point">${render(start, focusStarts[index + 1] ?? prefixEnd)}</section>`).join('\n') : render(0, prefixEnd);
   // Preparation checkmarks must not remove outstanding submission deadlines
   // from the overview, even when all local preparation tasks are checked off.
   const deadlines = [...guide.inWeek, ...guide.upcoming].map(item => {
@@ -84,11 +78,10 @@ export function renderHtml(guide) {
 <td>${item.closesAt ? `Available until ${escape(formatDate(item.closesAt, guide.timeZone))}` : 'Closing time not supplied'}${item.stale || item.availabilityStale ? '<br>Availability needs recheck' : ''}<br>${escape(item.status)}</td></tr>`;
   }).join('\n');
   const deadlineOverview = `<section class="overview-only"><h2>Recorded deadlines</h2>
-<p>Outstanding dated work in this guide, including work whose preparation is checked off. Suggested starting days do not change these dates. Confirm undated work in the full guide.</p>
+<p>Outstanding dated work in this guide, including work whose preparation is checked off. Confirm undated work and fields marked last-known in the full reference.</p>
 ${deadlines ? `<table><thead><tr><th scope="col">Work</th><th scope="col">Due</th><th scope="col">Availability and submission</th></tr></thead><tbody>${deadlines}</tbody></table>` : '<p>No outstanding dated items were identified. Undated work, reading and unavailable sources may still require attention.</p>'}</section>`;
-  const content = overviewAvailable ? `<aside class="overview-only overview-notice">Printed overview: starting points, recorded deadlines and main verification checks. Use the full guide for every preparation task, undated item, per-item check and source detail. Local checkmarks are not submission records.</aside>
-${prefix}${deadlineOverview}
-<div class="print-detail">${render(prefixEnd, checksStart)}</div>
+  const content = overviewAvailable ? `<aside class="overview-only overview-notice">Printed overview: recorded course counts, deadlines and main verification checks. Use the full reference for every undated item, per-item check and source detail. Local checkmarks are not submission records.</aside>
+${render(0, checksStart)}${deadlineOverview}
 ${render(checksStart, checksEnd)}<div class="print-detail">${render(checksEnd)}</div>` : render(0);
   const navigation = sections.map(section => `<li><a href="#${section.id}">${escape(section.title)}</a></li>`).join('\n');
   const cssHash = createHash('sha256').update(styles).digest('base64');
@@ -105,7 +98,7 @@ ${navigation}
 ${overviewAvailable ? `<details class="print-options"><summary>Print options</summary><fieldset><legend>Include when printing</legend>
 <label><input type="radio" name="print-scope" id="print-full" checked>Full guide</label>
 <label><input type="radio" name="print-scope" id="print-overview">Overview and checks</label></fieldset>
-<p>The overview includes starting points, recorded times and verification checks. Choose an option, then use Print in your browser. Your on-screen guide stays complete.</p></details>` : ''}</aside>
+<p>The overview includes course counts, recorded times and verification checks. Choose an option, then use Print in your browser. Your on-screen guide stays complete.</p></details>` : ''}</aside>
 ${content}
 <footer>Keep personal notes in <a href="Student%20Notes.md">Student Notes.md</a>. This is a local snapshot. Source links open only when you choose them. Preparation checkmarks do not submit or complete coursework in Canvas.</footer>
 </main></div></body></html>\n`;

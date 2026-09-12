@@ -1,7 +1,7 @@
 import { _electron as electron } from 'playwright';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
-import { buildGuide } from '../src/guide.js';
+import { buildGuide, reconcile } from '../src/guide.js';
 import { captureUI } from './capture-ui.mjs';
 
 await fs.mkdir('.codex-temp/visual', { recursive: true });
@@ -116,7 +116,14 @@ try {
   }
   await page.getByText('How collection is protected', { exact: true }).click();
   assert.ok((await page.locator('.privacy-details').textContent()).includes('past progress stayed unchanged'));
-  state.guide = buildGuide({ observedAt: '2026-09-11T12:00:00Z', timeZone: 'America/Vancouver', origin: 'https://canvas.example.edu', courses: [], items: [], changes: [] });
+  const referenceTime = { now: '2026-09-11T12:00:00Z', timeZone: 'America/Vancouver', origin: 'https://canvas.example.edu' };
+  state.guide = buildGuide(reconcile([{ id: '9', coverage: [{ source: 'instructions', status: 'unsupported' }], sources: {
+    course: { name: 'Example course', course_code: 'DEMO 101' }, assignments: [
+      { id: 10, name: 'Lab preparation', due_at: '2026-09-12T18:00:00Z', submission: { workflow_state: 'unsubmitted' } },
+      { id: 11, name: 'Reading questions', due_at: '2026-09-12T18:00:00Z' },
+      { id: 12, name: 'Undated practice material' },
+    ],
+  } }], null, referenceTime), referenceTime.now);
   await send(state);
   await page.getByRole('button', { name: 'This week', exact: true }).click();
   for (const [width, height, zoom] of [[1140, 900, 1], [800, 600, 1], [1140, 900, 2]]) {
@@ -130,6 +137,11 @@ try {
       await page.locator('.guide-routes').evaluate(element => element.scrollIntoView({ block: 'center' }));
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth || document.querySelector('main').scrollWidth > document.querySelector('main').clientWidth), false);
       await captureUI(application, `.codex-temp/visual/ai-routes-${width}-${zoom}-${theme}.png`);
+      await page.locator('.recorded-course').evaluate(element => element.scrollIntoView({ block: 'center' }));
+      assert.equal(await page.evaluate(() => document.querySelector('main').scrollWidth > document.querySelector('main').clientWidth), false);
+      assert.match(await page.locator('.recorded-course').textContent(), /2 outstanding items share this recorded due time/);
+      assert.match(await page.locator('.recorded-course').textContent(), /2 with unknown submission status/);
+      await captureUI(application, `.codex-temp/visual/factual-overview-${width}-${zoom}-${theme}.png`);
     }
   }
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1));

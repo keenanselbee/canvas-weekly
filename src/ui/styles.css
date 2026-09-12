@@ -76,6 +76,9 @@ p { margin:0 0 14px; }
 .guide-route+.guide-route { border-left:1px solid var(--border); padding-left:24px; }
 .legacy-plan>summary { cursor:pointer; font-weight:600; }
 .legacy-plan[open]>summary { margin-bottom:18px; }
+.recorded-course { padding:16px 0; border-top:1px solid var(--border); overflow-wrap:anywhere; }
+.recorded-course:last-child { padding-bottom:0; }
+.recorded-course small:last-of-type { margin-bottom:12px; }
 .coverage-notice,.collection-summary { padding:14px 20px; }
 .coverage-notice>summary,.collection-summary>summary { cursor:pointer; font-weight:600; }
 .coverage-notice[open]>summary,.collection-summary[open]>summary { margin-bottom:12px; }

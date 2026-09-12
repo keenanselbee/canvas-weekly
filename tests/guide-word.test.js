@@ -19,12 +19,13 @@ test('Word includes plan, exact deadlines, uncertainties and source links withou
   const guide = fixture();
   guide.studyPlan.tasks[0].done = true;
   guide.studyPlan.tasks[0].steps = [{ kind: 'required', text: 'Read before lab.', quote: 'Read the relational keys chapter before the lab.' }];
-  guide.studyPlan.tasks[0].title += ' \u0001 <script>bad()</script> ![image](https://remote.example/image.png)';
+  guide.items[0].title += ' \u0001 <script>bad()</script> ![image](https://remote.example/image.png)';
   guide.courses[0].references = [{ title: 'Unsafe file', sourceUrl: 'file:///private.txt', status: 'uncollected' }, { title: 'Credentials', sourceUrl: 'https://user:password@example.com', status: 'uncollected' }];
   const zip = await JSZip.loadAsync(await renderWord(guide));
   const xml = await zip.file('word/document.xml').async('string');
-  for (const expected of ['Your study plan', 'Suggested start:', 'Done:', 'Recorded due time:', '11, 2026', 'Required (AI interpretation)', 'Source quote:', 'Double-check before relying', 'Verify the reading list.', '&lt;script&gt;', 'Submission status:']) assert.ok(xml.includes(expected), expected);
+  for (const expected of ['Course reference', 'Recorded course work', 'Done:', '11, 2026', 'Double-check before relying', 'Verify the reading list.', '&lt;script&gt;', 'Submission status:']) assert.ok(xml.includes(expected), expected);
   assert.ok(!xml.includes('\u0001'));
+  assert.doesNotMatch(xml, /Suggested start:|Required \(AI interpretation\)|Suggested preparation/);
   assert.match(xml, /w:pgSz w:w="12240" w:h="15840"/);
   assert.match(xml, /w:pgMar w:top="1440"/);
   assert.match(xml, /w:pStyle w:val="Heading1"/);

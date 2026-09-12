@@ -35,7 +35,9 @@ my weekly guide with connected ChatGPT. Open guide (or Open factual reference)
 is secondary. Successful collection history and the coverage explanation are
 collapsed with visible status summaries; failed runs and possible viewing
 effects open automatically. The generic preparation checklist is collapsed in
-the app while its factual-export replacement is pending. Course selection and configuration are not mixed
+the app for existing checkmarks. The factual reference starts with recorded
+course counts and deadline clusters, followed by uncertainty and source details;
+it does not include generated study dates or generic steps. Course selection and configuration are not mixed
 into the reading experience.
 
 Data & privacy explains collection, local storage, AI sharing and permitted

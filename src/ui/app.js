@@ -1,4 +1,5 @@
 import { weeklyView } from '../weekly-view.js';
+import { factualOverview, courseCountText } from '../factual-overview.js';
 
 const api = window.canvasWeekly;
 let state;
@@ -166,7 +167,7 @@ function renderWeek() {
 function renderGuide() {
   const guide = state.guide;
   const format = value => value ? new Intl.DateTimeFormat(undefined, { timeZone: guide.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value)) : 'No date supplied';
-  main.append(node('p', 'footer-note', `${guide.mode} · Updated ${format(guide.generatedAt)} · ${guide.timeZone}`));
+  main.append(node('p', 'footer-note', `${guide.aiGuide ? 'AI weekly guide' : 'Factual reference'} · Collected ${format(guide.generatedAt)} · ${guide.timeZone}`));
   const weekly = weeklyView(guide);
   if (weekly) {
     const overview = card('Your AI weekly guide');
@@ -213,6 +214,22 @@ function renderGuide() {
     main.append(questions);
   }
   if (guide.studyPlan && !weekly) {
+    const recorded = factualOverview(guide);
+    const reference = card('Recorded course work');
+    reference.append(node('p', '', recorded.summary), node('p', 'muted', recorded.note));
+    for (const course of recorded.courses) {
+      const entry = node('div', 'recorded-course');
+      entry.append(node('h3', '', course.name), node('p', '', courseCountText(course.counts)),
+        node('small', '', `${course.counts.unknown} with unknown submission status; ${course.counts.stale} with last-known or unrefreshed fields.`),
+        node('small', '', `Collected texts: ${course.sourceTexts}; coverage gaps: ${course.coverageGaps}; uncollected links: ${course.uncollectedLinks}.`));
+      if (course.next) {
+        const item = course.next;
+        entry.append(node('p', '', `Earliest recorded outstanding deadline in this window: ${format(item.dueAt)}${item.stale || item.dueDateStale ? ' — last-known; recheck' : ''}`), button(item.title, () => api.openSource(item.id), 'link'));
+        if (item.sharedDeadlineCount > 1) entry.append(node('p', 'muted', `${item.sharedDeadlineCount} outstanding items share this recorded due time. See the detailed records for each item.`));
+      } else entry.append(node('p', 'muted', 'No outstanding dated item in this window was collected. Check undated work, course materials and coverage gaps.'));
+      reference.append(entry);
+    }
+    main.append(reference);
     const plan = guide.studyPlan;
     const legacy = node('details', 'card legacy-plan');
     legacy.append(node('summary', '', 'Basic preparation checklist'), node('p', 'muted', 'These generic prompts are retained for local checkmarks. Use the recorded deadlines below and an AI guide for a personal plan.'));

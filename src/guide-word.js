@@ -3,7 +3,7 @@ import { Document, ExternalHyperlink, Footer, Header, LevelFormat, Packer, PageN
 import { renderMarkdown, contentHash } from './guide.js';
 
 // Bump when layout or conversion changes, so unchanged guides get the new format.
-export const WORD_FORMAT_VERSION = 1;
+export const WORD_FORMAT_VERSION = 2;
 export function wordInputHash(guide) {
   return contentHash(`${WORD_FORMAT_VERSION}|${renderMarkdown(guide)}`);
 }
@@ -65,7 +65,8 @@ export async function renderWord(guide) {
   // Named overrides: title 26pt/8pt after; subtitle and running furniture 9pt gray.
   const paragraph = (before, after) => ({ spacing: { before, after, line: 300, lineRule: 'auto' }, widowControl: true });
   const doc = new Document({
-    creator: 'Canvas Weekly', title: 'Weekly Plan', description: 'Personal study plan with source evidence and checks',
+    creator: 'Canvas Weekly', title: guide.aiGuide ? 'Weekly Plan' : 'Course reference',
+    description: guide.aiGuide ? 'Personal study plan with source evidence and checks' : 'Recorded course information, deadlines and coverage checks',
     styles: {
       default: {
         document: { run: { font: 'Calibri', size: 22, color: '202020' }, paragraph: paragraph(0, 120) },

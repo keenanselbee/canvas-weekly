@@ -5,6 +5,7 @@ import { localDate, shiftDate, weekOf } from './dates.js';
 import { buildStudyPlan, guideSources } from './study-plan.js';
 import { METADATA_NOTICE } from './canvas-metadata.js';
 import { weeklyMarkdown } from './weekly-view.js';
+import { factualOverview, courseCountText } from './factual-overview.js';
 export { plainText, sourceUrl } from './content.js';
 export { localDate, shiftDate, weekOf } from './dates.js';
 const dateOrNull = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
@@ -125,7 +126,7 @@ export function buildGuide(snapshot, now = snapshot.observedAt) {
   const inWeek = relevant.filter(item => item.dueAt && localDate(item.dueAt, snapshot.timeZone) <= week.end);
   const upcoming = relevant.filter(item => item.dueAt && localDate(item.dueAt, snapshot.timeZone) > week.end);
   const undated = relevant.filter(item => !item.dueAt);
-  const guide = { ...snapshot, week, inWeek, upcoming, undated, mode: 'Factual guide', generatedAt: now };
+  const guide = { ...snapshot, week, inWeek, upcoming, undated, mode: 'Factual reference', generatedAt: now };
   guide.studyPlan = buildStudyPlan(guide);
   return guide;
 }
@@ -137,79 +138,44 @@ export function formatDate(value, timeZone) {
 const md = value => String(value ?? '').replace(/[\\`*_{}\[\]<>|#]/g, '\\$&').replace(/\r?\n/g, ' ');
 
 export function renderMarkdown(guide) {
-  const lines = ['# Weekly Plan', '', `**${guide.week.start} to ${guide.week.end}**`, '', `${guide.mode} · Updated ${formatDate(guide.generatedAt, guide.timeZone)} (${guide.timeZone})`, '', METADATA_NOTICE, '',
+  const lines = [guide.aiGuide ? '# Weekly Plan' : '# Course reference', '', `**${guide.week.start} to ${guide.week.end}**`, '', `${guide.aiGuide ? 'AI weekly guide' : 'Factual reference'} · Collected ${formatDate(guide.generatedAt, guide.timeZone)} (${guide.timeZone})`, '', METADATA_NOTICE, '',
     'Generated sections are refreshed by Canvas Weekly. Check off preparation tasks in the app; keep your own notes in Student Notes.md.', ''];
   const plan = guide.studyPlan || buildStudyPlan(guide);
+  const referenceChecks = !guide.aiGuide && guide.priorities?.length ? buildStudyPlan({ ...guide, priorities: [] }).checks : plan.checks;
   const sources = new Map(guideSources(guide).map(source => [source.id, source]));
   lines.push(...weeklyMarkdown(guide));
   if (!guide.aiGuide) {
-    lines.push('## Your study plan', '', plan.summary, '', plan.note, '');
-    const refined = plan.tasks.filter(task => task.ai).length;
-    if (guide.priorities?.length) lines.push(`ChatGPT refined ${refined} preparation task${refined === 1 ? '' : 's'}. Other tasks use basic prompts. Required/optional labels are AI interpretations with source quotes to check.`, '');
-    if (plan.focus?.length) {
-      lines.push('### Start here', '', plan.focusNote, '');
-      for (const focus of plan.focus) {
-        const source = sources.get(focus.sourceId);
-        lines.push(`#### ${md(focus.courseName)}: ${md(focus.title)}`, '', md(focus.reason), '', `Suggested start: ${focus.suggestedDate}.`, '');
-        if (focus.dueAt) lines.push(`Recorded due time: ${formatDate(focus.dueAt, guide.timeZone)}`, '');
-        if (focus.closesAt) lines.push(`Available until: ${formatDate(focus.closesAt, guide.timeZone)}`, '');
-        if (focus.deadlineNote) lines.push(md(focus.deadlineNote), '');
-        if (source) lines.push(`[Original source](${source.sourceUrl})`, '');
-      }
-      lines.push('### Full preparation checklist', '');
-    }
-    let day, reviewCourse;
-    for (const task of [...plan.tasks.filter(task => !task.unscheduled), ...(plan.reviewGroups || []).flatMap(group => group.tasks)]) {
-      if (task.unscheduled) {
-        if (day !== null) { lines.push('## Timing to confirm', '', plan.reviewNote, ''); day = null; }
-        if (reviewCourse !== task.courseId) { reviewCourse = task.courseId; lines.push(`### ${md(task.courseName)}`, ''); }
-      } else if (day !== task.suggestedDate) { day = task.suggestedDate; lines.push(`### Suggested start: ${day}`, ''); }
-      const source = sources.get(task.sourceId);
-      lines.push(`- [${task.done ? 'x' : ' '}] **${md(task.title)}** (${md(task.courseName)})${task.ai ? ' - AI suggestion' : ''}`, '', md(task.reason), '');
-      if (task.changedSinceDone) lines.push('Source or task changed since you checked it off. Review it again.', '');
-      if (task.dueAt) lines.push(`Recorded due time: ${formatDate(task.dueAt, guide.timeZone)}`, '');
-      if (task.closesAt) lines.push(`Available until: ${formatDate(task.closesAt, guide.timeZone)}`, '');
-      if (task.posted) {
-        if (task.posted.facts.length) lines.push('**Recorded information**', '', ...task.posted.facts.map(fact => `- ${md(fact)}`), '');
-        if (task.posted.needs.length) lines.push(`**Needs checking:** ${md(task.posted.needs.join('; '))}.`, '');
-        for (const excerpt of task.posted.sources) {
-          const original = sources.get(excerpt.sourceId);
-          lines.push(`**${md(excerpt.title)}${excerpt.stale ? ' (last-known; recheck)' : ''}**`, '', md(excerpt.note), '');
-          if (excerpt.observedAt) lines.push(`Collected: ${formatDate(excerpt.observedAt, guide.timeZone)}.`, '');
-          if (excerpt.text) lines.push(...excerpt.text.split('\n').map(line => `> ${md(line)}`), '');
-          if (original) lines.push(`[Read original material](<${original.sourceUrl}>)`, '');
-        }
-        if (task.posted.more) lines.push(`${task.posted.more} more collected materials appear in Source details.`, '');
-      }
-      lines.push('**Suggested preparation**', '');
-      for (const step of task.steps) {
-        if (typeof step === 'string') lines.push(`- ${md(step)}`);
-        else {
-          lines.push(`- ${step.conditional ? 'After confirming applicability: ' : ''}${step.kind === 'suggested' ? 'Suggested' : `${step.kind === 'required' ? 'Required' : 'Optional'} (AI interpretation)`}: ${md(step.text)}`);
-          if (step.quote) lines.push('', `  Source quote: ${md(step.quote)}`, '');
-        }
-      }
-      for (const check of task.checks || []) lines.push('', `${md(check.title)}: ${md(check.detail)}`);
-      if (source) lines.push('', `[Source](<${source.sourceUrl}>)`);
-      lines.push('');
+    const overview = factualOverview(guide);
+    lines.push('## Recorded course work', '', overview.summary, '', overview.note, '');
+    for (const course of overview.courses) {
+      lines.push(`### ${md(course.name)}`, '', courseCountText(course.counts), '',
+        `${course.counts.unknown} with unknown submission status; ${course.counts.stale} with last-known or unrefreshed fields.`, '',
+        `Collected texts: ${course.sourceTexts}; coverage gaps: ${course.coverageGaps}; uncollected links: ${course.uncollectedLinks}.`, '');
+      if (course.next) {
+        const item = course.next;
+        lines.push(`Earliest recorded outstanding deadline in this window: **${formatDate(item.dueAt, guide.timeZone)}** — [${md(item.title)}](<${item.sourceUrl}>).${item.stale || item.dueDateStale ? ' Last-known date; recheck.' : ''}`, '');
+        if (item.sharedDeadlineCount > 1) lines.push(`${item.sharedDeadlineCount} outstanding items share this recorded due time. See the detailed records for each item.`, '');
+      } else lines.push('No outstanding dated item in this window was collected. Check undated work, course materials and coverage gaps.', '');
     }
   }
   lines.push('## Double-check before relying on this plan', '');
-  for (const check of plan.checks) {
+  for (const check of referenceChecks) {
     const source = sources.get(check.sourceId);
     lines.push(`- **${md(check.title)}:** ${md(check.detail)}${source ? ` [Source](<${source.sourceUrl}>)` : ''}`);
   }
-  if (!plan.checks.length) lines.push('No specific gaps were identified in the collected records. Course announcements and unpublished requirements can still change.');
+  if (!referenceChecks.length) lines.push('No specific gaps were identified in the collected records. Course announcements and unpublished requirements can still change.');
   lines.push('');
-  if (guide.priorities?.length && !guide.studyPlan) {
-    lines.push('## Suggested focus', '', 'AI suggestions based on collected evidence; these do not change course requirements.', '');
-    for (const priority of guide.priorities) {
-      const source = [...guide.items, ...guide.courses.flatMap(course => course.evidence || [])].find(item => item.id === priority.sourceId);
-      lines.push(`- **${md(priority.action)}** — ${md(priority.reason)}${source ? ` [${md(source.title)}](<${source.sourceUrl}>)` : ''}`);
+  if (!guide.aiGuide) {
+    const marked = plan.tasks.filter(task => task.done || task.changedSinceDone);
+    if (marked.length) {
+      lines.push('## Local preparation record', '', 'These are your local checkmarks, not Canvas submissions. They do not remove recorded deadlines.', '');
+      for (const task of marked) {
+        const source = sources.get(task.sourceId);
+        lines.push(`- [${task.done ? 'x' : ' '}] ${md(source?.title || task.courseName)}${task.changedSinceDone ? ' — changed since you checked it off; review again' : ' — preparation marked done'}${source ? ` [Source](<${source.sourceUrl}>)` : ''}`);
+      }
+      lines.push('');
     }
-    lines.push('');
   }
-  if (guide.planningNote) lines.push(`AI suggestions unavailable: ${md(guide.planningNote)}`, '');
   lines.push('## This week and overdue', '');
   const itemLines = item => [
     `### ${md(item.title)}`, '', `**${md(item.courseName)}** · ${md(item.type)} · ${item.stale ? 'Last known information — needs recheck' : item.metadataOnly ? 'Assignment metadata refreshed; instructions not rechecked' : 'Observed in Canvas'}`, '',

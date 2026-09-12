@@ -42,7 +42,7 @@ try {
   page.on('request', request => { if (/^https?:/.test(request.url())) requests.push(request.url()); });
   // Reload under observation; no network fixtures or Canvas sessions are involved.
   await page.reload();
-  await page.getByRole('heading', { name: 'Your study plan', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Recorded course work', exact: true }).waitFor();
   assert.equal(await page.getByRole('checkbox').first().isChecked(), true);
   assert.equal(await page.getByRole('checkbox').first().isDisabled(), true);
   assert.equal(await page.locator('script,img,iframe,object').count(), 0);
@@ -91,17 +91,18 @@ try {
   await page.emulateMedia({ media: 'screen', colorScheme: 'light' });
   await page.getByText('Print options', { exact: true }).click();
   await page.getByRole('radio', { name: 'Overview and checks', exact: true }).check();
-  assert.equal(await page.getByRole('heading', { name: 'Full preparation checklist', exact: true }).isVisible(), true, 'Print choice must not hide on-screen tasks');
+  assert.equal(await page.getByRole('heading', { name: 'Local preparation record', exact: true }).isVisible(), true, 'Print choice must not hide on-screen tasks');
   await page.screenshot({ path: '.codex-temp/visual/document-print-options.png' });
   await page.emulateMedia({ media: 'print' });
-  assert.equal(await page.getByRole('heading', { name: 'Full preparation checklist', exact: true }).isVisible(), false);
+  assert.equal(await page.getByRole('heading', { name: 'Local preparation record', exact: true }).isVisible(), false);
   const overview = await print('overview');
   assert.ok(overview.pages < full.pages, 'Overview must use fewer pages than the full reference guide');
   assert.match(overview.text, /Printed overview/);
   assert.match(overview.text, /Recorded deadlines/);
   assert.match(overview.text, /Relational keys practice/, 'A checked preparation task must retain its outstanding submission deadline');
-  assert.match(overview.text, /Confirm the lab room/);
-  assert.doesNotMatch(overview.text, /Full preparation checklist|Course information and coverage|Source quote:/);
+  assert.match(overview.text, /Module reads are disabled/);
+  assert.doesNotMatch(overview.text, /ChatGPT suggests checking|Confirm the lab room/, 'Legacy AI advice is not part of the factual reference');
+  assert.doesNotMatch(overview.text, /Local preparation record|Course information and coverage|Source quote:/);
   console.log(JSON.stringify({ directory, fullPages: full.pages, overviewPages: overview.pages }));
   assert.deepEqual(requests, [], 'Reading and printing the document must make no network requests');
   await page.emulateMedia({ media: 'screen', colorScheme: 'light' });

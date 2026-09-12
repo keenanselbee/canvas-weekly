@@ -115,6 +115,6 @@ try {
   }
 } finally { await loading.destroy(); }
 const text = pages.map(page => page.text).join(' ');
-for (const expected of [ai ? 'Your AI weekly guide' : 'Your study plan', 'Done:', 'Double-check before relying', 'Possible deadline extension', 'Confirm message sender', 'Read chapter 2', 'Course syllabus']) assert.ok(text.includes(expected), expected);
+for (const expected of [ai ? 'Your AI weekly guide' : 'Recorded course work', 'Done:', 'Double-check before relying', 'Possible deadline extension', 'Confirm message sender', 'Read chapter 2', 'Course syllabus']) assert.ok(text.includes(expected), expected);
 await fs.writeFile(path.join(directory, 'review.json'), JSON.stringify({ word, pages }, null, 2));
 console.log(JSON.stringify({ result: 'Native Word export, page bounds, running header/footer and content checks passed. Inspect every page PNG before claiming visual QA.', directory, pages: pages.length, wordVersion: word.version }));

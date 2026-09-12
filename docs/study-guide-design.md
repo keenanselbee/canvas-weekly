@@ -1,13 +1,24 @@
 Personal study guide
 ====================
 
-The guide should answer what to do next, when to prepare, which source explains
-the work, and what needs verification. A list of Canvas records alone is not the
-finished product. The factual source details remain available below the plan.
+The [revised direction](evidence-first-plan.md) uses AI for personal planning and
+a factual reference for recorded information. The AI guide answers what to do
+next, which source explains the work, and what needs verification. Student study
+preferences may guide suggested timing when explicitly shared.
+
+The factual reference starts with per-course counts, earliest outstanding recorded
+deadlines and shared due times, unknown submission states, stale fields and
+coverage gaps. It never interprets local checkmarks as submissions or invents
+study dates. Markdown, HTML and Word retain detailed records and source text;
+completed or changed local preparation checks appear in a separate local record.
+HTML offers an optional print overview without changing the full screen view.
 
 
-Implemented planning layer
---------------------------
+Legacy planning layer
+---------------------
+
+The following earlier rule-based planner remains collapsed in the app to retain
+access to local checkmarks. It no longer supplies the factual document's plan.
 
 - Lead with a count of outstanding dated work, upcoming work and undated items.
   Absence of a deadline never implies absence of reading or preparation.

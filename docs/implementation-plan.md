@@ -26,7 +26,7 @@ Milestone ledger
 | E1 | Shared evidence pack and Export for AI | Full normalized text, source IDs/coverage, explicit AI omissions, offline export and protected files | Implemented; 166 unit tests and synthetic desktop refresh passed |
 | E2 | Full connected weekly guide | Standalone generation from saved evidence; source-linked tasks and questions; failure preserves prior guide | Core generation, shared views and opt-in personal preferences implemented; live quality review pending |
 | E3 | Improve permitted source coverage | Evidence-driven source additions with provenance and safety review | Pending; no collection permissions expanded by E1 |
-| E4 | Collection and AI routes in the primary UX | Simple collection/coverage/export/generate flow, useful factual fallback, desktop release checks | Explicit collection/export/generate interface and themes verified; factual-export simplification and release review pending |
+| E4 | Collection and AI routes in the primary UX | Simple collection/coverage/export/generate flow, useful factual fallback, desktop release checks | Explicit collection/export/generate interface and recorded-work reference implemented; release and live-course review pending |
 
 Scheduling, multi-provider support, public distribution and hosted service are
 subsequent enhancements. They are documented product directions, not prerequisites
@@ -953,3 +953,25 @@ Work log
   a bounded paint wait with background throttling disabled. No personal Canvas
   or AI requests were made. Factual exports still contain the older checklist;
   replacing that output and live-course quality review remain pending.
+
+- Replaced the factual document's generated preparation schedule with a shared
+  recorded-work overview in the app, Markdown, HTML and Word: per-course counts,
+  earliest outstanding dates, shared due times, unknown submission status and
+  coverage gaps. Generic steps, suggested start dates and old AI suggestions
+  are excluded from factual exports. Local completed/changed checks remain a
+  separate record and do not reduce outstanding counts. The app's older checklist
+  remains collapsed for existing checkmarks. Detailed weekly records and source
+  text remain; the separate Course Information.md pack includes all collected
+  assessment records, including submitted and beyond-lookahead items.
+  Validation: 172 unit tests passed, including source conditions/exceptions,
+  complete undated records, local progress persistence and reference counts.
+  The synthetic desktop workflow passed. Offline HTML passed light/dark/narrow
+  rendering, navigation and no-network checks; the fixture printed three full
+  pages and a two-page overview. Native Word factual and AI fixtures each passed
+  content, bounds and running-furniture checks at five pages. All page renders
+  were reviewed; unchanged pages were byte-compared after final label edits.
+  The in-app summary passed light/dark, small-window, 200% zoom and keyboard
+  checks; its rendered screens were reviewed. The Inno candidate rebuilt with
+  source-byte and package privacy checks. No personal Canvas or AI requests were
+  made. This changes presentation only;
+  permitted-source coverage improvements remain outstanding.

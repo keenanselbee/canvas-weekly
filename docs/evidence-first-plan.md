@@ -83,8 +83,9 @@ Milestones:
    Keep a concise factual deadline view and retire arbitrary rule-based start
    dates. Validate light/dark, keyboard use, installer and live-account limits.
    Collection and AI actions are now separated in the primary interface. The
-   generic preparation checklist is collapsed in the app during migration;
-   retiring it from factual exports remains pending.
+   generic preparation checklist remains collapsed in the app for existing local
+   checkmarks. Factual exports now start with recorded counts, deadline clusters
+   and source coverage; generated starting dates and generic steps are removed.
 
 Completion requires both AI routes to be usable, exports to preserve collected
 evidence without silent clipping, connected guides to retain traceable facts,

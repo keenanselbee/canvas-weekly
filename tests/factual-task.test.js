@@ -39,8 +39,8 @@ test('complete source passages preserve optional wording and conditions across f
     assert.match(output, /Submit a PDF only if you chose option A/);
     assert.match(output, /Option B needs no upload/);
     assert.match(output, /example report is optional/);
-    assert.match(output, /Recorded information/);
-    assert.match(output, /Suggested preparation/);
+    assert.match(output, /Recorded course work/);
+    assert.doesNotMatch(output, /Suggested preparation|Suggested start:/);
   }
   assert.match(await word.file('word/_rels/document.xml.rels').async('string'), /https:\/\/canvas.example\/courses\/1\/assignments\/10/);
   const long = factualTask({ ...value.items[0], instructions: 'Important context. '.repeat(100) + 'No upload is required.' });
