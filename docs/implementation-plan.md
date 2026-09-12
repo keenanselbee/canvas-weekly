@@ -1070,3 +1070,13 @@ Work log
   omits shortcuts and scope elevation, so it does not prove personal migration,
   UAC or the complete interactive wizard. No personal installation or account
   was used. The development AI saved-login marker remains absent.
+
+- Made login cleanup labels reflect verified connection state. Connected Canvas
+  and ChatGPT accounts show Forget login; disconnected accounts with browser,
+  saved or legacy data show Clear sign-in data with an explanation. Cleanup is
+  disabled while sign-in is open. Starting ChatGPT sign-in without stored data
+  no longer makes cleanup appear. Existing data removal behavior is unchanged.
+  Validation: 186 unit tests and the synthetic status desktop workflow passed;
+  light/dark cleanup views were reviewed. The candidate installer rebuilt with
+  source matching and package privacy checks. No personal credentials were
+  removed and the user's active sign-in was not interrupted.

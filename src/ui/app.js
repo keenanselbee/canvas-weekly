@@ -590,8 +590,13 @@ function renderSettings() {
   } else {
     canvasActions.append(button('Sign in to Canvas', async () => { update(await api.openCanvasLogin()); render(); }, 'primary'), button('Check connection', async () => { announce('Checking Canvas connection…'); update(await api.verifyCanvas()); announce('Canvas connected. Choose your courses.'); go('courses'); }));
   }
-  if (state.canvas.canForget) canvasActions.append(button('Forget Canvas login', async () => { update(await api.disconnectCanvas()); render(); announce('Saved Canvas connection forgotten. Guide files are kept.'); }));
+  if (state.canvas.canForget) {
+    const forget = button(state.canvas.connected ? 'Forget Canvas login' : 'Clear Canvas sign-in data', async () => { update(await api.disconnectCanvas()); render(); announce('Canvas sign-in data cleared. Guide files are kept.'); });
+    forget.disabled = state.run.busy || state.canvas.connecting;
+    canvasActions.append(forget);
+  }
   const canvasSettings = row('Canvas', state.canvas.connected ? `Connected as ${state.canvas.name}` : 'Sign in in the Canvas window, then close it and check the connection.', canvasActions);
+  if (!state.canvas.connected && state.canvas.canForget) canvasSettings.append(node('p', 'muted', 'No Canvas connection is verified. Browser or saved sign-in data may remain on this computer; clearing it does not delete your guides.' + (state.canvas.connecting ? ' Close the Canvas sign-in window before clearing it.' : '')));
   canvasSettings.id = 'canvas-settings';
   connections.append(canvasSettings);
   const rememberCanvas = node('input'); rememberCanvas.type = 'checkbox'; rememberCanvas.checked = state.settings.rememberCanvas !== false;
@@ -617,8 +622,13 @@ function renderSettings() {
   connections.append(advanced);
   const aiActions = node('div', 'actions');
   if (!state.ai.connected) aiActions.append(button(state.ai.connecting ? 'Sign-in open' : 'Connect ChatGPT', async () => { update(await api.connectChatGPT()); render(); }), button('Check sign-in', async () => { update(await api.checkChatGPT()); render(); }));
-  if (state.ai.canForget) aiActions.append(button('Forget ChatGPT login', async () => { update(await api.disconnectChatGPT()); render(); announce('Saved ChatGPT connection forgotten.'); }));
+  if (state.ai.canForget) {
+    const forget = button(state.ai.connected ? 'Forget ChatGPT login' : 'Clear ChatGPT sign-in data', async () => { update(await api.disconnectChatGPT()); render(); announce('ChatGPT sign-in data cleared.'); });
+    forget.disabled = state.run.busy || state.ai.connecting;
+    aiActions.append(forget);
+  }
   const aiSettings = row('ChatGPT via Codex', state.ai.connected ? 'Connected. Your account usage limits apply.' : state.ai.error || 'Sign in through the official ChatGPT page to create weekly study guides.', aiActions);
+  if (!state.ai.connected && state.ai.canForget) aiSettings.append(node('p', 'muted', 'No ChatGPT connection is verified. Saved or older sign-in data remains on this computer.' + (state.ai.connecting ? ' Finish or check the current sign-in before clearing it.' : ' You can clear it here.')));
   aiSettings.id = 'ai-settings';
   connections.append(aiSettings);
   const rememberAI = node('input'); rememberAI.type = 'checkbox'; rememberAI.checked = state.settings.rememberChatGPT !== false;

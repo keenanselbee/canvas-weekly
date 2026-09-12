@@ -25,6 +25,25 @@ test('runtime detection distinguishes bundled, PATH, manual and missing files wi
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });
 
+test('forget availability distinguishes sign-in attempts from stored data and connected sessions', async () => {
+  const directory = await fs.mkdtemp(path.resolve('.codex-temp/forget-state-'));
+  const client = new CodexClient({ directory, spawnProcess: () => { throw Error('State checks must not start Codex'); } });
+  assert.equal(client.canForget, false);
+  client.state.connecting = true;
+  assert.equal(client.canForget, false, 'A pending sign-in alone is not a saved login');
+  await fs.writeFile(client.legacyBackup.file, 'synthetic encrypted recovery data');
+  assert.equal(client.canForget, true, 'Leftover data must remain clearable');
+  await fs.unlink(client.legacyBackup.file);
+  await fs.writeFile(client.authMarker, '{"version":1}');
+  client.state.connecting = false;
+  assert.equal(client.canForget, true, 'A saved marker does not require a verified session to be cleared');
+  await fs.unlink(client.authMarker);
+  client.state.connected = true;
+  assert.equal(client.canForget, true, 'An in-memory connected session remains clearable');
+  client.state.connected = false;
+  assert.equal(client.canForget, false);
+});
+
 function fakeServer(overrides = {}, notifications = []) {
   const requests = [];
   const child = new EventEmitter();

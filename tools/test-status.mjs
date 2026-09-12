@@ -17,6 +17,30 @@ try {
   await page.getByRole('heading', { name: 'This week', exact: true }).waitFor();
   const state = await page.evaluate(() => window.canvasWeekly.getState());
   const send = async value => application.evaluate(({ BrowserWindow }, value) => BrowserWindow.getAllWindows()[0].webContents.send('state:changed', value), value);
+  await page.getByRole('button', { name: 'Settings', exact: true }).evaluate(button => button.click());
+  for (const theme of ['light', 'dark']) {
+    state.appearance.dark = theme === 'dark';
+    state.canvas = { connected: false, canForget: false, connecting: false };
+    state.ai = { connected: false, canForget: false, connecting: true };
+    await send(state);
+    await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
+    assert.equal(await page.getByRole('button', { name: /Forget (Canvas|ChatGPT) login|Clear (Canvas|ChatGPT) sign-in data/ }).count(), 0);
+    state.canvas.canForget = true; state.ai.canForget = true;
+    await send(state);
+    await page.getByRole('button', { name: 'Clear ChatGPT sign-in data', exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Clear ChatGPT sign-in data', exact: true }).isDisabled(), true);
+    assert.equal(await page.getByRole('button', { name: 'Clear Canvas sign-in data', exact: true }).isEnabled(), true);
+    assert.equal(await page.getByRole('button', { name: /Forget (Canvas|ChatGPT) login/ }).count(), 0);
+    await page.locator('#canvas-settings').evaluate(element => element.scrollIntoView({ block: 'start' }));
+    await page.screenshot({ path: `.codex-temp/visual/clear-sign-in-${theme}.png` });
+    state.ai.connecting = false; state.ai.connected = true;
+    state.canvas.connected = true;
+    await send(state);
+    await page.getByRole('button', { name: 'Forget ChatGPT login', exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Forget Canvas login', exact: true }).isEnabled(), true);
+    assert.equal(await page.getByRole('button', { name: 'Forget ChatGPT login', exact: true }).isEnabled(), true);
+  }
+  await page.getByRole('button', { name: 'This week', exact: true }).evaluate(button => button.click());
   state.canvas = { connected: true, collectionIssue: 'Synthetic collection pause.' };
   state.ai = { connected: true, available: true };
   state.settings.aiEnabled = false;
