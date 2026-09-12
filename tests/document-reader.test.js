@@ -4,6 +4,8 @@ import JSZip from 'jszip';
 import { readDocument } from '../src/document-reader.js';
 import { SiteReader } from '../src/site-reader.js';
 import { reconcile, buildGuide, renderMarkdown } from '../src/guide.js';
+import { buildEvidencePack, plannerEvidence } from '../src/evidence-pack.js';
+import { weeklyView } from '../src/weekly-view.js';
 
 import { wordXml, word, pdf } from '../tools/document-fixtures.mjs';
 
@@ -53,7 +55,19 @@ test('website document links use the scoped reader and preserve partial coverage
   const guide = buildGuide(snapshot);
   assert.match(renderMarkdown(guide), /no OCR or visual interpretation/);
   assert.ok(guide.courses[0].evidence.some(source => source.sourceUrl.endsWith('.pdf') && source.body.includes('[Page 1]')));
+  const pdfSource = guide.courses[0].evidence.find(source => source.sourceUrl.endsWith('.pdf'));
+  const docxSource = guide.courses[0].evidence.find(source => source.sourceUrl.endsWith('.docx'));
+  assert.equal(pdfSource.partial, true); assert.match(pdfSource.coverageNote, /no OCR/);
+  assert.equal(docxSource.partial, true); assert.match(docxSource.coverageNote, /tracked changes/);
+  for (const pack of [buildEvidencePack(guide), plannerEvidence(guide)]) {
+    assert.equal(pack.sources.find(source => source.id === pdfSource.id).partial, true);
+    assert.match(pack.sources.find(source => source.id === pdfSource.id).coverageNote, /no OCR/);
+  }
+  guide.aiGuide = { overview: [], questions: [], courses: [{ courseId: '1', focus: 'Read the syllabus', tasks: [{ sourceId: pdfSource.id, checks: [], steps: [] }] }] };
+  assert.ok(weeklyView(guide).courses[0].tasks[0].checks.some(check => check.includes('no OCR')));
   record.sources.websites[0].pages = [];
   const missing = reconcile([record], snapshot, options);
   assert.ok(missing.courses[0].evidence.filter(source => source.kind === 'website').every(source => source.stale));
+  assert.equal(missing.courses[0].evidence.find(source => source.id === pdfSource.id).partial, true);
+  assert.match(missing.courses[0].evidence.find(source => source.id === pdfSource.id).coverageNote, /no OCR/);
 });

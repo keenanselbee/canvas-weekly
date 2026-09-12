@@ -1,11 +1,18 @@
 import { extractHtml, plainText, sourceUrl, referenceUrl, redactCredentials } from './content.js';
 const timestamp = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
 
+function restoreWebsiteLimitations(source, coverage = []) {
+  if (source.kind !== 'website' || source.partial !== undefined) return source;
+  const entry = coverage.find(entry => entry.source === `website:${source.siteId}:${source.sourceUrl}` && entry.status === 'partial');
+  if (!entry) return source;
+  return { ...source, partial: true, coverageNote: entry.message || 'Only part of this website source was extracted. Check the original.' };
+}
+
 // Early saved guides stored plain syllabus/announcement text without evidence.
 // Recover it locally, without treating an old snapshot as a fresh source read.
 export function restoreLegacyEvidence(guide) {
   return { ...guide, courses: guide.courses.map(course => {
-    if (Array.isArray(course.evidence)) return course;
+    if (Array.isArray(course.evidence)) return { ...course, evidence: course.evidence.map(source => restoreWebsiteLimitations(source, course.coverage)) };
     const evidence = [];
     const base = `${guide.origin}/courses/${course.id}`;
     const add = (kind, id, title, body, url, extra = {}) => {
@@ -135,13 +142,14 @@ export function courseEvidence(record, previous, origin, now) {
   for (const website of record.sources.websites || []) {
     for (const page of website.pages) add('website', page.id, page.title, '', page.sourceUrl, {
       body: page.body, siteId: website.siteId, observedAt: page.observedAt,
+      partial: page.partial, coverageNote: page.coverageNote,
     });
     for (const reference of website.references) references.set(reference.sourceUrl, reference);
     for (const page of website.pages) references.delete(page.sourceUrl);
   }
   const seen = new Set(current.map(source => source.id));
   for (const source of previous?.evidence || []) {
-    if (!seen.has(source.id)) current.push({ ...source, stale: true });
+    if (!seen.has(source.id)) current.push({ ...restoreWebsiteLimitations(source, previous.coverage), stale: true });
     else if (source.kind === 'module') {
       const fresh = current.find(item => item.id === source.id);
       if (!fresh.detailsAvailable) Object.assign(fresh, { body: source.body, stale: true });

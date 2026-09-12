@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { extractHtml, referenceUrl } from '../src/content.js';
 import { reconcile, buildGuide, renderMarkdown } from '../src/guide.js';
 import { planningEvidence } from '../src/codex-client.js';
+import { restoreLegacyEvidence } from '../src/course-evidence.js';
 
 const context = { origin: 'https://canvas.example', now: '2026-09-10T18:00:00Z', timeZone: 'America/Vancouver' };
 const record = () => ({ id: '1', coverage: [], sources: {
@@ -14,6 +15,31 @@ const record = () => ({ id: '1', coverage: [], sources: {
   calendar: [{ id: 7, title: 'Lab', start_at: '2026-09-11T18:00:00Z', location_name: 'Room 100' }],
   conversation: [{ id: '8', data: { subject: 'Reading questions moved', participants: [{ id: 2, name: 'Instructor' }, { id: 3, name: 'Unrelated recipient' }], messages: [{ id: 9, author_id: 2, created_at: '2026-09-10T10:00:00Z', body: 'The reading questions have moved to Thursday. A second try is optional.' }] } }],
 } });
+
+test('saved website extraction gaps are recovered per source without claiming a new read', () => {
+  const page = { id: 'site:pdf', kind: 'website', siteId: 'site', sourceUrl: 'https://course.example/notes.pdf', body: 'Text only', observedAt: context.now, stale: true };
+  const other = { ...page, id: 'site:html', sourceUrl: 'https://course.example/notes.html' };
+  const guide = { courses: [{ id: '1', evidence: [page, other], coverage: [{ source: `website:site:${page.sourceUrl}`, status: 'partial', message: 'PDF text only; no OCR.' }] }] };
+  const restored = restoreLegacyEvidence(guide);
+  const source = restored.courses[0].evidence[0];
+  assert.equal(source.partial, true); assert.equal(source.coverageNote, 'PDF text only; no OCR.');
+  assert.equal(source.stale, true); assert.equal(source.observedAt, context.now);
+  assert.equal(restored.courses[0].evidence[1].partial, undefined, 'Do not apply one document gap to unrelated pages');
+  assert.equal(page.partial, undefined, 'Recovery does not mutate the saved input');
+  assert.deepEqual(restoreLegacyEvidence(restored), restored);
+});
+
+test('website source limitations persist through failed reads and clear only on a successful complete replacement', () => {
+  const current = record();
+  current.sources.websites = [{ siteId: 'site', references: [], pages: [{ id: 'page', title: 'Syllabus', sourceUrl: 'https://course.example/syllabus', body: 'Read chapter two.', observedAt: context.now, partial: true, coverageNote: 'Figures not extracted.' }] }];
+  const previous = reconcile([current], null, context);
+  current.sources.websites[0].pages[0] = { ...current.sources.websites[0].pages[0], partial: false, coverageNote: undefined };
+  const fresh = reconcile([current], previous, context).courses[0].evidence.find(source => source.kind === 'website');
+  assert.equal(fresh.partial, false); assert.equal(fresh.coverageNote, undefined);
+  current.sources.websites[0].pages = [];
+  const failed = reconcile([current], previous, context).courses[0].evidence.find(source => source.kind === 'website');
+  assert.equal(failed.partial, true); assert.equal(failed.coverageNote, 'Figures not extracted.'); assert.equal(failed.stale, true);
+});
 
 test('HTML extraction preserves structure and redacts credential lines and unsafe links', () => {
   const result = extractHtml('<h2>Notes</h2><p>2 &lt; 3 &amp; caf&eacute;</p><script>alert(1)</script><p>Password: sample-secret</p>');

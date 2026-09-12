@@ -996,3 +996,15 @@ Work log
   document and website selectors. No personal Canvas or AI requests were made.
   The Inno candidate rebuilt with source-byte matching and package privacy
   checks; the installed personal app was not changed.
+
+
+- Fixed website document extraction limitations being lost between SiteReader
+  pages and normalized course sources. PDF/DOCX sources now retain partial and
+  coverageNote through exports, connected AI input, failed-refresh retention and
+  the existing per-task warning view. Older sources recover exact matching
+  partial coverage notes locally without changing observation time or freshness.
+  Source collection routes, credentials and permissions are unchanged.
+  Validation: all 179 unit tests passed. The document fixture covers the complete
+  reader-to-evidence-to-AI-view path; recovery tests cover source isolation,
+  idempotence and replacement/failed-read behavior. No personal Canvas or AI
+  requests were made.

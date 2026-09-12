@@ -177,7 +177,8 @@ export class SiteReader {
         if (!['ok', 'partial'].includes(result.status) || !result.text) continue;
         visited.add(result.url);
         if (pages.some(page => page.sourceUrl === result.url)) continue;
-        pages.push({ id: `${site.id}:${crypto.createHash('sha256').update(result.url).digest('hex').slice(0, 20)}`, title: result.title || new URL(result.url).pathname, body: result.text, sourceUrl: result.url, observedAt: new Date().toISOString() });
+        pages.push({ id: `${site.id}:${crypto.createHash('sha256').update(result.url).digest('hex').slice(0, 20)}`, title: result.title || new URL(result.url).pathname, body: result.text, sourceUrl: result.url, observedAt: new Date().toISOString(),
+          partial: result.status === 'partial', coverageNote: result.status === 'partial' ? result.message : undefined });
         for (const value of result.media || []) {
           const reference = referenceUrl(value, result.url);
           if (reference && !actionRoute.test(decodeURIComponent(new URL(reference).pathname))) references.set(reference, { title: reference, sourceUrl: reference, foundOn: result.url, status: 'Image or embedded media contents not collected' });

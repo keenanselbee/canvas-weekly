@@ -115,6 +115,14 @@ native allocations. Parser dependencies must stay patched. Oversized or failed
 documents do not replace earlier evidence with empty text. File contents are
 credential-redacted before being stored or provided to the planner.
 
+Each collected PDF/DOCX source carries its partial flag and extraction note into
+the saved evidence pack and connected AI input. AI task views display that note
+beside tasks citing the source. Failed later reads retain both the last-known
+text and its limitations. Older saved website sources recover matching partial
+notes from their course coverage on local load/export; this does not refresh
+the source timestamp. Recovery requires an exact site/source-URL match and does
+not infer that unrelated pages have the same limitation.
+
 Collected document links use the same origin/path, authentication, redirect and
 read-budget rules as HTML links. No Canvas authorization is involved. Extraction
 limitations remain in coverage and study-plan checks, alongside original links.
