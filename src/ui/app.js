@@ -152,7 +152,7 @@ function renderWeek() {
     sharing.append(routes);
     if (state.guide.aiGuide) sharing.append(node('p', 'footer-note', 'Refreshing replaces this week’s output with a fresh factual reference. Your previous generated files are kept in Revisions; create a new AI guide after collecting.'));
     const coverage = state.guide.planningCoverage;
-    if (coverage && (coverage.omittedTexts || coverage.items || coverage.sources || coverage.courses || coverage.changes)) sharing.append(node('p', 'muted', `The last connected AI run omitted ${coverage.omittedTexts} full texts, ${coverage.items} assessment records, ${coverage.sources} material records, ${coverage.courses || 0} course summaries and ${coverage.changes || 0} changes because of input limits. The exported pack includes them; review it for a complete account of collected evidence.`));
+    if (coverage && Object.values(coverage).some(count => count > 0)) sharing.append(node('p', 'muted', `The last connected AI run omitted ${coverage.omittedTexts} full texts, ${coverage.items} assessment records, ${coverage.sources} material records, ${coverage.courses || 0} course summaries, ${coverage.changes || 0} changes, ${coverage.coverageEntries || 0} coverage entries and ${coverage.references || 0} reference links because of input limits. The exported pack includes them; review it for a complete account of collected evidence.`));
     main.append(sharing);
     renderGuide(); return;
   }

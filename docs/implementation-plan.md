@@ -1041,3 +1041,18 @@ Work log
   by existing metadata and account-switch regression checks. The Inno candidate
   rebuilt with source matching and package privacy checks. No personal Canvas or
   AI requests were made, and the installed personal app was not changed.
+
+- Improved connected AI evidence allocation. Course identities, assessment
+  dates/status and source identities are admitted before large passages or link
+  lists. Complete texts receive an initial share per course before spare capacity
+  is used; change history and reference lists follow current source material.
+  Coverage/reference omissions retain explicit counts, and the last-run UI
+  includes those counts. The entire serialized input, including omission notices,
+  stays within 120,000 UTF-8 bytes for normalized app records. Manual evidence
+  exports retain all normalized text and references without these AI input limits.
+  Validation: all 185 unit tests passed, including four-course competition,
+  oversized links/history/coverage, complete ending conditions, UTF-8 accounting
+  and preserved source limitations. The synthetic desktop collection/AI/export
+  and account-isolation regression passed. The Inno candidate rebuilt with source
+  matching and package privacy checks. No personal Canvas or AI requests were
+  made. Live model interpretation and online-chat acceptance remain unverified.

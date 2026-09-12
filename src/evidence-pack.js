@@ -73,40 +73,83 @@ export function renderEvidencePack(guide) {
 
 export function plannerEvidence(guide) {
   const pack = buildEvidencePack(guide);
-  let remaining = 120000;
-  const omissions = [];
-  const omittedRecords = {};
-  const select = (records, section, field) => {
-    const selected = [];
-    omittedRecords[section] = Math.max(0, records.length - 100);
-    for (const record of records.slice(0, 100)) {
-      let candidate = record;
-      const bytes = value => Buffer.byteLength(JSON.stringify(value), 'utf8');
-      if (bytes(candidate) > remaining && field && record[field]) {
-        candidate = { ...record, [field]: '', partial: true, contentOmitted: true };
-      }
-      if (bytes(candidate) > remaining) { omittedRecords[section]++; continue; }
-      if (candidate.contentOmitted) omissions.push({ sourceId: record.id, field,
-        reason: 'Full text exceeds the remaining AI input budget; inspect the exported pack.' });
-      remaining -= bytes(candidate);
-      selected.push(candidate);
-    }
-    return selected;
-  };
   // Give work in the useful planning window priority over submitted/distant work.
   const order = new Map([...(guide.inWeek || []), ...(guide.upcoming || []), ...(guide.undated || [])].map((item, index) => [item.id, index]));
   const items = [...pack.items].sort((a, b) => (order.get(a.id) ?? Infinity) - (order.get(b.id) ?? Infinity));
-  const selectedCourses = select(pack.courses, 'courses');
-  const selectedItems = select(items, 'items', 'instructions');
-  const selectedSources = select(pack.sources, 'sources', 'body');
-  const selectedChanges = select(pack.changes, 'changes');
-  return { week: pack.week, timeZone: pack.timeZone, generatedAt: pack.generatedAt,
+  const input = { week: pack.week, timeZone: pack.timeZone, generatedAt: pack.generatedAt,
     websiteRefreshedAt: pack.websiteRefreshedAt,
     studentPreferences: pack.studentPreferences,
-    coverage: selectedCourses.map(course => ({ course: course.code || course.name,
-      gaps: course.coverage.filter(entry => entry.status !== 'ok').map(entry => `${entry.source}: ${entry.message || entry.status}`).join('; '),
-      uncollectedReferences: course.references.length })),
-    courses: selectedCourses, changes: selectedChanges,
-    items: selectedItems, sources: selectedSources, omissions, omittedRecords,
+    coverage: [], courses: [], items: [], sources: [], changes: [], omissions: [],
+    omittedRecords: { courses: pack.courses.length, items: items.length, sources: pack.sources.length, changes: pack.changes.length },
   };
+  const size = () => Buffer.byteLength(JSON.stringify(input), 'utf8');
+  const limit = 120000;
+  const pending = [];
+  // Reserve identity, deadlines and freshness for all admitted records before
+  // allocating any large text or link list. Omission notices count toward size.
+  for (const [section, records, field] of [['courses', pack.courses], ['items', items, 'instructions'], ['sources', pack.sources, 'body']]) {
+    for (const record of records.slice(0, 100)) {
+      const candidate = { ...record };
+      let omission;
+      if (section === 'courses') {
+        Object.assign(candidate, { coverage: [], references: [], coverageOmitted: record.coverage.length, referencesOmitted: record.references.length });
+        input.coverage.push({ course: record.code || record.name, gaps: `${record.coverage.filter(entry => entry.status !== 'ok').length} recorded coverage gaps; see this course's coverage and coverageOmitted fields.`, uncollectedReferences: record.references.length });
+      }
+      if (field && record[field]) {
+        Object.assign(candidate, { [field]: '', partial: true, contentOmitted: true });
+        omission = { sourceId: record.id, field, reason: 'Full text excluded by the AI input budget; inspect the exported pack.' };
+        input.omissions.push(omission);
+      }
+      input[section].push(candidate); input.omittedRecords[section]--;
+      if (size() > limit) {
+        input[section].pop(); input.omittedRecords[section]++;
+        if (section === 'courses') input.coverage.pop();
+        if (omission) input.omissions.pop();
+        continue;
+      }
+      pending.push({ section, record, candidate, field, omission });
+    }
+  }
+  const addList = (entry, field) => {
+    entry.candidate[field] = entry.record[field];
+    delete entry.candidate[`${field}Omitted`];
+    if (size() > limit) Object.assign(entry.candidate, { [field]: [], [`${field}Omitted`]: entry.record[field].length });
+  };
+  for (const entry of pending.filter(entry => entry.section === 'courses')) addList(entry, 'coverage');
+  // Give each course an initial share for complete passages, then use spare
+  // capacity. Never cut off an ending condition or exception to make text fit.
+  const groups = Map.groupBy(pending.filter(entry => entry.omission), entry => entry.record.courseId || 'unknown');
+  const share = Math.max(0, limit - size()) / Math.max(1, groups.size);
+  const deferred = [];
+  const addText = (entry, allowance) => {
+    const { candidate, record, omission } = entry;
+    const before = size();
+    const placeholder = { ...candidate };
+    Object.assign(candidate, record);
+    if (record.partial === undefined) delete candidate.partial;
+    delete candidate.contentOmitted;
+    const index = input.omissions.indexOf(omission);
+    input.omissions.splice(index, 1);
+    const after = size();
+    if (after > limit || after - before > allowance) {
+      Object.assign(candidate, placeholder);
+      input.omissions.splice(index, 0, omission);
+      return null;
+    }
+    return Math.max(0, after - before);
+  };
+  for (const entries of groups.values()) {
+    let allowance = share;
+    for (const entry of entries) {
+      const used = addText(entry, allowance);
+      if (used === null) deferred.push(entry); else allowance -= used;
+    }
+  }
+  for (const entry of deferred) addText(entry, Infinity);
+  for (const change of pack.changes.slice(0, 100)) {
+    input.changes.push(change); input.omittedRecords.changes--;
+    if (size() > limit) { input.changes.pop(); input.omittedRecords.changes++; }
+  }
+  for (const entry of pending.filter(entry => entry.section === 'courses')) addList(entry, 'references');
+  return input;
 }

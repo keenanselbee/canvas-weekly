@@ -412,7 +412,9 @@ else {
         const evidence = planningEvidence(next);
         next.aiGuide = { ...await codex.plan(evidence, signal, { weekly: true }), generatedAt: new Date().toISOString(), preferencesUsed: evidence.studentPreferences };
         next.priorities = next.aiGuide.courses.flatMap(course => course.tasks);
-        next.planningCoverage = { omittedTexts: evidence.omissions.length, ...evidence.omittedRecords };
+        next.planningCoverage = { omittedTexts: evidence.omissions.length, ...evidence.omittedRecords,
+          coverageEntries: evidence.courses.reduce((sum, course) => sum + (course.coverageOmitted || 0), 0),
+          references: evidence.courses.reduce((sum, course) => sum + (course.referencesOmitted || 0), 0) };
         delete next.planningNote;
         next.mode = 'AI weekly guide';
         signal.throwIfAborted();

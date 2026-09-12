@@ -62,6 +62,14 @@ limits omit whole text bodies rather than cutting off later conditions or
 exceptions, and report omitted records and texts. Output validation continues
 to enforce known sources and separate suggested preparation from requirements.
 
+The connected input reserves course, assessment and material identities and
+freshness before large text. Complete passages receive an initial allowance per
+course, then use remaining capacity. Prior change text and reference lists use
+remaining space after current material. The 120,000-byte UTF-8 limit includes
+metadata and omission notices. Excluded coverage/reference lists carry explicit
+counts; the manual export remains complete. This allocation improves coverage
+but does not prove that a model interpreted every included source correctly.
+
 Milestones:
 
 1. Shared evidence pack, offline Export for AI, copyable prompt, explicit AI
