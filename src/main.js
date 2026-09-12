@@ -130,6 +130,7 @@ else {
     window = new BrowserWindow({
       width: 1140, height: 820, minWidth: 800, minHeight: 600,
       title: 'Canvas Weekly', show: false,
+      icon: path.join(directory, 'ui/assets', store.value.theme === 'dark' ? 'mark-dark.png' : 'mark.png'),
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#151c26' : '#f6f8fa',
       webPreferences: { preload: path.join(directory, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
     });
@@ -372,6 +373,7 @@ else {
     handle('settings:theme', async theme => {
       await store.update({ theme });
       nativeTheme.themeSource = theme;
+      window.setIcon(path.join(directory, 'ui/assets', theme === 'dark' ? 'mark-dark.png' : 'mark.png'));
       return snapshot();
     });
     handle('settings:output', async () => {

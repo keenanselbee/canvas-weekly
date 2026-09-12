@@ -152,6 +152,11 @@ strokes. Straight edges align to the grid; rounded joins preserve the circular
 eight-tooth settings cog. Curves still use normal antialiasing. Keep SVGs at their
 native CSS size instead of scaling down larger glyphs. The original calendar/check
 mark is shared with Windows and installer artwork; no university crest is used.
+The mark uses a navy rounded tile, blue calendar header and three checklist rows.
+Its white calendar is the executable default and the app's Light/System mark;
+explicit Dark selects a dark calendar in the app and its window. Inno shortcuts
+follow Windows at installation/update time, independently of the app preference.
+No background shortcut updater is installed.
 Page headers have a thin divider, and coverage or paused-refresh notices have a
 colored left border alongside their text explanation.
 
