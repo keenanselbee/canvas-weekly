@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { listPackage, extractFile } from '@electron/asar';
+import { writeInstallerPayloadList } from './installer-payload.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 if (process.platform !== 'win32' || process.arch !== 'x64') throw new Error('This build requires Windows x64.');
@@ -33,6 +34,8 @@ for (const file of await fs.readdir(path.join(root, 'src'), { recursive: true, w
     throw new Error(`Packaged application source is stale: ${file.name}`);
   }
 }
-execFileSync(compiler, ['/Qp', `/DAppVersion=${version}`, `/DPayloadDir=${payload}`,
+const payloadList = path.join(root, '.codex-temp/inno/candidate-payload.iss');
+await writeInstallerPayloadList(payload, payloadList);
+execFileSync(compiler, ['/Qp', `/DAppVersion=${version}`, `/DPayloadDir=${payload}`, `/DPayloadList=${payloadList}`,
   `/O${path.join(root, 'dist/inno-candidate')}`, path.join(root, 'build/windows-setup.iss')], options);
-console.log('Candidate built in dist/inno-candidate. Existing NSIS migrations remain blocked; production packaging is unchanged.');
+console.log('Candidate built in dist/inno-candidate. Includes guarded NSIS migration; production packaging is unchanged.');

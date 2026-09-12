@@ -845,3 +845,20 @@ Work log
   then uninstalled while preserving guide/settings fixtures. Temporary fixture
   registrations were removed. All-users elevation, shortcuts, maintenance UI
   interaction, live accounts and legacy migration still require validation.
+
+- Added white and dark calendar artwork based on the supplied checklist design,
+  with nine native Windows icon sizes and matching installer graphics. The app
+  keeps white for Light/System and selects the dark calendar for explicit Dark.
+  Inno shortcuts choose Windows' theme when setup runs; no live shortcut updater
+  is installed. The default NSIS build remains separate.
+
+- Added guarded NSIS migration to the Inno candidate without executing the old
+  recursive uninstaller. Existing payload files are backed up before replacement
+  and restored after failure; successful installation transfers registration to
+  the new ownership-based uninstaller. Native fixtures pass for migration,
+  downgrade/invalid-command/linked-folder rejection and pre-copy/mid-copy rollback,
+  preserving unowned guides and separate settings. Power-loss recovery, all-users
+  elevation, shortcut adoption and the human wizard walkthrough remain pending.
+  The rebuilt candidate's full installation check verified 137 payload files,
+  exercised Light/Dark/System through the actual Settings control, and removed
+  its temporary installation while preserving guide/settings fixtures.

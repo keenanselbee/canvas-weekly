@@ -28,15 +28,17 @@ to build and verify in `dist/preview` while the ordinary unpacked app is running
 The preview switch changes only the build directory; it does not create a separate
 personal application profile. Package tests still use fresh isolated test profiles.
 
-The original SVG in `src/ui/assets/mark.svg` supplies the app logo. Regenerate its
+The SVGs in `src/ui/assets/mark.svg` and `mark-dark.svg` supply the app logo. Regenerate their
 Windows icon and NSIS artwork with `node tools/build-branding.mjs` after changing
 the mark or artwork source. This uses the installed Electron renderer without
 external resources, writes required assets to `build/branding`, and saves visual
-previews under `.codex-temp/branding`. Commit generated assets with their source.
+previews under `.codex-temp/branding`. Native window PNGs also live beside the SVGs;
+both shortcut ICOs are packaged in `resources/icons`. Commit generated assets with
+their source. The executable uses the white calendar by default.
 
 An experimental Inno installer now builds separately with `node tools/build-inno.mjs`.
-It supports system appearance and native install/maintenance, but blocks NSIS
-migration and has not replaced the default build. Its actual fixture and full-payload
+It supports system appearance, native install/maintenance and guarded NSIS
+migration. It has not replaced the default build. Its actual fixture and full-payload
 installation checks are described in [installer experience](installer-experience.md).
 
 The default installer is `dist/Canvas-Weekly-0.1.0-x64-Setup.exe`. The unpacked app is

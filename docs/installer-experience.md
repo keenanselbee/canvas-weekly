@@ -7,7 +7,7 @@ package has custom artwork and a repaired per-user selection, but no dark wizard
 controls or dedicated maintenance page. A separate Inno Setup appearance preview
 implements startup theme detection and read-only discovery of existing NSIS
 installations. A functional installer candidate now supports fresh installation
-and maintenance of its own installations. Migration from NSIS remains blocked;
+and maintenance of its own installations, with guarded NSIS migration;
 neither candidate has replaced production packaging.
 
 
@@ -119,23 +119,37 @@ directory and invokes it directly, without a shell or appended registry argument
 It still requires a visual walkthrough of the action and cancellation behavior.
 If only the other scope has an installation, a separate-copy choice is required.
 
-NSIS registration in the selected scope stops setup before installation. The old
-uninstaller may force-close the app and recursively remove the installation folder;
-it is not safe to reuse automatically while promising preservation of unowned files
-inside that folder. Migration needs a separately validated transition of owned
-files, shortcuts and registration. The Inno candidate has no recursive uninstall
-delete rule and removes files through its generated ownership log.
+NSIS migration validates the selected scope's known registration, version, folder
+and exact uninstaller command. It never runs the old recursive uninstaller. Setup
+sets that executable aside and backs up existing files that the new payload will
+replace. A cancelled or failed migration restores those backups; native rollback
+alone does not restore overwritten files. Linked destinations, unexpected command
+arguments, downgrades and interrupted backup metadata stop migration for review.
+After successful installation, setup redirects and removes the old registration,
+then removes its temporary backups. An incomplete cleanup reports a warning.
+Power-loss recovery and partial registration recovery are not automated yet.
+The new uninstaller uses its generated ownership log, with no recursive delete
+rule. Old files absent from the new payload remain untouched.
+
+The candidate installs both calendar icon variants. Start Menu and Desktop
+shortcuts select the dark icon when Windows is dark at setup time; otherwise they
+use the white calendar, including high contrast. Running setup again refreshes
+that choice. Ordinary shortcuts do not switch live when Windows changes theme.
+An existing standard Desktop shortcut is retained during migration. Shortcut
+creation and adoption still need a human Windows check; fixture builds omit them.
 
 Validation commands:
 
 - `node tools/test-windows-setup.mjs`: actual native fixture install, missing-file
   reinstall, upgrade, blocked downgrade, retained installation directory and
-  uninstall. A synthetic legacy registration verifies the migration block.
+  uninstall. Synthetic NSIS copies exercise migration, invalid commands, linked
+  metadata, downgrade rejection, pre-copy failure and mid-copy rollback.
 - `node tools/test-windows-setup.mjs --payload`: install the complete candidate
   payload under `.codex-temp`, compare every file, launch the installed app with a
-  fresh test profile, and uninstall it. The current run verified 135 payload files,
+  fresh test profile, and uninstall it. The check verifies every payload file,
   packaged mode, isolated profile, no connected accounts or guide, bundled Codex
-  detection and System theme matching the native Windows preference.
+  detection and System theme matching the native Windows preference. It also
+  checks that explicit Dark uses the dark calendar and Light/System use white.
 
 Both checks passed. Student-owned guide files inside the install folder and a
 separate settings fixture survive updates and removal. Each test uses a unique,
