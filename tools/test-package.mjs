@@ -11,7 +11,9 @@ import { createReadStream } from 'node:fs';
 import { word, pdf } from './document-fixtures.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const packaged = path.join(root, 'dist', 'win-unpacked');
+if (process.argv.slice(2).some(value => value !== '--preview')) throw new Error('Only --preview is supported.');
+const buildDirectory = path.join(root, 'dist', ...(process.argv.includes('--preview') ? ['preview'] : []));
+const packaged = path.join(buildDirectory, 'win-unpacked');
 const archive = path.join(packaged, 'resources', 'app.asar');
 const names = listPackage(archive).map(name => name.replaceAll('\\', '/').replace(/^\//, ''));
 assert.ok(names.every(name => ['src', 'node_modules', 'package.json'].includes(name.split('/')[0])), 'Only application sources and production modules belong in the archive');
@@ -34,7 +36,7 @@ const profile = await fs.mkdtemp(path.join(scratch, 'package-test-'));
 assert.equal(path.dirname(profile), scratch);
 const sevenZip = (await fs.readdir(path.join(scratch, 'builder-cache'), { recursive: true, withFileTypes: true })).find(file => file.isFile() && file.name === '7za.exe');
 assert.ok(sevenZip, 'Build the installer first to provide the cached archive verifier');
-const installer = path.join(root, 'dist', `Canvas-Weekly-${manifest.version}-x64-Setup.exe`);
+const installer = path.join(buildDirectory, `Canvas-Weekly-${manifest.version}-x64-Setup.exe`);
 const payload = path.join(profile, 'payload');
 await promisify(execFile)(path.join(sevenZip.parentPath, sevenZip.name), ['x', installer, 'resources\\app.asar', `resources\\app.asar.unpacked\\${binary.replaceAll('/', '\\')}`, 'Canvas Weekly.exe', `-o${payload}`, '-y'], { windowsHide: true, maxBuffer: 1024 * 1024 });
 async function hash(file) {

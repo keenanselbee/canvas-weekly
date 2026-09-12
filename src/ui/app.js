@@ -104,11 +104,13 @@ function renderWeek() {
   if (preview) { renderPreview(); return; }
   if (state.canvas.collectionIssue) {
     const safety = card('Canvas refresh paused');
+    safety.classList.add('callout', 'warning');
     safety.append(node('p', '', state.canvas.collectionIssue));
     safety.append(button('Open connection settings', () => go('settings')));
     main.append(safety);
   } else if (state.canvas.connected && state.canvas.collectionNotice) {
     const coverage = card('Check source coverage');
+    coverage.classList.add('callout');
     coverage.append(node('p', '', state.canvas.collectionNotice));
     main.append(coverage);
   }

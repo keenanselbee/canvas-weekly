@@ -130,7 +130,7 @@ else {
     window = new BrowserWindow({
       width: 1140, height: 820, minWidth: 800, minHeight: 600,
       title: 'Canvas Weekly', show: false,
-      backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#f3f3f3',
+      backgroundColor: nativeTheme.shouldUseDarkColors ? '#151c26' : '#f6f8fa',
       webPreferences: { preload: path.join(directory, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
     });
     window.removeMenu();

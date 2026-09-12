@@ -16,6 +16,17 @@ already installed by npm. Publishing and automatic signing discovery are disable
 `npm run build:windows -- --dir` produces the app directory without an installer;
 the complete package test requires the installer as well.
 
+Use `npm run build:windows -- --preview` and `npm run test:package -- --preview`
+to build and verify in `dist/preview` while the ordinary unpacked app is running.
+The preview switch changes only the build directory; it does not create a separate
+personal application profile. Package tests still use fresh isolated test profiles.
+
+The original SVG in `src/ui/assets/mark.svg` supplies the app logo. Regenerate its
+Windows icon and NSIS artwork with `node tools/build-branding.mjs` after changing
+the mark or artwork source. This uses the installed Electron renderer without
+external resources, writes required assets to `build/branding`, and saves visual
+previews under `.codex-temp/branding`. Commit generated assets with their source.
+
 The installer is `dist/Canvas-Weekly-0.1.0-x64-Setup.exe`. The unpacked app is
 `dist/win-unpacked/Canvas Weekly.exe`; keep that entire directory together if
 using it directly. Build outputs and test profiles are ignored by Git.
@@ -75,10 +86,31 @@ Unsigned builds have no verified publisher identity and may receive Windows
 reputation prompts. No Windows security settings are changed by the build/test
 workflow. ARM64 and other operating systems have not been packaged or verified.
 
-Current validated build (2026-09-11)
+Current design preview (2026-09-11)
+---------------------------------
+
+Artifact: dist/preview/Canvas-Weekly-0.1.0-x64-Setup.exe
+
+SHA256: 78ec6eaa61b9ee86ad9f09255f02f8bff242f87b1e4d9412aadac33328cc5092
+
+This preview adds the navy navigation rail, coordinated light/dark surfaces,
+round settings cog, native-size SVG navigation and shared calendar/check branding.
+The Windows executable icon was extracted and visually verified. NSIS artwork was
+rendered and inspected; native wizard dark mode and a wizard walkthrough remain
+unverified. The installer does not yet detect or apply Windows dark mode.
+
+Status/navigation checks and the full isolated package checks passed, including
+matching application sources and installer payload, document workers, private-state
+exclusion, safe defaults, theme rendering and restart persistence. App screenshots
+were reviewed in both themes. No installation, personal sign-in or live collection
+was performed. The ordinary unpacked app was left running; the standard artifact
+below and the older installed copy were not replaced.
+
+
+Previous standard build (2026-09-11)
 ----------------------------------
 
-The latest local installer includes the Data & privacy page, contextual Forget
+The standard-path installer includes the Data & privacy page, contextual Forget
 controls, per-course reading preferences, durable collection history, supplied
 message sender names, partial rubric rating descriptions, consistent navigation
 icons, durable session-failure explanations and recognition of UBC's observed

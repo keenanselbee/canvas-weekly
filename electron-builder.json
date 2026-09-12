@@ -8,12 +8,18 @@
   "npmRebuild": false,
   "electronDist": "node_modules/electron/dist",
   "win": {
+    "icon": "build/branding/icon.ico",
     "target": [{ "target": "nsis", "arch": ["x64"] }],
     "signExecutable": false,
     "requestedExecutionLevel": "asInvoker",
     "artifactName": "Canvas-Weekly-${version}-${arch}-Setup.${ext}"
   },
   "nsis": {
+    "installerIcon": "build/branding/icon.ico",
+    "uninstallerIcon": "build/branding/icon.ico",
+    "installerSidebar": "build/branding/installer-sidebar.bmp",
+    "uninstallerSidebar": "build/branding/installer-sidebar.bmp",
+    "installerHeader": "build/branding/installer-header.bmp",
     "oneClick": false,
     "perMachine": false,
     "allowElevation": false,

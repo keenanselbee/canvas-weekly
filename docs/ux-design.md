@@ -123,9 +123,9 @@ all preparation tasks and supporting details.
 Visual system
 -------------
 
-Use Segoe UI Variable with Segoe UI fallback, a native framed window, restrained
-blue accent, neutral backgrounds and borders, 8px spacing rhythm, and modest 6-10px
-corner radii. Avoid a marketing hero, gradients, oversized typography or decorative
+Use Segoe UI Variable with Segoe UI fallback, a native framed window, a navy
+navigation rail in both themes, blue accents, an 8px spacing rhythm, and modest
+4-5px content corner radii. Avoid a marketing hero, gradients, oversized typography or decorative
 dashboard metrics. Main content should be readable at 1100x760, usable at 800x600,
 and scroll rather than clip at high DPI or 200% text zoom.
 
@@ -136,12 +136,27 @@ colors and reduced motion. Never change Windows' global appearance settings.
 
 | Token | Light | Dark |
 | --- | --- | --- |
-| Window | #f3f3f3 | #202020 |
-| Surface | #ffffff | #2b2b2b |
-| Text | #202020 | #f5f5f5 |
-| Secondary text | #595959 | #bdbdbd |
-| Border | #d8d8d8 | #484848 |
-| Accent | #005fb8 | #70b7ff |
+| Window | #f6f8fa | #151c26 |
+| Surface | #ffffff | #1d2835 |
+| Text | #233447 | #edf3f9 |
+| Secondary text | #536579 | #b7c5d4 |
+| Border | #d4dde6 | #35465a |
+| Accent | #0055b8 | #8cc8ff |
+| Navigation rail | #0b2545 | #0b2545 |
+
+Navigation uses 20px SVGs drawn on a matching 20-unit grid with consistent 2px
+strokes. Straight edges align to the grid; rounded joins preserve the circular
+eight-tooth settings cog. Curves still use normal antialiasing. Keep SVGs at their
+native CSS size instead of scaling down larger glyphs. The original calendar/check
+mark is shared with Windows and installer artwork; no university crest is used.
+Page headers have a thin divider, and coverage or paused-refresh notices have a
+colored left border alongside their text explanation.
+
+The installer uses matching navy sidebar artwork and a multi-resolution Windows
+icon. Its native wizard controls do not yet follow automatic dark mode. This is
+a separate remaining prototype and Windows validation task; the app's existing
+System/Light/Dark behavior does not theme NSIS controls. Validate installer pages,
+focus, high contrast and 125/150/200% scaling before claiming full theme support.
 
 
 Interaction and accessibility

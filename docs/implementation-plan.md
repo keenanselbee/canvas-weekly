@@ -790,3 +790,14 @@ Work log
   pass. The new installer hash is in windows-package.md. No personal login or
   authenticated collection was performed; a human sign-in and refresh of this
   corrected build remains the next acceptance check.
+
+- Started the Canvas-inspired visual redesign with a permanent navy rail,
+  coordinated light/dark surfaces, clearer notices and consistent 20px SVG icons,
+  including a circular eight-tooth settings cog. Added original calendar/check
+  branding shared by the app and generated Windows/NSIS assets. The preview build
+  and package-test switches use dist/preview, preserving the running standard app.
+  Synthetic status/navigation and isolated package checks passed; both themes,
+  artwork and the packaged executable icon were visually checked. No personal
+  account operations ran. Automatic installer dark mode, a wizard walkthrough and
+  125/150/200% scaling validation remain pending; see windows-package.md for the
+  preview hash and ux-design.md for the updated visual specification.
