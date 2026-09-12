@@ -5,11 +5,11 @@ import { watchCanvasSession } from '../src/canvas-session-watch.js';
 
 const cookie = changes => ({ name: '_normandy_session', value: 'private-cookie-fixture', domain: 'canvas.example',
   hostOnly: true, path: '/', secure: true, httpOnly: true, session: true, ...changes });
-function setup(list = [cookie()]) {
+function setup(list = [cookie()], origin = 'https://canvas.example') {
   const cookies = new EventEmitter();
-  cookies.get = async filter => { assert.deepEqual(filter, { url: 'https://canvas.example/api/graphql', name: '_normandy_session' }); return list; };
+  cookies.get = async filter => { assert.deepEqual(filter, { url: origin + '/api/graphql' }); return list; };
   const controller = new AbortController();
-  return { cookies, controller, options: { cookies, origin: 'https://canvas.example', signal: controller.signal } };
+  return { cookies, controller, options: { cookies, origin, signal: controller.signal } };
 }
 
 test('session watch keeps credentials private, rereads the cookie and releases listeners', async () => {
@@ -92,4 +92,44 @@ test('cancellation interrupts pending cookie lookup and rejects late results', a
   assert.equal(cookies.listenerCount('changed'), 0);
   release([cookie()]);
   await Promise.resolve();
+});
+
+test('UBC session name is accepted only at its reviewed origin with unchanged safeguards', async () => {
+  const ubc = changes => cookie({ name: 'canvas_session', domain: 'canvas.ubc.ca', ...changes });
+  const { cookies, options } = setup([ubc(), ubc({ name: '_csrf_token', httpOnly: false }), ubc({ name: 'log_session_id' })], 'https://canvas.ubc.ca');
+  const watch = await watchCanvasSession(options);
+  await watch.check();
+  assert.equal(JSON.stringify(watch).includes('private-cookie-fixture'), false);
+  // Appearance of the other recognized credential aborts immediately.
+  cookies.emit('changed', {}, ubc({ name: '_normandy_session' }));
+  assert.equal(watch.signal.aborted, true);
+  watch.dispose();
+  for (const [list, reason] of [
+    [[ubc(), ubc({ name: '_normandy_session' })], 'AMBIGUOUS'],
+    [[ubc(), ubc({ path: '/api' })], 'AMBIGUOUS'],
+    [[ubc({ path: '/api' })], 'SCOPE'], [[ubc({ domain: 'other.example' })], 'SCOPE'],
+    [[ubc({ httpOnly: false })], 'FLAGS'], [[ubc({ secure: false })], 'FLAGS'],
+    [[ubc({ session: false, expirationDate: 1 })], 'EXPIRY'], [[ubc({ value: '' })], 'VALUE'],
+    [[ubc({ name: 'log_session_id' }), ubc({ name: '_csrf_token' })], 'MISSING'],
+  ]) {
+    const rejected = setup(list, 'https://canvas.ubc.ca');
+    await assert.rejects(watchCanvasSession(rejected.options), { code: 'CW_SESSION_' + reason });
+    assert.equal(rejected.cookies.listenerCount('changed'), 0);
+  }
+  for (const origin of ['https://canvas.example', 'https://canvas.ubc.ca.other.example']) {
+    const rejected = setup([ubc({ domain: new URL(origin).hostname })], origin);
+    await assert.rejects(watchCanvasSession(rejected.options), { code: 'CW_SESSION_MISSING' });
+  }
+});
+
+test('a missed UBC cookie-name switch or same-value overwrite cannot preserve the binding', async () => {
+  const initial = cookie({ name: 'canvas_session', domain: 'canvas.ubc.ca' });
+  for (const event of [true, false]) {
+    const { cookies, options } = setup([initial], 'https://canvas.ubc.ca');
+    const watch = await watchCanvasSession(options);
+    if (event) cookies.emit('changed', {}, initial);
+    else cookies.get = async () => [{ ...initial, name: '_normandy_session' }];
+    await assert.rejects(watch.check(), { name: 'AbortError' });
+    assert.equal(cookies.listenerCount('changed'), 0);
+  }
 });

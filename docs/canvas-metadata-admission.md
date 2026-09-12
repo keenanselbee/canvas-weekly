@@ -20,7 +20,7 @@ Integrated evidence and boundary
 
 | Request stage | Evidence | Admission |
 | --- | --- | --- |
-| Profile/session and selected courses | Existing identity validation, stock session-cookie watcher, account-change invalidation and fixed GET admission | Existing connection operations; authentication/access bookkeeping is not promised to be write-free |
+| Profile/session and selected courses | Existing identity validation, reviewed session-cookie watcher, account-change invalidation and fixed GET admission | Existing connection operations; authentication/access bookkeeping is not promised to be write-free |
 | GET /api/v1/accounts?per_page=1 | Fixed empty-membership preflight, bounded account serializer/policy/model review | Accept only empty negative evidence; stop on errors, nonempty results or pagination contradictions |
 | CanvasWeeklyEnrollmentScope | Self-user lookup, selected permission dispatch and preflight model review; complete enrollment pagination | Bound self/course IDs and stock StudentEnrollment roles; reject mixed/custom/test-student roles |
 | CanvasWeeklyAssignments | Selected course permission preload, differentiated visibility SQL, model/scalar getters, controller hooks and analyzers | Published assignment identity/name/points/type only; no override dates, descriptions or lock information |

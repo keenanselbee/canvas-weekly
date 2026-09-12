@@ -14,7 +14,7 @@ globalThis.rememberResults = app.whenReady().then(async () => {
   const stage = process.env.CANVAS_REMEMBER_TEST_STAGE;
   const settings = new SettingsStore(directory);
   await settings.load();
-  await settings.update({ canvasBaseUrl: 'https://canvas.example', selectedCourseIds: ['1'] });
+  await settings.update({ canvasBaseUrl: 'https://canvas.ubc.ca', selectedCourseIds: ['1'] });
   const profileResponse = async () => new Response(JSON.stringify({ id: 123, name: 'Synthetic student' }), {
     headers: { 'content-type': 'application/json', 'x-canvas-user-id': '123' },
   });
@@ -42,6 +42,15 @@ globalThis.rememberResults = app.whenReady().then(async () => {
       assert.equal((await fs.readFile(canvas.savedSession.file, 'utf8')).includes(secret), false);
       const sealed = await canvas.savedSession.read();
       assert.equal(sealed.cookies[0].value, secret);
+      await canvas.session.clearStorageData();
+      await canvas.restore();
+      assert.equal((await canvas.session.cookies.get({ name: '_normandy_session' }))[0].value, secret);
+      await canvas.session.cookies.remove(settings.value.canvasBaseUrl, '_normandy_session');
+      await canvas.session.cookies.set({ url: settings.value.canvasBaseUrl, name: 'canvas_session', value: secret, path: '/', secure: true, httpOnly: true });
+      await canvas.verify();
+      const ubcSaved = await canvas.savedSession.read();
+      assert.equal(ubcSaved.cookies[0].name, 'canvas_session');
+      assert.equal((await fs.readFile(canvas.savedSession.file, 'utf8')).includes(secret), false);
       await canvas.session.clearStorageData(); // Simulate loss of session-only browser cookies at shutdown.
       await fs.mkdir(path.join(planner, 'codex-home'), { recursive: true });
       await fs.writeFile(codex.legacyAuth, 'synthetic-legacy-auth');
@@ -58,10 +67,15 @@ globalThis.rememberResults = app.whenReady().then(async () => {
       await canvas.restore();
       assert.equal(canvas.profile, null, 'Restored credentials alone must not claim connected');
       assert.equal(canvas.status.canForget, true, 'A saved session can be forgotten before verification');
-      assert.equal((await canvas.session.cookies.get({ name: '_normandy_session' }))[0].value, secret);
+      assert.equal((await canvas.session.cookies.get({ name: 'canvas_session' }))[0].value, secret);
       await canvas.verify();
       const watch = await canvas.watchSession(canvas.capture(), new AbortController().signal);
       watch.dispose();
+      await canvas.session.cookies.remove(settings.value.canvasBaseUrl, 'canvas_session');
+      await canvas.session.cookies.set({ url: settings.value.canvasBaseUrl, name: '_normandy_session', value: 'synthetic-newer-session', path: '/', secure: true, httpOnly: true });
+      await canvas.restore();
+      assert.equal((await canvas.session.cookies.get({ name: 'canvas_session' })).length, 0, 'A snapshot must not introduce a second session credential');
+      assert.equal((await canvas.session.cookies.get({ name: '_normandy_session' }))[0].value, 'synthetic-newer-session');
       await canvas.disconnect();
       await assert.rejects(fs.access(canvas.savedSession.file), { code: 'ENOENT' });
       assert.equal((await canvas.session.cookies.get({})).length, 0);

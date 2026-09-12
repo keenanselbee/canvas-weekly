@@ -34,7 +34,7 @@ try {
     };
   }, output);
   await application.evaluate(async ({ session }) => {
-    await session.fromPartition('persist:canvas').cookies.set({ url: 'https://canvas.ubc.ca', name: '_normandy_session',
+    await session.fromPartition('persist:canvas').cookies.set({ url: 'https://canvas.ubc.ca', name: 'canvas_session',
       value: 'synthetic-refresh-session', path: '/', secure: true, httpOnly: true });
   });
   await application.evaluate((_electron, moduleUrl) => {
@@ -310,7 +310,7 @@ try {
     await application.evaluate(async (_electron, change) => {
       await globalThis.syntheticCollectionEntered;
       if (change === 'connection') globalThis.syntheticConnection.invalidate();
-      else await globalThis.syntheticConnection.session.cookies.set({ url: 'https://canvas.ubc.ca', name: '_normandy_session',
+      else await globalThis.syntheticConnection.session.cookies.set({ url: 'https://canvas.ubc.ca', name: 'canvas_session',
         value: 'synthetic-changed-refresh-session', path: '/', secure: true, httpOnly: true });
       globalThis.releaseCollection();
     }, change);
@@ -322,8 +322,8 @@ try {
     await page.evaluate(() => window.canvasWeekly.verifyCanvas());
     await application.evaluate(async ({ session }, reason) => {
       const cookies = session.fromPartition('persist:canvas').cookies;
-      await cookies.remove('https://canvas.ubc.ca', '_normandy_session');
-      if (reason === 'FLAGS') await cookies.set({ url: 'https://canvas.ubc.ca', name: '_normandy_session',
+      await cookies.remove('https://canvas.ubc.ca', 'canvas_session');
+      if (reason === 'FLAGS') await cookies.set({ url: 'https://canvas.ubc.ca', name: 'canvas_session',
         value: 'private-diagnostic-fixture', path: '/', secure: true, httpOnly: false });
     }, reason);
     const beforeRejectedRefresh = await application.evaluate(() => globalThis.syntheticRequestCount);
@@ -340,7 +340,7 @@ try {
     assert.deepEqual(await Promise.all(protectedExports.map(file => fs.readFile(file))), beforeConnectionChange, 'Session diagnostics must preserve all guide formats');
   }
   await application.evaluate(async ({ session }) => {
-    await session.fromPartition('persist:canvas').cookies.set({ url: 'https://canvas.ubc.ca', name: '_normandy_session',
+    await session.fromPartition('persist:canvas').cookies.set({ url: 'https://canvas.ubc.ca', name: 'canvas_session',
       value: 'synthetic-restored-refresh-session', path: '/', secure: true, httpOnly: true });
   });
   await page.evaluate(() => window.canvasWeekly.verifyCanvas());

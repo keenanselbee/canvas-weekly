@@ -18,17 +18,21 @@ Canvas
 
 The remembered browser profile remains isolated under app-private userData.
 After successful account verification, Canvas Weekly also writes a Windows-
-encrypted copy of host-only, secure, root-path _normandy_session and _csrf_token
-cookies. This supports restoring session-only cookies after an app restart.
+encrypted copy of the host-only, secure, root-path session cookie and _csrf_token.
+The session name is _normandy_session by default; canvas_session is also recognized
+for the exact https://canvas.ubc.ca origin. Both names at once are ambiguous and
+cannot authorize a refresh. This supports restoring session-only cookies after an app restart.
 The app does not capture the university password or MFA codes. It preserves each
 cookie's original attributes and expiry; a snapshot has a seven-day local restore
 limit. Other cookie formats use the browser profile and may need another login.
 
-Restoration only fills missing cookies and only for the configured HTTPS origin.
+Restoration only fills missing cookies and only for the configured HTTPS origin;
+it skips the snapshot if either recognized session cookie is already live.
 An expired or wrong-origin snapshot is removed. Restored credentials do not set
 Connected: the app still verifies the account, and guide refresh still requires
 the existing session watcher, account/role checks and restricted network gate.
-This does not resolve the outstanding UBC session-verification failure.
+The UBC cookie-name mismatch is repaired; authenticated live refresh still needs
+validation. See [session diagnostics](session-refresh-diagnostics.md).
 
 With Remember off, Canvas uses an in-memory Electron partition. Saved token and
 session files and the previous persistent browser state are cleared. Optional

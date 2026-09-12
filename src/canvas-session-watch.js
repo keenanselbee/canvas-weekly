@@ -1,6 +1,13 @@
 import { createHash } from 'node:crypto';
 
-const cookieName = '_normandy_session';
+// The additional name is evidenced by UBC's anonymous SAML login response.
+// Do not infer authentication from an arbitrary cookie or enable this alias
+// for other institutions without reviewing their session configuration.
+export function sessionCookieNames(origin) {
+  const names = ['_normandy_session'];
+  if (origin === 'https://canvas.ubc.ca') names.push('canvas_session');
+  return names;
+}
 const changed = () => new DOMException('Canvas browser session changed. Reconnect before refreshing your guide.', 'AbortError');
 export const sessionIssues = Object.freeze({
   configuration: 'The session reader is unavailable.',
@@ -21,11 +28,12 @@ class SessionVerificationError extends Error {
 }
 const unavailable = (reason = 'lookup') => new SessionVerificationError(reason);
 
-// Watches the stock Canvas session cookie without changing it. This detects
+// Watches a reviewed Canvas session cookie without changing it. This detects
 // local cookie replacement, not a server-side identity change with the same
 // cookie. Institutional cookie names/rotation policies still need validation.
 export async function watchCanvasSession({ cookies, origin, signal }) {
   const url = new URL(origin);
+  const names = sessionCookieNames(origin);
   if (url.protocol !== 'https:' || url.origin !== origin || !(signal instanceof AbortSignal)
     || typeof cookies?.get !== 'function' || typeof cookies?.on !== 'function' || typeof cookies?.removeListener !== 'function') throw unavailable('configuration');
   signal.throwIfAborted();
@@ -33,7 +41,7 @@ export async function watchCanvasSession({ cookies, origin, signal }) {
   const lifetime = AbortSignal.any([signal, controller.signal]);
   const applies = cookie => {
     const domain = cookie?.domain?.replace(/^\./, '').toLowerCase();
-    return cookie?.name === cookieName && domain && (url.hostname === domain || (cookie.hostOnly === false && url.hostname.endsWith('.' + domain)));
+    return names.includes(cookie?.name) && domain && (url.hostname === domain || (cookie.hostOnly === false && url.hostname.endsWith('.' + domain)));
   };
   let expiration = null;
   let fingerprint;
@@ -65,18 +73,20 @@ export async function watchCanvasSession({ cookies, origin, signal }) {
     lifetime.addEventListener('abort', rejectAbort, { once: true });
     timer = setTimeout(() => controller.abort(unavailable('timeout')), 10000);
     try {
-      // All applicable same-name cookies are returned, including path shadows.
-      const list = await Promise.race([cookies.get({ url: origin + '/api/graphql', name: cookieName }), aborted]);
+      // Include all reviewed names and path shadows; never prefer one of two
+      // possible session credentials. Other cookies do not establish identity.
+      const list = await Promise.race([cookies.get({ url: origin + '/api/graphql' }), aborted]);
       assertCurrent();
       if (!Array.isArray(list)) throw unavailable('lookup');
-      if (!list.length) throw unavailable('missing');
-      if (list.length !== 1) throw unavailable('ambiguous');
-      const cookie = list[0];
+      const matches = list.filter(cookie => names.includes(cookie?.name));
+      if (!matches.length) throw unavailable('missing');
+      if (matches.length !== 1) throw unavailable('ambiguous');
+      const cookie = matches[0];
       if (!applies(cookie) || cookie.path !== '/') throw unavailable('scope');
       if (cookie.secure !== true || cookie.httpOnly !== true) throw unavailable('flags');
       if (typeof cookie.value !== 'string' || !cookie.value || cookie.value.length > 16384) throw unavailable('value');
       if (!(cookie.session === true || (cookie.session === false && Number.isFinite(cookie.expirationDate) && cookie.expirationDate > Date.now() / 1000))) throw unavailable('expiry');
-      const digest = createHash('sha256').update(JSON.stringify([cookie.value, cookie.domain, cookie.path, cookie.hostOnly])).digest('hex');
+      const digest = createHash('sha256').update(JSON.stringify([cookie.name, cookie.value, cookie.domain, cookie.path, cookie.hostOnly])).digest('hex');
       if (fingerprint !== undefined && fingerprint !== digest) throw changed();
       fingerprint = digest;
       expiration = cookie.session ? null : cookie.expirationDate;

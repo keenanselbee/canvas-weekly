@@ -280,15 +280,17 @@ still runs first, so this does not enable a Canvas request. Token authentication
 uses its existing immutable token/lifetime binding and does not read browser
 cookies for this guard.
 
-The watcher reads the stock _normandy_session cookie applicable to /api/graphql
-and requires exactly one secure, HTTP-only root-path cookie with a valid lifetime.
+The watcher recognizes the stock _normandy_session cookie and, only at the exact
+https://canvas.ubc.ca origin, the observed canvas_session name. It requires exactly
+one applicable secure, HTTP-only root-path cookie with a valid lifetime across
+those names. See the [UBC response evidence](session-refresh-diagnostics.md).
 It keeps only an internal fingerprint after each check, never exports the cookie
 or fingerprint, and changes no cookies. Missing, duplicate, path-shadowed,
 nonstandard or expired cookies reject the run. The cookie name is configurable
-in Canvas server configuration; other institutional names are not yet supported.
+in Canvas server configuration; other institutional aliases are not yet supported.
 [Pinned session configuration](https://github.com/instructure/canvas-lms/blob/1c9f0bb8013ed69c4f2efe11fd483025469b7e6c/config/initializers/session_store.rb).
 
-An Electron cookie-change listener cancels the run on any applicable same-name
+An Electron cookie-change listener cancels the run on any applicable recognized-name
 change/removal, including same-value overwrites. Unrelated cookies and CSRF
 remasking do not trigger it. Checks after account verification, collection and
 before export reread the cookie to catch missed notifications. Each lookup has a

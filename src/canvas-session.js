@@ -6,7 +6,7 @@ import { CanvasClient, blockedAssessmentUrl } from './canvas-client.js';
 import { atomicJson } from './settings.js';
 import { CanvasAudit } from './canvas-audit.js';
 import { CanvasNetwork } from './canvas-network.js';
-import { watchCanvasSession } from './canvas-session-watch.js';
+import { watchCanvasSession, sessionCookieNames } from './canvas-session-watch.js';
 import { canvasResponseIdentity } from './canvas-identity.js';
 import { CanvasMetadataTransport } from './canvas-metadata-transport.js';
 import { canvasSessionAuthentication } from './canvas-csrf.js';
@@ -125,15 +125,18 @@ export class CanvasConnection {
         await this.savedSession.remove(); return;
       }
       if (!Array.isArray(saved.cookies) || saved.cookies.length > 100) throw new Error();
+      const names = sessionCookieNames(saved.origin);
+      if (saved.cookies.filter(cookie => names.includes(cookie?.name)).length !== 1) throw new Error();
       // Never overwrite a newer live/browser-persisted cookie with a snapshot.
       const current = await this.session.cookies.get({ url: saved.origin });
+      if (current.some(cookie => names.includes(cookie.name))) return;
       for (const cookie of saved.cookies) {
         signal.throwIfAborted();
-        if (!['_normandy_session', '_csrf_token'].includes(cookie.name) || cookie.url !== saved.origin
+        if (![...names, '_csrf_token'].includes(cookie.name) || cookie.url !== saved.origin
           || cookie.path !== '/' || cookie.secure !== true || cookie.domain !== undefined
           || typeof cookie.value !== 'string' || cookie.value.length > 16384) throw new Error();
         if (cookie.expirationDate !== undefined && (!Number.isFinite(cookie.expirationDate) || cookie.expirationDate <= Date.now() / 1000)) {
-          if (cookie.name === '_normandy_session') this.restoreError = 'Saved Canvas sign-in expired. Sign in again.';
+          if (names.includes(cookie.name)) this.restoreError = 'Saved Canvas sign-in expired. Sign in again.';
           continue;
         }
         if (!current.some(item => item.name === cookie.name)) await this.session.cookies.set(cookie);
@@ -144,14 +147,15 @@ export class CanvasConnection {
   async rememberSession(signal) {
     if (this.settings.value.rememberCanvas === false || this.token) return;
     const origin = this.settings.value.canvasBaseUrl;
+    const names = sessionCookieNames(origin);
     const cookies = (await this.session.cookies.get({ url: origin })).filter(cookie =>
-      ['_normandy_session', '_csrf_token'].includes(cookie.name) && cookie.path === '/' && cookie.secure
+      [...names, '_csrf_token'].includes(cookie.name) && cookie.path === '/' && cookie.secure
       && cookie.hostOnly && cookie.domain === new URL(origin).hostname).map(cookie => ({
         url: origin, name: cookie.name, value: cookie.value, path: cookie.path, secure: cookie.secure,
         httpOnly: cookie.httpOnly, sameSite: cookie.sameSite,
         ...(cookie.session ? {} : { expirationDate: cookie.expirationDate }),
       }));
-    if (!cookies.some(cookie => cookie.name === '_normandy_session')) return;
+    if (cookies.filter(cookie => names.includes(cookie.name)).length !== 1) return;
     await this.writeCredential(async () => {
       signal.throwIfAborted();
       await this.savedSession.write({ origin, until: Date.now() + 7 * 86400000, cookies });

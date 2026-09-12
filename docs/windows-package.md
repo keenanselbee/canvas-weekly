@@ -81,12 +81,13 @@ Current validated build (2026-09-11)
 The latest local installer includes the Data & privacy page, contextual Forget
 controls, per-course reading preferences, durable collection history, supplied
 message sender names, partial rubric rating descriptions, consistent navigation
-icons and durable session-failure explanations. Expanded reading remains unavailable and AI suggestions
+icons, durable session-failure explanations and recognition of UBC's observed
+canvas_session cookie. Expanded reading remains unavailable and AI suggestions
 default to off; saved pending reading preferences do not enable additional reads.
 
 Artifact: dist/Canvas-Weekly-0.1.0-x64-Setup.exe
 
-SHA256: 90b961bbac02b3eda1e6d5c9d4e1cdbc5e5b360f47305274b1ceaa15f69cfa1c
+SHA256: 4a3877baad25559d62d1e17de7cb6129b96a89b0a3ee93d7cd05cfa087541cf9
 
 test:package passed with a new isolated profile, including matching source and
 installer payload, private-data exclusions, bundled Codex initialization without
@@ -104,8 +105,10 @@ execution of that build; the installer wizard, elevation behavior, uninstall and
 clean-machine experience were not observed. The installed profile had no collection
 history at inspection. A subsequent user refresh reported CW_SESSION_MISSING and
 zero collector requests; see [session diagnostics](session-refresh-diagnostics.md).
-The current artifact above has not replaced that installed copy, and the live
-session mismatch remains unresolved. No weaker cookie check was introduced.
+The current artifact above has not replaced that installed copy. The observed
+UBC cookie-name mismatch is repaired and tested with synthetic sessions, but
+authenticated live refresh still needs validation. No additional Canvas read or
+assessment operation was admitted.
 
 
 Earlier validated builds

@@ -779,3 +779,14 @@ Work log
   fresh-profile package validation pass. Navigation was visually checked in both
   themes. The new installer hash and installed-copy distinction are recorded in
   windows-package.md; no personal Canvas refresh or AI request was made.
+
+- An anonymous UBC login redirect revealed the session-name mismatch: the server
+  sets secure, HttpOnly canvas_session, while the app previously recognized only
+  _normandy_session. Added the evidenced alias for the exact UBC HTTPS origin to
+  the watcher and encrypted session storage. Duplicate credentials still fail;
+  fingerprints include the cookie name, and snapshots cannot introduce a second
+  credential beside a live one. All 160 unit tests, isolated Electron connection,
+  encrypted restart, synthetic refresh/export, Windows build and package checks
+  pass. The new installer hash is in windows-package.md. No personal login or
+  authenticated collection was performed; a human sign-in and refresh of this
+  corrected build remains the next acceptance check.
