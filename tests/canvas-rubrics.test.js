@@ -6,22 +6,25 @@ import { planningEvidence } from '../src/codex-client.js';
 
 const response = () => ({ data: { course: { _id: '1', name: 'Example course', courseCode: 'EX 1', assignmentsConnection: {
   nodes: [{ _id: '20', courseId: '1', name: 'Design proposal', state: 'published', pointsPossible: 5, submissionTypes: ['online_upload'],
-    rubric: { _id: '40', title: 'Proposal criteria', criteria: [{ _id: 'criterion-a', description: '<b>Requirements</b>', longDescription: 'Explain your design decisions.<script>private-code</script>' }] } }],
+    rubricAssociation: { associationId: '20', associationType: 'Assignment', useForGrading: false },
+    rubric: { _id: '40', title: 'Proposal criteria', freeFormCriterionComments: false, criteria: [{ _id: 'criterion-a', description: '<b>Requirements</b>', longDescription: 'Explain your design decisions.<script>private-code</script>', criterionUseRange: true, ignoreForScoring: true,
+      ratings: [{ _id: 'r1', description: 'Strong explanation', longDescription: 'Compare alternatives and justify the choice.', points: 9, score: 8 }] }] } }],
   pageInfo: { hasNextPage: false, endCursor: null },
 } } } });
 const assignments = [{ id: '20' }];
 
 test('rubric selection copies criterion text without scores, assessments or embedded content', () => {
   const query = courseRubricsRequest('1');
-  assert.doesNotMatch(query.query, /rubricAssessment|outcome|ratings|lockInfo|description\s*\{/);
+  assert.doesNotMatch(query.query, /rubricAssessment|outcome|lockInfo|description\s*\{/);
   assert.throws(() => courseRubricsRequest('../1'));
   assert.throws(() => courseRubricsRequest('1', '\n'));
   const raw = response();
-  raw.data.course.assignmentsConnection.nodes[0].rubric.criteria[0].ratings = [{ description: 'not-selected' }];
   const parsed = parseCourseRubrics(raw, '1');
   assert.equal(parsed.nodes[0].rubric.criteria[0].description, 'Requirements');
   assert.equal(parsed.nodes[0].rubric.criteria[0].longDescription, 'Explain your design decisions.');
-  assert.doesNotMatch(JSON.stringify(parsed), /private-code|not-selected/);
+  assert.equal(parsed.nodes[0].rubric.criteria[0].ratings[0].description, 'Strong explanation');
+  assert.equal(parsed.nodes[0].rubric.useForGrading, false);
+  assert.doesNotMatch(JSON.stringify(parsed), /private-code|"points"|"score"/);
   raw.data.course.assignmentsConnection.nodes[0].rubric = null;
   assert.equal(parseCourseRubrics(raw, '1').nodes[0].rubric, null);
 });
@@ -33,6 +36,11 @@ test('rubric parsing rejects wrong courses, hidden assignments, partial errors a
     raw => { raw.errors = [{ message: 'private-error' }]; },
     raw => { delete raw.data.course.assignmentsConnection.nodes[0].rubric; },
     raw => { raw.data.course.assignmentsConnection.nodes[0].rubric._id = 'x'; },
+    raw => { raw.data.course.assignmentsConnection.nodes[0].rubricAssociation.associationId = '21'; },
+    raw => { raw.data.course.assignmentsConnection.nodes[0].rubricAssociation.associationType = 'Course'; },
+    raw => { raw.data.course.assignmentsConnection.nodes[0].rubricAssociation.useForGrading = 'yes'; },
+    raw => { raw.data.course.assignmentsConnection.nodes[0].rubric.criteria[0].ratings = Array(101).fill({}); },
+    raw => { raw.data.course.assignmentsConnection.nodes[0].rubric.criteria[0].ratings.push(raw.data.course.assignmentsConnection.nodes[0].rubric.criteria[0].ratings[0]); },
     raw => { raw.data.course.assignmentsConnection.nodes[0].rubric.criteria[0].longDescription = 'x'.repeat(65537); },
     raw => { raw.data.course.assignmentsConnection.nodes[0].rubric.criteria.push(raw.data.course.assignmentsConnection.nodes[0].rubric.criteria[0]); },
     raw => { raw.data.course.assignmentsConnection.pageInfo.hasNextPage = true; },
@@ -74,7 +82,16 @@ test('rubric text enriches the guide and AI evidence while failed or empty reads
   const evidence = planningEvidence(guide).sources[0];
   assert.equal(evidence.kind, 'rubric');
   assert.equal(evidence.partial, true);
-  assert.match(evidence.coverageNote, /Rating levels/);
+  assert.match(evidence.coverageNote, /Numeric scoring/);
+  assert.match(evidence.body, /Rating: Strong explanation: Compare alternatives/);
+  assert.match(evidence.body, /Used for assignment grading: No/);
+  assert.match(evidence.body, /not used for scoring/);
+  assert.match(evidence.body, /score ranges; numeric boundaries were not collected/);
+  assert.doesNotMatch(evidence.body, /9 points|8 points/);
+  const changed = structuredClone(record);
+  changed.sources.rubrics[0].rubric.criteria[0].ratings[0].longDescription = 'Explain the constraints behind your decision.';
+  const updated = reconcile([changed], snapshot, options);
+  assert.ok(updated.changes.some(change => change.field === 'course-information' && change.itemId.endsWith(':rubric:20')));
   for (const rubrics of [undefined, [{ assignmentId: '20', rubric: null }]]) {
     const next = reconcile([{ ...record, sources: { rubrics } }], snapshot, { ...options, now: '2026-09-12T18:00:00Z' });
     assert.equal(next.courses[0].evidence[0].stale, true);

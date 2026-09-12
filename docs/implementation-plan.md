@@ -745,3 +745,15 @@ Work log
   Updated the architecture and release review for rubric coverage and the
   remaining account-dependent checks. No installation, personal login or live
   collection was performed; a human test of the current build is still needed.
+
+- Extended the rubric query with stored rating descriptions, grading-use and
+  free-form comment flags, and criterion range/scoring flags. Reviewed the added
+  Ruby field/model paths and pinned the new schema-validated query. Numeric scoring
+  remains uncollected because its visibility rules require further review.
+  The parser validates the assignment association, bounds rating lists/text and
+  omits unselected scores. Guides describe standards rather than earned results,
+  retain old criterion-only gap labels and report changed rating text. All 157
+  unit tests and the localhost Electron network fixture pass, including pagination,
+  optional/fatal failures and exclusion of rating contents from audit logs. No
+  personal Canvas or AI request was made. This source milestone is newer than the
+  last packaged installer; the live-login question for that installer is pending.

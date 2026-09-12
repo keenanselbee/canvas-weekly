@@ -10,7 +10,12 @@ const query = `query CanvasWeeklyCourseRubrics($courseId: ID!, $after: String) {
     assignmentsConnection(first: 100, after: $after, filter: {gradingPeriodId: null}) {
       pageInfo { hasNextPage endCursor }
       nodes { _id courseId name state pointsPossible submissionTypes
-        rubric { _id title criteria { _id description longDescription } }
+        rubric { _id title freeFormCriterionComments
+          criteria { _id description longDescription criterionUseRange ignoreForScoring
+            ratings { _id description longDescription }
+          }
+        }
+        rubricAssociation { associationId associationType useForGrading }
       }
     }
   }
@@ -32,18 +37,34 @@ export function parseCourseRubrics(value, courseId) {
     return plainText(input);
   };
   const nodes = page.nodes.map((assignment, index) => {
-    const rubric = value.data.course.assignmentsConnection.nodes[index].rubric;
+    const node = value.data.course.assignmentsConnection.nodes[index];
+    const rubric = node.rubric;
     if (rubric === null) return { assignmentId: assignment.id, name: assignment.name, rubric: null };
-    if (!object(rubric) || !validId(rubric._id) || !Array.isArray(rubric.criteria) || rubric.criteria.length > 200) throw new Error(unavailable);
+    const association = node.rubricAssociation;
+    if (!object(rubric) || !validId(rubric._id) || !Array.isArray(rubric.criteria) || rubric.criteria.length > 200
+      || typeof rubric.freeFormCriterionComments !== 'boolean' || !object(association)
+      || association.associationId !== assignment.id || association.associationType !== 'Assignment'
+      || typeof association.useForGrading !== 'boolean') throw new Error(unavailable);
     const seen = new Set();
     const criteria = rubric.criteria.map(criterion => {
       if (!object(criterion) || typeof criterion._id !== 'string' || !criterion._id.length || criterion._id.length > 128
         || /[\u0000-\u001f\u007f]/.test(criterion._id) || seen.has(criterion._id)) throw new Error(unavailable);
       seen.add(criterion._id);
-      return { id: criterion._id, description: text(criterion.description, 16384), longDescription: text(criterion.longDescription, 65536) };
+      if (typeof criterion.criterionUseRange !== 'boolean' || typeof criterion.ignoreForScoring !== 'boolean'
+        || !(criterion.ratings === null || (Array.isArray(criterion.ratings) && criterion.ratings.length <= 100))) throw new Error(unavailable);
+      const ratingIds = new Set();
+      const ratings = criterion.ratings?.map(rating => {
+        if (!object(rating) || typeof rating._id !== 'string' || !rating._id.length || rating._id.length > 128
+          || /[\u0000-\u001f\u007f]/.test(rating._id) || ratingIds.has(rating._id) || typeof rating.description !== 'string') throw new Error(unavailable);
+        ratingIds.add(rating._id);
+        return { id: rating._id, description: text(rating.description, 16384), longDescription: text(rating.longDescription, 65536) };
+      }) ?? null;
+      return { id: criterion._id, description: text(criterion.description, 16384), longDescription: text(criterion.longDescription, 65536),
+        useRange: criterion.criterionUseRange, ignoreForScoring: criterion.ignoreForScoring, ratings };
     });
     return { assignmentId: assignment.id, name: assignment.name,
-      rubric: { id: rubric._id, title: text(rubric.title, 4096), criteria } };
+      rubric: { id: rubric._id, title: text(rubric.title, 4096), criteria, ratingDetails: true,
+        freeFormComments: rubric.freeFormCriterionComments, useForGrading: association.useForGrading } };
   });
   return { nodes, next: page.next };
 }
@@ -70,8 +91,9 @@ export async function collectCourseRubrics({ transport, assignments, signal }) {
     after = page.next;
   } while (after !== null);
   if (seen.size !== expected.size) throw new Error(unavailable);
-  const supplied = rubrics.filter(item => item.rubric?.criteria.some(criterion => criterion.description || criterion.longDescription)).length;
+  const supplied = rubrics.filter(item => item.rubric?.criteria.some(criterion => criterion.description || criterion.longDescription
+    || criterion.ratings?.some(rating => rating.description || rating.longDescription))).length;
   return { rubrics, coverage: { source: 'rubric criteria', status: 'partial',
-    message: supplied ? `Collected rubric criterion text for ${supplied} assignments. Rating levels, scoring settings and assessment feedback were not collected; check the full rubric.`
+    message: supplied ? `Collected rubric criteria, supplied rating descriptions and grading-use context for ${supplied} assignments. Numeric scoring, linked outcomes and assessment feedback were not collected; check the full rubric.`
       : 'No rubric criterion text was supplied. This does not establish that assignments have no rubric; check the original source. Any retained criteria are last-known information.' } };
 }

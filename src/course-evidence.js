@@ -107,10 +107,25 @@ export function courseEvidence(record, previous, origin, now) {
   }
   for (const item of record.sources.rubrics || []) {
     const rubric = item.rubric;
-    if (!rubric?.criteria.some(criterion => criterion.description || criterion.longDescription)) continue;
+    if (!rubric?.criteria.some(criterion => criterion.description || criterion.longDescription
+      || criterion.ratings?.some(rating => rating.description || rating.longDescription))) continue;
+    const body = [rubric.title];
+    if (rubric.ratingDetails) {
+      body.push(`Used for assignment grading: ${rubric.useForGrading ? 'Yes' : 'No'}.`, `Free-form criterion comments: ${rubric.freeFormComments ? 'Yes' : 'No'}.`);
+    }
+    for (const criterion of rubric.criteria) {
+      body.push([criterion.description, criterion.longDescription].filter(Boolean).join(': '));
+      if (!rubric.ratingDetails) continue;
+      if (criterion.ignoreForScoring) body.push('This criterion is not used for scoring.');
+      if (criterion.useRange) body.push('This criterion uses score ranges; numeric boundaries were not collected.');
+      if (!criterion.ratings?.length) body.push('Rating descriptions were not supplied for this criterion.');
+      else for (const rating of criterion.ratings) body.push(`Rating: ${[rating.description, rating.longDescription].filter(Boolean).join(': ')}`);
+    }
     add('rubric', item.assignmentId, `${item.name || 'Assignment'}: rubric`, '', base + `/assignments/${item.assignmentId}`, {
-      body: [rubric.title, ...rubric.criteria.map(criterion => [criterion.description, criterion.longDescription].filter(Boolean).join(': '))].filter(Boolean).join('\n'),
-      partial: true, coverageNote: 'Criterion text only. Rating levels, scoring settings and assessment feedback were not collected; check the full rubric.',
+      body: body.filter(Boolean).join('\n'),
+      partial: true, coverageNote: rubric.ratingDetails
+        ? 'Rubric criteria and supplied rating descriptions only. Numeric scoring, linked outcomes and assessment feedback were not collected; check the full rubric. Rating descriptions are performance standards, not your results.'
+        : 'Criterion text only. Rating levels, scoring settings and assessment feedback were not collected; check the full rubric.',
     });
   }
   for (const file of record.sources.files || []) {

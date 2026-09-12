@@ -100,7 +100,10 @@ const server = https.createServer({ pfx: Buffer.from(stdout.trim(), 'base64'), p
     const next = input.variables.after === null ? 'next' : null;
     const id = input.variables.after === null ? '10' : '11';
     const nodes = [{ _id: id, courseId: '1', name: 'Synthetic preparation', state: 'published', pointsPossible: 5,
-      submissionTypes: ['online_upload'], ...(input.operationName === 'CanvasWeeklyCourseRubrics' ? { rubric: { _id: '60', title: 'Fixture rubric', criteria: [{ _id: 'c1', description: 'Private fixture criterion', longDescription: 'Explain the tradeoffs.' }] } } : {}) }];
+      submissionTypes: ['online_upload'], ...(input.operationName === 'CanvasWeeklyCourseRubrics' ? {
+        rubricAssociation: { associationId: id, associationType: 'Assignment', useForGrading: true },
+        rubric: { _id: '60', title: 'Fixture rubric', freeFormCriterionComments: false, criteria: [{ _id: 'c1', description: 'Private fixture criterion', longDescription: 'Explain the tradeoffs.', criterionUseRange: false, ignoreForScoring: false,
+          ratings: [{ _id: 'r1', description: 'Clear reasoning', longDescription: 'Justifies the design.' }] }] } } : {}) }];
     response.end(JSON.stringify({ data: { course: { _id: '1', name: 'Example course', courseCode: 'DEMO 1',
       assignmentsConnection: { nodes, pageInfo: { hasNextPage: next !== null, endCursor: next } } } } }));
   });
@@ -265,6 +268,7 @@ try {
       assert.equal(courseRecord.sources.metadata.assignments.length, 2);
       assert.equal(courseRecord.sources.rubrics.length, 2);
       assert.equal(courseRecord.sources.rubrics[0].rubric.criteria[0].description, 'Private fixture criterion');
+      assert.equal(courseRecord.sources.rubrics[0].rubric.criteria[0].ratings[0].description, 'Clear reasoning');
       assert.doesNotMatch(JSON.stringify(courseRecord), /enrollments|StudentEnrollment|accountMembership/);
     }
     const operations = received.slice(start).map(request => request.method === 'GET' ? 'account' : JSON.parse(request.body).operationName);
@@ -329,7 +333,7 @@ try {
   assert.deepEqual(received.slice(beforeMessages).map(request => JSON.parse(request.body).operationName),
     [...Array(4).fill('CanvasWeeklyCourseConversations'), ...Array(3).fill('CanvasWeeklyConversationText')]);
   const finalAudit = (await Promise.all((await fs.readdir(auditDirectory)).map(file => fs.readFile(path.join(auditDirectory, file), 'utf8')))).join('');
-  assert.doesNotMatch(finalAudit, /Private fixture criterion|Fixture rubric|Explain the tradeoffs|Example Sender|Private fixture reading update|thread-next|message-next|Course thread|Read the syllabus|course.example/);
+  assert.doesNotMatch(finalAudit, /Clear reasoning|Justifies the design|Private fixture criterion|Fixture rubric|Explain the tradeoffs|Example Sender|Private fixture reading update|thread-next|message-next|Course thread|Read the syllabus|course.example/);
   const messageEvents = finalAudit.split('\n').filter(Boolean).map(line => JSON.parse(line));
   assert.equal(messageEvents.filter(event => event.operation === 'conversationtext' && event.event === 'body-read').length, 9);
   for (const scenario of ['rubric-unavailable', 'rubric-identity', 'rubric-expired']) {

@@ -36,7 +36,8 @@ function fixture(options = {}) {
 test('rubric reads require observed assignments, reject generic bodies and keep content out of audit', async () => {
   let value = { data: { course: { _id: '1', name: 'Example course', courseCode: 'EX 1', assignmentsConnection: {
     nodes: [{ _id: '10', courseId: '1', name: 'Preparation', state: 'published', pointsPossible: 5, submissionTypes: ['online_upload'],
-      rubric: { _id: '40', title: 'Private rubric title', criteria: [{ _id: 'c1', description: 'Private rubric criterion', longDescription: null }] } }],
+      rubricAssociation: { associationId: '10', associationType: 'Assignment', useForGrading: true },
+      rubric: { _id: '40', title: 'Private rubric title', freeFormCriterionComments: true, criteria: [{ _id: 'c1', description: 'Private rubric criterion', longDescription: null, criterionUseRange: false, ignoreForScoring: false, ratings: null }] } }],
     pageInfo: { hasNextPage: false, endCursor: null },
   } } } };
   const setup = fixture({ fetcher: async (_url, init) => {
@@ -53,6 +54,7 @@ test('rubric reads require observed assignments, reject generic bodies and keep 
   assert.doesNotMatch(JSON.stringify(setup.events), /Private rubric/);
   assert.ok(setup.events.some(event => event.operation === 'courserubrics' && event.event === 'body-read'));
   value.data.course.assignmentsConnection.nodes[0]._id = '11';
+  value.data.course.assignmentsConnection.nodes[0].rubricAssociation.associationId = '11';
   await assert.rejects(setup.transport.readCourseRubrics(), /changed during collection/);
   setup.connection.abort();
   await assert.rejects(setup.transport.readCourseRubrics(), { name: 'AbortError' });

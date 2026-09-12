@@ -12,7 +12,7 @@ import { courseConversationsRequest, conversationTextRequest } from '../src/canv
 // change requires another resolver review, not just updating the network builder.
 test('enabled metadata queries match the reviewed admission selection', () => {
   const reviewed = {
-    CanvasWeeklyCourseRubrics: 'e509dceec271924d56569990a0f940064a38b4070f24d28c2218b3f75781f1ad',
+    CanvasWeeklyCourseRubrics: '3713f15a719eea355b658b6aa0b6fce124806bd9ddbf8c53a44cae939ba55b69',
     CanvasWeeklyCourseSyllabus: '90bc30e7eb75ea82e83d960d0c5140d8a3f345d2b58cf600803c63df296a8b40',
     CanvasWeeklyCourseConversations: 'f7050e91cd63d766ed19a8c69d18f17e1d2847e034fc3a490523e231d771b824',
     CanvasWeeklyConversationText: 'cb85cb1b2cc0f4ce42c1097d3c250b20657c575c1033b67170c90ba759f4faab',

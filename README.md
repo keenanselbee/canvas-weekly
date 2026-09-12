@@ -30,8 +30,8 @@ and unverified-sender labels. A message-source failure keeps older messages stal
 account or audit failures stop the update. See [message admission](docs/canvas-message-review.md).
 Stored Canvas syllabus text and material links are also collected through a
 [separate reviewed field](docs/canvas-syllabus-review.md). Available rubric criterion
-text is collected through a [fixed rubric query](docs/canvas-rubric-review.md);
-rating levels, scoring settings and assessment feedback remain uncollected.
+and rating text is collected through a [fixed rubric query](docs/canvas-rubric-review.md),
+with grading-use context. Numeric scoring and assessment feedback remain uncollected.
 Assignment instructions,
 page bodies and Canvas file contents remain unavailable. Connected external course
 websites remain a separate supported source.
