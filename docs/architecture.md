@@ -3,11 +3,20 @@ Application architecture
 
 Status: implementation target with delivered components tracked in implementation-plan.md.
 The [revised product direction](evidence-first-plan.md) adds a shared evidence
-projection before either manual AI export or connected planning. The current
-connected output remains preparation suggestions; full weekly generation is a
-subsequent milestone. Export for AI is a local operation, with no collection or
+projection before either manual AI export or connected planning. A separate
+guide:generate operation uses only the saved collection and the connected AI.
+Its structured output requires every supplied course, known source references,
+matching quotes for required/optional steps and valid optional study dates.
+These checks do not prove semantic correctness. The old automatic suggestion
+path remains during UX migration. Export for AI is a local operation, with no collection or
 AI request. Its Course Information.md file uses the existing account ownership,
 manual-edit protection, revision and rollback behavior of GuideStore.
+Generation keeps the collection timestamp and records a distinct AI timestamp.
+It captures the account and saved-guide identity, checks cancellation and scope
+before export, and replaces state only after a successful export. Failures retain
+the previous guide. The shared weekly view model supplies source-recorded dates
+and uncertainties to both UI and documents. AI task changes invalidate local
+preparation checks; no Canvas progress is changed.
 The admitted Canvas path is the fixed metadata collector described in
 [its admission decision](canvas-metadata-admission.md), followed by the stored
 [syllabus field](canvas-syllabus-review.md) and two

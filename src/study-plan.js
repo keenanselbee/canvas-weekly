@@ -90,7 +90,7 @@ export function buildStudyPlan(guide, progress = {}) {
     if (!source) continue;
     let task = tasks.find(task => task.sourceId === priority.sourceId);
     for (const question of priority.checks || []) (task?.unscheduled ? task.checks : checks).push({ sourceId: priority.sourceId, title: `ChatGPT suggests checking: ${source.title}`, detail: question });
-    if (source.stale) continue;
+    if (source.stale && !guide.aiGuide) continue;
     const steps = priority.steps?.map(step => ({ ...step }));
     if (task?.needsVerification) {
       if (steps?.length) { task.steps.push(...steps.map(step => ({ ...step, conditional: true }))); task.ai = true; }
@@ -107,6 +107,8 @@ export function buildStudyPlan(guide, progress = {}) {
   for (const task of tasks) {
     const source = sourceMap.get(task.sourceId);
     const fingerprint = [task.title, task.steps, task.dueAt, task.closesAt, source?.instructions || source?.body || '', source?.stale || false];
+    const weeklyTask = guide.aiGuide?.courses.flatMap(course => course.tasks).find(item => item.sourceId === task.sourceId);
+    if (weeklyTask) fingerprint.push(weeklyTask);
     if (task.posted) fingerprint.push((task.posted.sourceIds || task.posted.sources.map(source => source.sourceId)).map(id => {
       const evidence = sourceMap.get(id);
       return [id, evidence?.title, evidence?.body || evidence?.instructions || '', Boolean(evidence?.stale), Boolean(evidence?.instructionsStale)];

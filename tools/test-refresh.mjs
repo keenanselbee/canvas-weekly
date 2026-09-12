@@ -256,6 +256,50 @@ try {
   await page.locator('#notice').waitFor({ state: 'hidden', timeout: 6500 });
   await page.screenshot({ path: '.codex-temp/visual/study-plan-ai.png' });
   assert.match(await fs.readFile(first.guide.outputPath, 'utf8'), /Optional \(AI interpretation\)/);
+  // Exercise full guide generation from saved evidence with an in-process AI
+  // fixture, never a real AI account or a new Canvas collection.
+  await application.evaluate((_electron, modules) => {
+    const require = process.getBuiltinModule('module').createRequire(modules.client);
+    const { CodexClient } = require('./codex-client.js');
+    const { validateWeeklyGuide } = require('./weekly-output.js');
+    const original = CodexClient.prototype.plan;
+    globalThis.weeklyTestMode = 'success';
+    CodexClient.prototype.plan = async function (evidence, signal, options) {
+      globalThis.weeklyTestClient = this;
+      this.state.connected = true;
+      if (!options?.weekly) return original.call(this, evidence, signal);
+      if (globalThis.weeklyTestMode === 'fail') throw new Error('Synthetic weekly generation failure');
+      if (globalThis.weeklyTestMode === 'wait') return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+      return validateWeeklyGuide({ overview: [{ text: 'Prepare the practice and check the materials.', sourceIds: ['1:assignment:10'] }],
+        courses: evidence.courses.map(course => ({ courseId: course.id, focus: 'Use the collected instructions to prepare.', tasks: [{
+          sourceId: '1:assignment:10', action: 'Prepare the weekly practice', reason: 'Review the concepts before attempting the work.', suggestedDate: null,
+          checks: ['Confirm the deadline in the original source.'], steps: [{ text: 'Complete the practice.', kind: 'required', quote: 'Complete the practice.' }],
+        }] })), questions: [{ text: 'How much study time is available?', sourceIds: ['course:1'] }] }, evidence);
+    };
+  }, { client: new URL('../src/codex-client.js', import.meta.url).href });
+  // The legacy fixture gives us the existing client without starting a process.
+  await page.evaluate(() => window.canvasWeekly.updateGuide());
+  await page.reload();
+  const beforeGeneration = await application.evaluate(() => globalThis.syntheticRequestCount);
+  const savedCollectionTime = (await page.evaluate(() => window.canvasWeekly.getState())).guide.generatedAt;
+  await page.getByRole('button', { name: 'Create my weekly guide', exact: true }).click();
+  await page.getByRole('heading', { name: 'Your AI weekly guide', exact: true }).waitFor();
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeGeneration);
+  const generated = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
+  assert.equal(generated.generatedAt, savedCollectionTime, 'AI generation must not refresh the collection timestamp');
+  assert.ok(generated.aiGuide);
+  assert.match(await fs.readFile(generated.outputPath, 'utf8'), /Your AI weekly guide/);
+  await application.evaluate(() => { globalThis.weeklyTestMode = 'fail'; });
+  await assert.rejects(page.evaluate(() => window.canvasWeekly.generateGuide()), /previous guide is preserved/);
+  assert.deepEqual((await page.evaluate(() => window.canvasWeekly.getState())).guide, generated);
+  await application.evaluate(() => { globalThis.weeklyTestMode = 'wait'; });
+  await page.evaluate(() => { window.waitingGeneration = window.canvasWeekly.generateGuide().catch(error => error.message); });
+  await page.waitForFunction(async () => (await window.canvasWeekly.getState()).run.busy);
+  await page.evaluate(() => window.canvasWeekly.cancelRefresh());
+  assert.match(await page.evaluate(() => window.waitingGeneration), /cancelled/);
+  assert.deepEqual((await page.evaluate(() => window.canvasWeekly.getState())).guide, generated);
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeGeneration);
+  await application.evaluate(() => { globalThis.weeklyTestMode = 'success'; });
   await page.evaluate(() => window.canvasWeekly.setAIEnabled(false));
   await page.evaluate(id => window.canvasWeekly.removeWebsite(id), websiteId);
   const beforeMetadata = (await page.evaluate(() => window.canvasWeekly.getState())).guide;

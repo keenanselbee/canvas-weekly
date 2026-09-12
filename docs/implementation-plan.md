@@ -24,7 +24,7 @@ Milestone ledger
 | M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Reviewed course-message/syllabus reads, public/Basic websites, scoped PDF/DOCX text and Word export implemented; six-page native Word render verified; automatic Canvas instructions/pages/files, live sites and browser-login sites remain incomplete |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Unsigned x64 installer built; package inventory, matching installer payload, first-run themes and bundled Codex tested; installation walkthrough and live reconnect pending |
 | E1 | Shared evidence pack and Export for AI | Full normalized text, source IDs/coverage, explicit AI omissions, offline export and protected files | Implemented; 166 unit tests and synthetic desktop refresh passed |
-| E2 | Full connected weekly guide | Standalone generation from saved evidence; source-linked tasks and questions; failure preserves prior guide | Pending; current connected output remains limited preparation suggestions |
+| E2 | Full connected weekly guide | Standalone generation from saved evidence; source-linked tasks and questions; failure preserves prior guide | Core generation and shared views implemented; personal planning context and live quality review pending |
 | E3 | Improve permitted source coverage | Evidence-driven source additions with provenance and safety review | Pending; no collection permissions expanded by E1 |
 | E4 | Collection and AI routes in the primary UX | Simple collection/coverage/export/generate flow, useful factual fallback, desktop release checks | Initial export actions delivered; main-screen migration and final review pending |
 
@@ -906,3 +906,18 @@ Work log
   state, manual edits, account ownership, revisions and rollback after a locked
   evidence file. No new personal Canvas or AI requests were made. Full connected
   guide generation and improved coverage remain subsequent milestones.
+
+- Implemented Create my weekly guide as a separate saved-evidence operation.
+  Added validated overview/course/task/question output and a shared app/document
+  presentation, with source-recorded deadlines and optional AI study dates.
+  Failed/cancelled generation preserves the previous guide; collection age is
+  retained and AI generation time recorded separately. AI changes reopen local
+  preparation checks. The legacy automatic suggestion path remains during UI
+  migration. All 169 unit tests passed, including course/source/quote/date checks,
+  disabled AI tool/network policy, rendering and local task invalidation. The
+  five-page synthetic AI Word guide passed native bounds/content checks and all
+  pages were visually inspected. Desktop generation/cancellation checks are
+  complete: the synthetic desktop workflow verified standalone generation made
+  no Canvas requests, preserved collection timestamps, exported the AI content,
+  and retained identical prior guide state after failure and cancellation.
+  No live Canvas or AI account was used.

@@ -7,8 +7,11 @@ Target: a personal Windows app usable without a terminal or writing prompts.
 The [revised evidence-first direction](evidence-first-plan.md) adds Export for AI
 and Copy study prompt beside the saved collection. Export reveals a local
 Markdown document for review and manual upload; it never opens or submits an AI
-chat. A full connected Create my weekly guide action will replace the limited
-suggestion workflow in a subsequent milestone. The flow below remains the
+chat. Create my weekly guide sends saved evidence to the connected AI without
+refreshing Canvas. It shows the resulting overview, course tasks and questions,
+with local preparation checkmarks and original-source links. A disconnected AI
+routes the user to Settings. The legacy automatic Study suggestions option remains
+until the main-flow migration. The flow below remains the
 existing experience during this migration.
 
 

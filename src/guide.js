@@ -4,6 +4,7 @@ import { courseEvidence } from './course-evidence.js';
 import { localDate, shiftDate, weekOf } from './dates.js';
 import { buildStudyPlan, guideSources } from './study-plan.js';
 import { METADATA_NOTICE } from './canvas-metadata.js';
+import { weeklyMarkdown } from './weekly-view.js';
 export { plainText, sourceUrl } from './content.js';
 export { localDate, shiftDate, weekOf } from './dates.js';
 const dateOrNull = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
@@ -140,55 +141,58 @@ export function renderMarkdown(guide) {
     'Generated sections are refreshed by Canvas Weekly. Check off preparation tasks in the app; keep your own notes in Student Notes.md.', ''];
   const plan = guide.studyPlan || buildStudyPlan(guide);
   const sources = new Map(guideSources(guide).map(source => [source.id, source]));
-  lines.push('## Your study plan', '', plan.summary, '', plan.note, '');
-  const refined = plan.tasks.filter(task => task.ai).length;
-  if (guide.priorities?.length) lines.push(`ChatGPT refined ${refined} preparation task${refined === 1 ? '' : 's'}. Other tasks use basic prompts. Required/optional labels are AI interpretations with source quotes to check.`, '');
-  if (plan.focus?.length) {
-    lines.push('### Start here', '', plan.focusNote, '');
-    for (const focus of plan.focus) {
-      const source = sources.get(focus.sourceId);
-      lines.push(`#### ${md(focus.courseName)}: ${md(focus.title)}`, '', md(focus.reason), '', `Suggested start: ${focus.suggestedDate}.`, '');
-      if (focus.dueAt) lines.push(`Recorded due time: ${formatDate(focus.dueAt, guide.timeZone)}`, '');
-      if (focus.closesAt) lines.push(`Available until: ${formatDate(focus.closesAt, guide.timeZone)}`, '');
-      if (focus.deadlineNote) lines.push(md(focus.deadlineNote), '');
-      if (source) lines.push(`[Original source](${source.sourceUrl})`, '');
-    }
-    lines.push('### Full preparation checklist', '');
-  }
-  let day, reviewCourse;
-  for (const task of [...plan.tasks.filter(task => !task.unscheduled), ...(plan.reviewGroups || []).flatMap(group => group.tasks)]) {
-    if (task.unscheduled) {
-      if (day !== null) { lines.push('## Timing to confirm', '', plan.reviewNote, ''); day = null; }
-      if (reviewCourse !== task.courseId) { reviewCourse = task.courseId; lines.push(`### ${md(task.courseName)}`, ''); }
-    } else if (day !== task.suggestedDate) { day = task.suggestedDate; lines.push(`### Suggested start: ${day}`, ''); }
-    const source = sources.get(task.sourceId);
-    lines.push(`- [${task.done ? 'x' : ' '}] **${md(task.title)}** (${md(task.courseName)})${task.ai ? ' - AI suggestion' : ''}`, '', md(task.reason), '');
-    if (task.changedSinceDone) lines.push('Source or task changed since you checked it off. Review it again.', '');
-    if (task.dueAt) lines.push(`Recorded due time: ${formatDate(task.dueAt, guide.timeZone)}`, '');
-    if (task.closesAt) lines.push(`Available until: ${formatDate(task.closesAt, guide.timeZone)}`, '');
-    if (task.posted) {
-      if (task.posted.facts.length) lines.push('**Recorded information**', '', ...task.posted.facts.map(fact => `- ${md(fact)}`), '');
-      if (task.posted.needs.length) lines.push(`**Needs checking:** ${md(task.posted.needs.join('; '))}.`, '');
-      for (const excerpt of task.posted.sources) {
-        const original = sources.get(excerpt.sourceId);
-        lines.push(`**${md(excerpt.title)}${excerpt.stale ? ' (last-known; recheck)' : ''}**`, '', md(excerpt.note), '');
-        if (excerpt.observedAt) lines.push(`Collected: ${formatDate(excerpt.observedAt, guide.timeZone)}.`, '');
-        if (excerpt.text) lines.push(...excerpt.text.split('\n').map(line => `> ${md(line)}`), '');
-        if (original) lines.push(`[Read original material](<${original.sourceUrl}>)`, '');
+  lines.push(...weeklyMarkdown(guide));
+  if (!guide.aiGuide) {
+    lines.push('## Your study plan', '', plan.summary, '', plan.note, '');
+    const refined = plan.tasks.filter(task => task.ai).length;
+    if (guide.priorities?.length) lines.push(`ChatGPT refined ${refined} preparation task${refined === 1 ? '' : 's'}. Other tasks use basic prompts. Required/optional labels are AI interpretations with source quotes to check.`, '');
+    if (plan.focus?.length) {
+      lines.push('### Start here', '', plan.focusNote, '');
+      for (const focus of plan.focus) {
+        const source = sources.get(focus.sourceId);
+        lines.push(`#### ${md(focus.courseName)}: ${md(focus.title)}`, '', md(focus.reason), '', `Suggested start: ${focus.suggestedDate}.`, '');
+        if (focus.dueAt) lines.push(`Recorded due time: ${formatDate(focus.dueAt, guide.timeZone)}`, '');
+        if (focus.closesAt) lines.push(`Available until: ${formatDate(focus.closesAt, guide.timeZone)}`, '');
+        if (focus.deadlineNote) lines.push(md(focus.deadlineNote), '');
+        if (source) lines.push(`[Original source](${source.sourceUrl})`, '');
       }
-      if (task.posted.more) lines.push(`${task.posted.more} more collected materials appear in Source details.`, '');
+      lines.push('### Full preparation checklist', '');
     }
-    lines.push('**Suggested preparation**', '');
-    for (const step of task.steps) {
-      if (typeof step === 'string') lines.push(`- ${md(step)}`);
-      else {
-        lines.push(`- ${step.conditional ? 'After confirming applicability: ' : ''}${step.kind === 'suggested' ? 'Suggested' : `${step.kind === 'required' ? 'Required' : 'Optional'} (AI interpretation)`}: ${md(step.text)}`);
-        if (step.quote) lines.push('', `  Source quote: ${md(step.quote)}`, '');
+    let day, reviewCourse;
+    for (const task of [...plan.tasks.filter(task => !task.unscheduled), ...(plan.reviewGroups || []).flatMap(group => group.tasks)]) {
+      if (task.unscheduled) {
+        if (day !== null) { lines.push('## Timing to confirm', '', plan.reviewNote, ''); day = null; }
+        if (reviewCourse !== task.courseId) { reviewCourse = task.courseId; lines.push(`### ${md(task.courseName)}`, ''); }
+      } else if (day !== task.suggestedDate) { day = task.suggestedDate; lines.push(`### Suggested start: ${day}`, ''); }
+      const source = sources.get(task.sourceId);
+      lines.push(`- [${task.done ? 'x' : ' '}] **${md(task.title)}** (${md(task.courseName)})${task.ai ? ' - AI suggestion' : ''}`, '', md(task.reason), '');
+      if (task.changedSinceDone) lines.push('Source or task changed since you checked it off. Review it again.', '');
+      if (task.dueAt) lines.push(`Recorded due time: ${formatDate(task.dueAt, guide.timeZone)}`, '');
+      if (task.closesAt) lines.push(`Available until: ${formatDate(task.closesAt, guide.timeZone)}`, '');
+      if (task.posted) {
+        if (task.posted.facts.length) lines.push('**Recorded information**', '', ...task.posted.facts.map(fact => `- ${md(fact)}`), '');
+        if (task.posted.needs.length) lines.push(`**Needs checking:** ${md(task.posted.needs.join('; '))}.`, '');
+        for (const excerpt of task.posted.sources) {
+          const original = sources.get(excerpt.sourceId);
+          lines.push(`**${md(excerpt.title)}${excerpt.stale ? ' (last-known; recheck)' : ''}**`, '', md(excerpt.note), '');
+          if (excerpt.observedAt) lines.push(`Collected: ${formatDate(excerpt.observedAt, guide.timeZone)}.`, '');
+          if (excerpt.text) lines.push(...excerpt.text.split('\n').map(line => `> ${md(line)}`), '');
+          if (original) lines.push(`[Read original material](<${original.sourceUrl}>)`, '');
+        }
+        if (task.posted.more) lines.push(`${task.posted.more} more collected materials appear in Source details.`, '');
       }
+      lines.push('**Suggested preparation**', '');
+      for (const step of task.steps) {
+        if (typeof step === 'string') lines.push(`- ${md(step)}`);
+        else {
+          lines.push(`- ${step.conditional ? 'After confirming applicability: ' : ''}${step.kind === 'suggested' ? 'Suggested' : `${step.kind === 'required' ? 'Required' : 'Optional'} (AI interpretation)`}: ${md(step.text)}`);
+          if (step.quote) lines.push('', `  Source quote: ${md(step.quote)}`, '');
+        }
+      }
+      for (const check of task.checks || []) lines.push('', `${md(check.title)}: ${md(check.detail)}`);
+      if (source) lines.push('', `[Source](<${source.sourceUrl}>)`);
+      lines.push('');
     }
-    for (const check of task.checks || []) lines.push('', `${md(check.title)}: ${md(check.detail)}`);
-    if (source) lines.push('', `[Source](<${source.sourceUrl}>)`);
-    lines.push('');
   }
   lines.push('## Double-check before relying on this plan', '');
   for (const check of plan.checks) {

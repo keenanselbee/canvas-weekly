@@ -28,6 +28,16 @@ const records = ['Databases', 'Software Engineering'].map((name, index) => ({ id
   },
 }));
 const guide = buildGuide(reconcile(records, null, options), options.now);
+const ai = process.argv.includes('--ai');
+if (ai) {
+  guide.aiGuide = { generatedAt: options.now, overview: [{ text: 'Prepare for the two upcoming deadlines together.', sourceIds: guide.items.map(item => item.id) }],
+    courses: guide.courses.map(course => ({ courseId: course.id, focus: 'Read before the lab and keep track of uncertainties.', tasks: [{
+      sourceId: `${course.id}:assignment:10`, action: 'Prepare the lab reading', reason: 'Connect the reading to the lab topics.', suggestedDate: null,
+      checks: ['Confirm the current room and any deadline exception.'], steps: [{ text: 'Read chapter 2 before the lab.', kind: 'required', quote: 'Read chapter 2 before the lab.' }],
+    }] })), questions: [{ text: 'What study time is available this week?', sourceIds: ['course:1', 'course:2'] }] };
+  guide.priorities = guide.aiGuide.courses.flatMap(course => course.tasks);
+  guide.studyPlan = buildStudyPlan(guide);
+}
 const completed = guide.studyPlan.tasks[0];
 guide.studyPlan = buildStudyPlan(guide, { [completed.id]: { done: true, fingerprint: completed.fingerprint } });
 const documentPath = path.join(directory, 'Weekly Plan.docx');
@@ -105,6 +115,6 @@ try {
   }
 } finally { await loading.destroy(); }
 const text = pages.map(page => page.text).join(' ');
-for (const expected of ['Your study plan', 'Done:', 'Double-check before relying', 'Possible deadline extension', 'Confirm message sender', 'Read chapter 2', 'Course syllabus']) assert.ok(text.includes(expected), expected);
+for (const expected of [ai ? 'Your AI weekly guide' : 'Your study plan', 'Done:', 'Double-check before relying', 'Possible deadline extension', 'Confirm message sender', 'Read chapter 2', 'Course syllabus']) assert.ok(text.includes(expected), expected);
 await fs.writeFile(path.join(directory, 'review.json'), JSON.stringify({ word, pages }, null, 2));
 console.log(JSON.stringify({ result: 'Native Word export, page bounds, running header/footer and content checks passed. Inspect every page PNG before claiming visual QA.', directory, pages: pages.length, wordVersion: word.version }));

@@ -306,6 +306,36 @@ else {
       }
     });
     handle('guide:cancel', () => { controller?.abort(); return snapshot(); });
+    handle('guide:generate', async () => {
+      requireIdle();
+      const saved = guide;
+      const account = store.value.lastGuideAccount;
+      if (!saved?.outputPath || !account) throw new Error('Collect course information before creating an AI guide.');
+      if (!codex.state.connected) throw new Error('Connect ChatGPT in Settings before creating your weekly guide.');
+      const binding = JSON.stringify(account);
+      controller = new AbortController();
+      const signal = controller.signal;
+      run = { busy: true, message: 'Creating your weekly guide from saved course information...' }; publish();
+      try {
+        const next = buildGuide(saved, new Date().toISOString());
+        // Generation time must not make the collection appear newly refreshed.
+        next.generatedAt = saved.generatedAt;
+        const evidence = planningEvidence(next);
+        next.aiGuide = { ...await codex.plan(evidence, signal, { weekly: true }), generatedAt: new Date().toISOString() };
+        next.priorities = next.aiGuide.courses.flatMap(course => course.tasks);
+        next.planningCoverage = { omittedTexts: evidence.omissions.length, ...evidence.omittedRecords };
+        delete next.planningNote;
+        next.mode = 'AI weekly guide';
+        signal.throwIfAborted();
+        if (guide !== saved || binding !== JSON.stringify(store.value.lastGuideAccount)) throw new Error('The account or saved collection changed. Generate again from the current collection.');
+        guide = await guides.export(next, path.dirname(path.dirname(saved.outputPath)), account.userId, signal);
+        run = { busy: false, message: 'AI weekly guide created. Review its source links and questions before relying on it.' };
+        return snapshot();
+      } catch (error) {
+        run = { busy: false, message: signal.aborted ? 'Guide generation cancelled. Your previous guide is preserved.' : `Guide generation failed. Your previous guide is preserved. ${error.message}` };
+        throw new Error(run.message);
+      } finally { controller = null; publish(); }
+    });
     handle('history:source', async (runId, requestId) => {
       const account = store.value.lastGuideAccount;
       if (!account || historyAccount !== JSON.stringify(account)) throw new Error('Choose history for the current account.');

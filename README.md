@@ -12,8 +12,13 @@ included and can also be copied in the app. Exporting uses saved data and sends
 nothing to Canvas or AI. The pack includes all normalized collected records,
 source coverage and changes, including last-known material. It excludes login
 storage and local notes, but course text may contain personal information.
-The connected ChatGPT path now uses the same evidence projection with explicit
-input omissions; full connected weekly-guide generation remains planned.
+The connected ChatGPT path uses the same evidence projection with explicit
+input omissions. **Create my weekly guide** sends saved evidence to the connected
+account and produces an overview, course tasks and questions, with source quotes
+and recorded deadlines. Generation never refreshes Canvas. Failed or cancelled
+generation preserves the previous guide. Open guide includes the result in HTML,
+Markdown and Word; local preparation checkmarks remain separate from submissions.
+The older automatic Study suggestions setting still produces limited suggestions.
 
 See [the product plan](PRODUCT_PLAN.md) for the proposed end-user experience,
 delivery options, architecture, milestones, and acceptance criteria.

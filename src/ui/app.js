@@ -1,3 +1,5 @@
+import { weeklyView } from '../weekly-view.js';
+
 const api = window.canvasWeekly;
 let state;
 let page = 'week';
@@ -121,6 +123,14 @@ function renderWeek() {
     const exportButton = button('Export for AI', async () => { update(await api.exportForAI()); render(); }, 'primary');
     exportButton.disabled = state.run.busy;
     actions.append(exportButton, button('Copy study prompt', async () => { await api.copyStudyPrompt(); announce('Study prompt copied. Upload Course Information.md with it.'); }));
+    const generate = button('Create my weekly guide', async () => {
+      if (!state.ai.connected) { go('settings'); return; }
+      update(await api.generateGuide()); render();
+    });
+    generate.disabled = state.run.busy;
+    actions.append(generate);
+    if (state.run.busy && !state.canvas.connected) actions.append(button('Cancel', () => api.cancelRefresh()));
+    sharing.append(node('p', 'muted', 'Create my weekly guide sends the saved course evidence to your connected ChatGPT account. It does not refresh Canvas.'));
     sharing.append(actions, node('p', 'muted', 'Export uses the saved collection and sends nothing to an AI service. It includes source coverage and last-known information.'));
     const coverage = state.guide.planningCoverage;
     if (coverage && (coverage.omittedTexts || coverage.items || coverage.sources || coverage.courses || coverage.changes)) sharing.append(node('p', 'muted', `The last connected AI run omitted ${coverage.omittedTexts} full texts, ${coverage.items} assessment records, ${coverage.sources} material records, ${coverage.courses || 0} course summaries and ${coverage.changes || 0} changes because of input limits. The exported pack includes them; review it for a complete account of collected evidence.`));
@@ -148,7 +158,51 @@ function renderGuide() {
   const guide = state.guide;
   const format = value => value ? new Intl.DateTimeFormat(undefined, { timeZone: guide.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value)) : 'No date supplied';
   main.append(node('p', 'footer-note', `${guide.mode} · Updated ${format(guide.generatedAt)} · ${guide.timeZone}`));
-  if (guide.studyPlan) {
+  const weekly = weeklyView(guide);
+  if (weekly) {
+    const overview = card('Your AI weekly guide');
+    overview.append(node('p', 'muted', weekly.note), node('small', '', `AI generated: ${format(weekly.generatedAt)}. Collection timestamp remains above.`));
+    const appendCited = (container, entry) => {
+      container.append(node('p', '', entry.text));
+      for (const source of entry.citations) if (source.url) container.append(button(source.title, () => api.openSource(source.id), 'link'));
+    };
+    for (const entry of weekly.overview) appendCited(overview, entry);
+    main.append(overview);
+    for (const course of weekly.courses) {
+      const section = card(course.name);
+      section.append(node('p', '', course.focus));
+      for (const task of course.tasks) {
+        const content = node('div', 'study-task');
+        const body = node('div');
+        if (task.localId) {
+          const check = node('input'); check.type = 'checkbox'; check.checked = task.done; check.disabled = state.run.busy;
+          check.setAttribute('aria-label', `Preparation done: ${task.action}`);
+          check.addEventListener('change', () => perform(async () => { update(await api.setStudyTaskDone(task.localId, check.checked)); render(); }));
+          content.append(check);
+        }
+        body.append(node('h3', '', task.action), node('p', '', task.reason));
+        if (task.suggestedDate) body.append(node('p', 'muted', `Suggested study day: ${task.suggestedDate}`));
+        for (const fact of task.recorded) body.append(node('small', '', fact));
+        if (task.changedSinceDone) body.append(node('p', 'muted', 'Changed since you checked it off; review again.'));
+        const steps = node('ul');
+        for (const step of task.steps) {
+          const item = node('li', '', `${step.kind === 'suggested' ? 'Suggested preparation' : `${step.kind} (AI interpretation)`}: ${step.text}`);
+          if (step.quote) item.append(node('blockquote', '', step.quote));
+          steps.append(item);
+        }
+        body.append(steps);
+        for (const check of task.checks) body.append(node('p', 'muted', `Needs checking: ${check}`));
+        for (const source of task.citations) if (source.url) body.append(button('Original source', () => api.openSource(source.id), 'link'));
+        content.append(body); section.append(content);
+      }
+      main.append(section);
+    }
+    const questions = card('Questions to double-check');
+    for (const entry of weekly.questions) appendCited(questions, entry);
+    if (!weekly.questions.length) questions.append(node('p', 'muted', 'Review the source coverage below for collection gaps.'));
+    main.append(questions);
+  }
+  if (guide.studyPlan && !weekly) {
     const plan = guide.studyPlan;
     const overview = card('Your study plan');
     overview.append(node('p', '', plan.summary), node('p', 'muted', plan.note));

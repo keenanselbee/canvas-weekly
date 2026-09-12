@@ -70,7 +70,11 @@ Milestones:
 2. Replace suggestion-only connected output with a full weekly guide using the
    same pack: overview, per-course to-do list, deadline clusters, source citations
    and precise questions. Run it independently of collection and preserve the
-   previous successful output on failure. Add optional personal planning context.
+   previous successful output on failure. The separate Create my weekly guide
+   action, validated output, local checkmarks and app/Markdown/HTML/Word views are
+   implemented. Optional personal planning context and live generation-quality
+   review remain pending. The older automatic Study suggestions setting still
+   uses its legacy output until the primary-flow migration.
 3. Improve collection coverage within reviewed boundaries, guided by actual
    missing sources; improve connected-site discovery and consider user-supplied
    documents. Preserve provenance and make per-source limitations visible.

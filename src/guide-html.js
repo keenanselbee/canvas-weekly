@@ -70,7 +70,7 @@ export function renderHtml(guide) {
   const checksStart = tokens.findIndex((token, index) => token.type === 'heading_open' && token.tag === 'h2' && tokens[index + 1].content === 'Double-check before relying on this plan');
   const nextSection = tokens.findIndex((token, index) => index > checksStart && token.type === 'heading_open' && token.tag === 'h2');
   const checksEnd = nextSection < 0 ? tokens.length : nextSection;
-  const overviewAvailable = prefixEnd >= 0 && checksStart >= prefixEnd;
+  const overviewAvailable = !guide.aiGuide && prefixEnd >= 0 && checksStart >= prefixEnd;
   const render = (from, to) => markdown.renderer.render(tokens.slice(from, to), markdown.options, {});
   const focusStarts = tokens.flatMap((token, index) => index < prefixEnd && token.type === 'heading_open' && token.tag === 'h4' ? [index] : []);
   const prefix = focusStarts.length ? render(0, focusStarts[0]) + focusStarts.map((start, index) => `<section class="starting-point">${render(start, focusStarts[index + 1] ?? prefixEnd)}</section>`).join('\n') : render(0, prefixEnd);

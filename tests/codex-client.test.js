@@ -38,7 +38,7 @@ function fakeServer(overrides = {}, notifications = []) {
         child.stdout.write(JSON.stringify({ id: message.id, result }) + '\n');
         if (message.method === 'turn/start') {
           for (const notification of notifications) child.stdout.write(JSON.stringify(notification) + '\n');
-          child.stdout.write(JSON.stringify({ method: 'item/completed', params: { threadId: 'thread1', item: { type: 'agentMessage', text: JSON.stringify({ priorities: [{ sourceId: 'one', action: 'Read the notes', reason: 'Prepare before the deadline', suggestedDate: '2026-09-10', checks: [], steps: [{ text: 'Review the notes.', kind: 'suggested', quote: '' }] }] }) } } }) + '\n');
+          child.stdout.write(JSON.stringify({ method: 'item/completed', params: { threadId: 'thread1', item: { type: 'agentMessage', text: JSON.stringify(overrides.agentOutput || { priorities: [{ sourceId: 'one', action: 'Read the notes', reason: 'Prepare before the deadline', suggestedDate: '2026-09-10', checks: [], steps: [{ text: 'Review the notes.', kind: 'suggested', quote: '' }] }] }) } } }) + '\n');
           child.stdout.write(JSON.stringify({ method: 'turn/completed', params: { threadId: 'thread1', turn: { id: 'turn1', status: 'completed' } } }) + '\n');
         }
       });
@@ -71,6 +71,22 @@ test('Codex transport handles login and structured planning without granting too
 const usageEvent = (total, threadId = 'thread1') => ({ method: 'thread/tokenUsage/updated', params: { threadId, turnId: 'turn1', tokenUsage: { total } } });
 const tokenCounts = { totalTokens: 1500, inputTokens: 1200, cachedInputTokens: 800, outputTokens: 300, reasoningOutputTokens: 100 };
 const planningInput = { week: { today: '2026-09-10', end: '2026-09-13' }, timeZone: 'UTC', items: [{ id: 'one' }] };
+
+test('full weekly transport uses its output schema with the same disabled tool and network boundary', async () => {
+  const agentOutput = { overview: [{ text: 'Check the course materials.', sourceIds: ['course:1'] }],
+    courses: [{ courseId: '1', focus: 'The collected information is limited.', tasks: [] }], questions: [] };
+  const server = fakeServer({ agentOutput });
+  const client = new CodexClient({ directory: path.resolve('.codex-temp/codex-test'), spawnProcess: () => server.child });
+  try {
+    const output = await client.plan({ ...planningInput, courses: [{ id: '1' }], sources: [] }, undefined, { weekly: true });
+    assert.equal(output.courses[0].courseId, '1');
+    const turn = server.requests.find(item => item.method === 'turn/start').params;
+    assert.ok(turn.outputSchema.properties.courses);
+    assert.equal(turn.sandboxPolicy.networkAccess, false);
+    assert.equal(turn.approvalPolicy, 'never');
+    assert.match(server.requests.find(item => item.method === 'thread/start').params.developerInstructions, /Do not use tools/);
+  } finally { client.close(); }
+});
 
 test('planning usage uses cumulative reported totals and ignores unrelated, duplicate and invalid updates', async () => {
   const server = fakeServer({}, [usageEvent(tokenCounts), usageEvent(tokenCounts),
