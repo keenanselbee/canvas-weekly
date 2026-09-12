@@ -801,3 +801,13 @@ Work log
   account operations ran. Automatic installer dark mode, a wizard walkthrough and
   125/150/200% scaling validation remain pending; see windows-package.md for the
   preview hash and ux-design.md for the updated visual specification.
+
+- Reproduced the reported UAC-on-Next bug with native Windows radio controls:
+  a disabled preselected all-users radio remains checked after Only me is clicked.
+  Added a supported NSIS install-mode hook to select per-user mode before control
+  creation in non-elevated setup when elevation is disabled. The native regression
+  fixture passes with the production hook; no registry writes, installation or
+  elevation occur in that test. The rebuilt preview and isolated package checks
+  passed. Full wizard confirmation still needs the user because the native
+  inspection helper is unavailable. Existing all-users installations are retained
+  when installing a separate per-user copy; no Canvas account operations changed.

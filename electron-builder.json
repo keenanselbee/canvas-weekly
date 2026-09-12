@@ -15,6 +15,7 @@
     "artifactName": "Canvas-Weekly-${version}-${arch}-Setup.${ext}"
   },
   "nsis": {
+    "include": "build/installer.nsh",
     "installerIcon": "build/branding/icon.ico",
     "uninstallerIcon": "build/branding/icon.ico",
     "installerSidebar": "build/branding/installer-sidebar.bmp",

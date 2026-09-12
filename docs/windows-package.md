@@ -91,7 +91,23 @@ Current design preview (2026-09-11)
 
 Artifact: dist/preview/Canvas-Weekly-0.1.0-x64-Setup.exe
 
-SHA256: 78ec6eaa61b9ee86ad9f09255f02f8bff242f87b1e4d9412aadac33328cc5092
+SHA256: 813ed0baec0918a472462719dc72190e521142fa3cce4fa8f397b8ead4f4e5ef
+
+This replaces the initial design preview (78ec6ea...) with a per-user selection
+fix. A previous all-users install caused the assisted template to preselect the
+disabled all-users radio. Clicking Only me could leave both radios checked; Next
+checks the all-users radio and requests elevation. The build/installer.nsh hook
+defaults non-elevated setup to per-user mode before creating these controls when
+elevation is disabled. Uninstall mode and explicitly requested all-users mode keep
+the upstream behavior. A per-user install does not remove the existing all-users
+copy; upgrading/removing that copy remains an administrator operation.
+
+`node tools/test-installer-mode.mjs` compiles a native Windows radio fixture using
+the cached NSIS compiler. It reproduces both radios checked in the baseline and
+only the current-user radio checked with the production hook. The privilege and
+registry-derived mode are simulated; no registry writes, installation or UAC
+requests run. The Windows build and isolated package checks passed again. The
+user's complete Next-to-install flow remains to be checked in the rebuilt wizard.
 
 This preview adds the navy navigation rail, coordinated light/dark surfaces,
 round settings cog, native-size SVG navigation and shared calendar/check branding.
