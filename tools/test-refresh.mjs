@@ -12,6 +12,7 @@ try {
   await application.evaluate(({ session, dialog, shell }, output) => {
     globalThis.syntheticRequestCount = 0;
     shell.openPath = async value => { globalThis.syntheticOpenedPath = value; return ''; };
+    shell.showItemInFolder = value => { globalThis.syntheticRevealedPath = value; };
     const deadline = new Date().toISOString();
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [output] });
     globalThis.syntheticRecords = [{ id: '1', coverage: ['course', 'assignments', 'pages'].map(source => ({ source, status: 'ok', checkedAt: deadline })), sources: {
@@ -203,6 +204,11 @@ try {
   await page.evaluate(() => window.canvasWeekly.openGuide());
   assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeLocalChanges, 'Local progress and Open guide must not fetch Canvas');
   assert.equal(await application.evaluate(() => globalThis.syntheticOpenedPath), first.guide.documentPath);
+  await page.getByRole('button', { name: 'Export for AI', exact: true }).click();
+  await page.getByText(/Course Information.md is ready/).waitFor();
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeLocalChanges, 'Export for AI must not fetch Canvas');
+  assert.equal(await application.evaluate(() => globalThis.syntheticRevealedPath), first.guide.evidencePath);
+  assert.match(await fs.readFile(first.guide.evidencePath, 'utf8'), /Suggested prompt/);
   assert.match(await fs.readFile(first.guide.outputPath, 'utf8'), /- \[x\]/);
   assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.items[0].status, 'not-submitted');
   await page.reload();

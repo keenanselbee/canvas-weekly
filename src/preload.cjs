@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('canvasWeekly', {
   updateGuide: () => invoke('guide:update'),
   cancelRefresh: () => invoke('guide:cancel'),
   openGuide: () => invoke('guide:open'),
+  exportForAI: () => invoke('guide:export-ai'),
+  copyStudyPrompt: () => invoke('guide:copy-prompt'),
   setStudyTaskDone: (taskId, done) => invoke('guide:task', taskId, done),
   openSource: id => invoke('guide:source', id),
   openHistorySource: (runId, requestId) => invoke('history:source', runId, requestId),

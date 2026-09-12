@@ -52,7 +52,7 @@ test('Word export reuses unchanged bytes, preserves manual edits and restores al
     const output = path.join(directory, 'output');
     const guide = fixture();
     const first = await store.export(guide, output, 'one');
-    const paths = [first.outputPath, first.documentPath, first.wordPath];
+    const paths = [first.outputPath, first.documentPath, first.wordPath, first.evidencePath];
     const originals = await Promise.all(paths.map(file => fs.readFile(file)));
     const stat = await fs.stat(first.wordPath);
     await store.export(guide, output, 'one');

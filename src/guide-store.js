@@ -7,6 +7,7 @@ import { buildStudyPlan } from './study-plan.js';
 import { renderHtml } from './guide-html.js';
 import { renderWord, wordInputHash } from './guide-word.js';
 import { restoreLegacyEvidence } from './course-evidence.js';
+import { renderEvidencePack } from './evidence-pack.js';
 
 const sameBytes = (a, b) => a === undefined || b === undefined ? a === b : a.equals(b);
 
@@ -56,6 +57,7 @@ export class GuideStore {
       { name: 'Weekly Plan.md', hashKey: 'hash', bytes: Buffer.from(renderMarkdown(guide)) },
       { name: 'Weekly Plan.html', hashKey: 'htmlHash', bytes: Buffer.from(renderHtml(guide)) },
       { name: 'Weekly Plan.docx', hashKey: 'wordHash' },
+      { name: 'Course Information.md', hashKey: 'evidenceHash', bytes: Buffer.from(renderEvidencePack(guide)) },
     ];
     for (const file of files) {
       file.destination = path.join(weekDirectory, file.name);
@@ -79,7 +81,7 @@ export class GuideStore {
         if (file.oldBytes !== undefined) {
           const revisions = path.join(weekDirectory, 'Revisions');
           await fs.mkdir(revisions, { recursive: true });
-          await fs.writeFile(path.join(revisions, `${revision}${path.extname(file.name)}`), file.oldBytes, { flag: 'wx' });
+          await fs.writeFile(path.join(revisions, `${revision}-${file.name}`), file.oldBytes, { flag: 'wx' });
         }
       }
       signal?.throwIfAborted();
@@ -96,7 +98,7 @@ export class GuideStore {
         await atomicJson(markerFile, { owner, wordInputHash: inputHash, ...Object.fromEntries(files.map(file => [file.hashKey, contentHash(file.bytes)])) });
         markerWritten = true;
       }
-      const saved = { ...guide, outputPath: files[0].destination, documentPath: files[1].destination, wordPath: files[2].destination };
+      const saved = { ...guide, outputPath: files[0].destination, documentPath: files[1].destination, wordPath: files[2].destination, evidencePath: files[3].destination };
       await atomicJson(path.join(this.directory, owner, 'state.json'), saved);
       return saved;
     } catch (error) {

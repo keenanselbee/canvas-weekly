@@ -1,6 +1,10 @@
 Factual guide without AI
 =======================
 
+Superseded direction: see [Course evidence and AI study guides](evidence-first-plan.md).
+Keep delivered factual reference features, but pause further universal rule-based
+planning. The current priority is evidence coverage, export and connected AI.
+
 Proposed next milestone: the default guide should tell a student what is due,
 what the posted instructions say to do, and which specific details need checking.
 AI should be optional refinement, not a requirement for a useful guide.

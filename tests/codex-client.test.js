@@ -123,8 +123,8 @@ test('unexpected login hosts and unknown planning references are rejected', asyn
   } finally { client.close(); }
 });
 
-test('planner evidence excludes credentials and bounds source text', () => {
+test('planner evidence excludes credentials and preserves complete source text', () => {
   const evidence = planningEvidence({ week: {}, timeZone: 'UTC', inWeek: [{ id: 'one', instructions: 'x'.repeat(10000), token: 'secret' }], upcoming: [], undated: [] });
-  assert.equal(evidence.items[0].instructions.length, 3000);
+  assert.equal(evidence.items[0].instructions.length, 10000);
   assert.equal(evidence.items[0].token, undefined);
 });

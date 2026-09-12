@@ -4,6 +4,17 @@ Canvas Weekly is a Windows desktop app for weekly study guides and personal
 preparation checklists. Canvas access gathers information; it never starts or
 resumes assessments, submits work, or sends messages.
 
+The [revised product direction](docs/evidence-first-plan.md) prioritizes course
+information collection and AI-generated guides. After collecting, choose **Export
+for AI** to reveal `Course Information.md` in the weekly output folder. Review
+the document, then upload it to your preferred AI chat; its study prompt is
+included and can also be copied in the app. Exporting uses saved data and sends
+nothing to Canvas or AI. The pack includes all normalized collected records,
+source coverage and changes, including last-known material. It excludes login
+storage and local notes, but course text may contain personal information.
+The connected ChatGPT path now uses the same evidence projection with explicit
+input omissions; full connected weekly-guide generation remains planned.
+
 See [the product plan](PRODUCT_PLAN.md) for the proposed end-user experience,
 delivery options, architecture, milestones, and acceptance criteria.
 

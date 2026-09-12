@@ -4,6 +4,13 @@ Desktop experience
 Status: approved direction; implementation progress is tracked in implementation-plan.md.
 Target: a personal Windows app usable without a terminal or writing prompts.
 
+The [revised evidence-first direction](evidence-first-plan.md) adds Export for AI
+and Copy study prompt beside the saved collection. Export reveals a local
+Markdown document for review and manual upload; it never opens or submits an AI
+chat. A full connected Create my weekly guide action will replace the limited
+suggestion workflow in a subsequent milestone. The flow below remains the
+existing experience during this migration.
+
 
 Primary flow
 ------------

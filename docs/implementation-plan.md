@@ -5,6 +5,11 @@ The user authorized implementation and DIFF followed by COMMIT for each suitable
 milestone. The active goal is the usable personal Windows app, with explicit
 account-dependent validation gaps. Keep this file current as work progresses.
 
+Current objective: the [revised evidence and AI guide goal](evidence-first-plan.md)
+supersedes universal factual study planning. Preserve the desktop and safety
+requirements while prioritizing export for online AI chats and full connected
+weekly-guide generation. E1 below is delivered; E2-E4 remain active work.
+
 
 Milestone ledger
 ----------------
@@ -18,6 +23,10 @@ Milestone ledger
 | M4 | ChatGPT connection and optional planning | Official login, process lifecycle, bounded evidence, graceful fallback | Live account restoration and validated synthetic planning verified with pinned CLI; full-course quality review pending |
 | M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Reviewed course-message/syllabus reads, public/Basic websites, scoped PDF/DOCX text and Word export implemented; six-page native Word render verified; automatic Canvas instructions/pages/files, live sites and browser-login sites remain incomplete |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Unsigned x64 installer built; package inventory, matching installer payload, first-run themes and bundled Codex tested; installation walkthrough and live reconnect pending |
+| E1 | Shared evidence pack and Export for AI | Full normalized text, source IDs/coverage, explicit AI omissions, offline export and protected files | Implemented; 166 unit tests and synthetic desktop refresh passed |
+| E2 | Full connected weekly guide | Standalone generation from saved evidence; source-linked tasks and questions; failure preserves prior guide | Pending; current connected output remains limited preparation suggestions |
+| E3 | Improve permitted source coverage | Evidence-driven source additions with provenance and safety review | Pending; no collection permissions expanded by E1 |
+| E4 | Collection and AI routes in the primary UX | Simple collection/coverage/export/generate flow, useful factual fallback, desktop release checks | Initial export actions delivered; main-screen migration and final review pending |
 
 Scheduling, multi-provider support, public distribution and hosted service are
 subsequent enhancements. They are documented product directions, not prerequisites
@@ -884,3 +893,16 @@ Work log
   text remains within page bounds and source links are readable. A final wording
   correction removes a positional reference to instructions; compactness and
   repetition remain follow-up work. No personal Canvas collection was run.
+
+- Revised the goal toward course evidence collection and two AI guide routes.
+  Added a shared explicit evidence projection and Course Information.md with a
+  reusable study prompt, source coverage, changes and complete normalized text.
+  Export for AI uses saved local records and reveals the file without connecting
+  to Canvas or AI. Copy study prompt writes only the fixed prompt on user action.
+  Connected suggestions now consume the same projection with whole-text and
+  record omissions reported, rather than silently shortening each source.
+  Validation: 166 unit tests and the synthetic desktop refresh workflow passed;
+  targeted evidence tests also verify exception preservation, excluded private
+  state, manual edits, account ownership, revisions and rollback after a locked
+  evidence file. No new personal Canvas or AI requests were made. Full connected
+  guide generation and improved coverage remain subsequent milestones.

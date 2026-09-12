@@ -2,6 +2,12 @@ Application architecture
 ========================
 
 Status: implementation target with delivered components tracked in implementation-plan.md.
+The [revised product direction](evidence-first-plan.md) adds a shared evidence
+projection before either manual AI export or connected planning. The current
+connected output remains preparation suggestions; full weekly generation is a
+subsequent milestone. Export for AI is a local operation, with no collection or
+AI request. Its Course Information.md file uses the existing account ownership,
+manual-edit protection, revision and rollback behavior of GuideStore.
 The admitted Canvas path is the fixed metadata collector described in
 [its admission decision](canvas-metadata-admission.md), followed by the stored
 [syllabus field](canvas-syllabus-review.md) and two

@@ -7,6 +7,13 @@ This document does not enable scheduling or connect any accounts.
 
 ## Product goal
 
+Direction revised September 11, 2026: prioritize collecting and organizing course
+evidence, with an export-and-prompt route for online AI chats and a connected-AI
+route for weekly guide generation. The [revised goal and delivery plan](docs/evidence-first-plan.md)
+supersedes universal factual-planner ambitions below. The existing factual
+deadline view remains a useful fallback; collection permissions do not expand
+as a consequence of this product change.
+
 A student opens Canvas Weekly, connects Canvas through a supported login method,
 chooses courses, and gets a source-linked answer to: what do I need to do this
 week, what changed, and what should I start preparing for?

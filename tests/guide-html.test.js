@@ -48,6 +48,7 @@ test('HTML export migrates Markdown-only folders, preserves manual edits and rol
     // Previous releases owned only the Markdown document.
     await fs.rm(first.documentPath);
     await fs.rm(first.wordPath);
+    await fs.rm(first.evidencePath);
     await fs.writeFile(markerPath, JSON.stringify({ owner: store.accountKey(origin, 'one'), hash: contentHash(oldMarkdown) }));
     await store.export(guide, output, 'one');
     assert.equal(await fs.readFile(first.documentPath, 'utf8'), oldHtml);

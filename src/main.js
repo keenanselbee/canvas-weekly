@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, dialog, shell, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, dialog, shell, safeStorage, clipboard } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -9,6 +9,7 @@ import { reconcile, buildGuide } from './guide.js';
 import { CodexClient, planningEvidence } from './codex-client.js';
 import { referenceUrl } from './content.js';
 import { guideSources } from './study-plan.js';
+import { STUDY_PROMPT } from './evidence-pack.js';
 import { CourseWebsites } from './course-websites.js';
 import { CollectionHistory } from './collection-history.js';
 import { readingSelection, READING_VERSION, EXPANDED_AVAILABLE, EXPANDED_HOLD } from './reading-policy.js';
@@ -279,7 +280,11 @@ else {
         const next = buildGuide(reconcile(records, previous, { origin: binding.origin, now: new Date().toISOString(), timeZone: store.value.timeZone }));
         if (store.value.aiEnabled) {
           run = { busy: true, message: 'Preparing study suggestions with ChatGPT…' }; publish();
-          try { next.priorities = await codex.plan(planningEvidence(next), signal); next.mode = 'Factual guide with AI study suggestions'; }
+          try {
+            const evidence = planningEvidence(next);
+            next.planningCoverage = { omittedTexts: evidence.omissions.length, ...evidence.omittedRecords };
+            next.priorities = await codex.plan(evidence, signal); next.mode = 'Factual guide with AI study suggestions';
+          }
           catch (error) { signal.throwIfAborted(); next.planningNote = error.message; }
         }
         signal.throwIfAborted();
@@ -337,6 +342,21 @@ else {
       const error = await shell.openPath(guide.documentPath || guide.outputPath);
       if (error) throw new Error(error);
     });
+    handle('guide:export-ai', async () => {
+      requireIdle();
+      const account = store.value.lastGuideAccount;
+      if (!account || !guide?.outputPath) throw new Error('Collect course information before exporting for AI.');
+      run = { busy: true, message: 'Preparing your course information pack...' }; publish();
+      try {
+        // Only saved local evidence. Export never collects or sends data to AI.
+        guide = await guides.export(guide, path.dirname(path.dirname(guide.outputPath)), account.userId);
+        shell.showItemInFolder(guide.evidencePath);
+        run = { busy: false, message: 'Course Information.md is ready. Review it, then upload it to your chosen AI chat. The study prompt is included.' };
+        return snapshot();
+      } catch (error) { run = { busy: false, message: error.message }; throw error; }
+      finally { publish(); }
+    });
+    handle('guide:copy-prompt', () => { clipboard.writeText(STUDY_PROMPT); });
     handle('guide:source', async id => {
       const source = guide && guideSources(guide).find(item => item.id === id);
       const url = source && referenceUrl(source.sourceUrl, guide.origin);

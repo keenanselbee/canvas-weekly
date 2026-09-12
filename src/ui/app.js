@@ -114,7 +114,19 @@ function renderWeek() {
     coverage.append(node('p', '', state.canvas.collectionNotice));
     main.append(coverage);
   }
-  if (state.guide) { renderGuide(); return; }
+  if (state.guide) {
+    const sharing = card('Use your course information with AI');
+    sharing.append(node('p', '', 'Export the collected course information and a study prompt for your preferred AI chat. Review the document before uploading; it includes course messages and may contain personal information.'));
+    const actions = node('div', 'actions');
+    const exportButton = button('Export for AI', async () => { update(await api.exportForAI()); render(); }, 'primary');
+    exportButton.disabled = state.run.busy;
+    actions.append(exportButton, button('Copy study prompt', async () => { await api.copyStudyPrompt(); announce('Study prompt copied. Upload Course Information.md with it.'); }));
+    sharing.append(actions, node('p', 'muted', 'Export uses the saved collection and sends nothing to an AI service. It includes source coverage and last-known information.'));
+    const coverage = state.guide.planningCoverage;
+    if (coverage && (coverage.omittedTexts || coverage.items || coverage.sources || coverage.courses || coverage.changes)) sharing.append(node('p', 'muted', `The last connected AI run omitted ${coverage.omittedTexts} full texts, ${coverage.items} assessment records, ${coverage.sources} material records, ${coverage.courses || 0} course summaries and ${coverage.changes || 0} changes because of input limits. The exported pack includes them; review it for a complete account of collected evidence.`));
+    main.append(sharing);
+    renderGuide(); return;
+  }
   const welcome = card();
   welcome.classList.add('welcome');
   welcome.append(node('div', 'eyebrow', 'WELCOME TO CANVAS WEEKLY'), node('h2', '', 'Know what to focus on. Keep the details close.'), node('p', '', 'Bring deadlines, readings, and course updates into one weekly guide, with links back to the source.'));
@@ -580,6 +592,7 @@ function renderPrivacy() {
   const sharingStatus = node('p', 'privacy-status', `Study suggestions: ${state.settings.aiEnabled ? 'On' : 'Off'}${state.settings.aiEnabled && !state.ai.connected ? ' - ChatGPT sign-in needed' : ''}`);
   sharingStatus.id = 'privacy-sharing-status'; sharingStatus.setAttribute('role', 'status');
   sharing.append(sharingStatus, node('p', '', 'When enabled, relevant course text, including course messages and supplied sender names, is sent through Codex to your connected ChatGPT account for preparation suggestions. Canvas login credentials are not provided to the planner.'),
+    node('p', '', 'Export for AI creates Course Information.md locally. It includes collected course text, source coverage and changes, but excludes login storage, local notes and previous AI output. Review it before uploading to an AI chat: course text can contain personal information, and automatic credential filtering may miss unusual formats.'),
     node('p', 'muted', 'Connecting ChatGPT alone does not enable suggestions. Information sent to the AI service is subject to its data policies and your account settings.'));
   const changes = card('What the app can change');
   changes.append(node('p', '', 'Canvas Weekly does not start or resume quizzes, submit coursework, or send messages. Study checkmarks update your local guide only.'),
