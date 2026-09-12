@@ -734,3 +734,14 @@ Work log
   and local checklist preservation. No personal Canvas or AI request was made.
   See canvas-rubric-review.md. Expanded reading, live UBC compatibility and a rebuilt
   installer remain outstanding.
+
+- Rebuilt the local Windows installer from application commit a2b4c9c. Extended
+  packaged smoke checks cover privacy navigation, empty account history,
+  contextual Forget controls, pending expanded reading and AI-off defaults.
+  test:package passes with matching source/installer payload, no private state,
+  bundled Codex initialization, document workers, Desktop default and theme
+  persistence. Light/dark first-run screenshots were inspected. Latest installer
+  SHA256: 307cd49c316b0e0a2475251cdb567dc90294f962181f68bfb1459c579181b01d.
+  Updated the architecture and release review for rubric coverage and the
+  remaining account-dependent checks. No installation, personal login or live
+  collection was performed; a human test of the current build is still needed.

@@ -78,6 +78,29 @@ workflow. ARM64 and other operating systems have not been packaged or verified.
 Current validated build (2026-09-11)
 ----------------------------------
 
+The latest local installer includes the Data & privacy page, contextual Forget
+controls, per-course reading preferences, durable collection history, supplied
+message sender names and partial rubric criterion text. Its application sources
+match commit a2b4c9c. Expanded reading remains unavailable and AI suggestions
+default to off; saved pending reading preferences do not enable additional reads.
+
+Artifact: dist/Canvas-Weekly-0.1.0-x64-Setup.exe
+
+SHA256: 307cd49c316b0e0a2475251cdb567dc90294f962181f68bfb1459c579181b01d
+
+test:package passed with a new isolated profile, including matching source and
+installer payload, private-data exclusions, bundled Codex initialization without
+an account, document workers, Desktop output default and theme persistence.
+New checks cover the privacy page, empty collection history, contextual Forget
+buttons, disabled expanded reading and AI-off defaults. Light/dark first-run
+screens were inspected. The test does not install the app, authenticate to UBC
+or send a planning request. Live login/refresh and installer walkthrough remain
+unverified. This artifact supersedes the earlier hashes below.
+
+
+Earlier validated builds
+------------------------
+
 The local unsigned metadata-refresh build passed test:package with an isolated
 profile. The test verifies the installer payload against win-unpacked and current
 source, private-state exclusions, bundled Codex initialization, PDF/Word workers,

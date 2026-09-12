@@ -63,11 +63,27 @@ try {
   assert.equal(state.ai.available, false, 'Runtime detection must not launch it');
   assert.equal(state.guide, null);
   assert.equal(state.canvas.collectionIssue, null);
-  assert.match(state.canvas.collectionNotice, /Course messages and syllabus text are checked when available/);
+  assert.match(state.canvas.collectionNotice, /Course messages, syllabus text and rubric criteria are checked when available/);
   assert.match(state.canvas.collectionNotice, /Assignment instructions and other materials remain incomplete/);
   await assert.rejects(page.evaluate(() => window.canvasWeekly.updateGuide()), /Connect Canvas/);
   assert.equal(state.settings.lastGuideAccount, null);
   assert.equal(state.settings.outputDirectory, null);
+  assert.equal(state.settings.aiEnabled, false);
+  assert.equal(state.reading.available, false, 'Pending expanded reading must not become active in the package');
+  assert.deepEqual(state.settings.courseReading, []);
+  assert.deepEqual(state.collectionHistory, []);
+  assert.equal(state.canvas.canForget, false);
+  assert.equal(state.ai.canForget, false);
+  await page.getByRole('button', { name: 'Data & privacy', exact: true }).click();
+  await page.getByRole('heading', { name: 'Data & privacy', exact: true }).waitFor();
+  assert.match(await page.locator('#privacy-sharing-status').textContent(), /Study suggestions: Off/);
+  assert.match(await page.locator('main').textContent(), /rubric criterion text/);
+  assert.match(await page.locator('#collection-history').textContent(), /No collection runs recorded/);
+  await page.getByRole('button', { name: 'Manage saved logins', exact: true }).click();
+  await page.getByRole('heading', { name: 'Settings', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Forget Canvas login', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Forget ChatGPT login', exact: true }).count(), 0);
+  await page.getByRole('button', { name: 'This week', exact: true }).click();
   for (const [type, bytes] of [['pdf', pdf()], ['docx', await word('Supplementary reading is optional.')]]) {
     const content = await application.evaluate(async ({ app }, { type, bytes }) => {
       const require = process.getBuiltinModule('module').createRequire(app.getAppPath() + '/src/document-reader.js');
@@ -100,5 +116,5 @@ try {
   const restarted = await application.firstWindow();
   await restarted.locator('html[data-theme="dark"]').waitFor();
   assert.equal((await restarted.evaluate(() => window.canvasWeekly.getState())).settings.theme, 'dark');
-  console.log(JSON.stringify({ result: 'Packaged app passed: source inventory, no private state, matching installer payload, PDF/Word reader workers, fresh profile, Desktop default, bundled Codex initialization, theme rendering and restart persistence.', profile, installerSHA256: await hash(installer) }));
+  console.log(JSON.stringify({ result: 'Packaged app passed: source inventory, no private state, matching installer payload, PDF/Word reader workers, fresh profile, privacy/history and safe defaults, contextual Forget controls, Desktop default, bundled Codex initialization, theme rendering and restart persistence.', profile, installerSHA256: await hash(installer) }));
 } finally { await application.close(); }
