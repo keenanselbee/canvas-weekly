@@ -757,3 +757,14 @@ Work log
   optional/fatal failures and exclusion of rating contents from audit logs. No
   personal Canvas or AI request was made. This source milestone is newer than the
   last packaged installer; the live-login question for that installer is pending.
+
+- Revalidated local activity while awaiting the live test. Development audit logs
+  show successful profile/course-list responses, but no new collection history or
+  refreshed saved guide. An installed app window then appeared; its main executable,
+  app archive and bundled Codex hashes match the verified installer payload. Only
+  the installed window remained after the briefly opened development window closed.
+  The installed profile had no collection history at inspection. Installed execution
+  is now verified for the a2b4c9c application build; wizard/elevation, uninstall,
+  clean-machine use and a real selected-course refresh remain unverified. The rating
+  description source change is newer than that installed build. No automated
+  course refresh or personal AI planning request was issued during this inspection.

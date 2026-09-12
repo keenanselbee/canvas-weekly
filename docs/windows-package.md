@@ -97,6 +97,14 @@ screens were inspected. The test does not install the app, authenticate to UBC
 or send a planning request. Live login/refresh and installer walkthrough remain
 unverified. This artifact supersedes the earlier hashes below.
 
+Subsequent local inspection found the installed application running from
+C:\Program Files\Canvas Weekly. Its app.asar, Canvas Weekly.exe and bundled
+codex.exe hashes match the verified win-unpacked payload. This verifies installed
+execution of that build; the installer wizard, elevation behavior, uninstall and
+clean-machine experience were not observed. The installed profile had no collection
+history at inspection, so live course refresh remains unverified. The later rating
+description source commit a27ccfb is not included in this installed artifact.
+
 
 Earlier validated builds
 ------------------------

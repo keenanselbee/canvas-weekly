@@ -12,7 +12,7 @@ Requirements and evidence
 
 | Requirement | Current evidence | Remaining acceptance |
 | --- | --- | --- |
-| Simple Windows app, no terminal needed for routine use | Electron shell; x64 installer includes Codex; package test checks actual bundled source/runtime and first-run state | Human installation/uninstallation walkthrough and clean-machine check |
+| Simple Windows app, no terminal needed for routine use | Electron shell; x64 installer includes Codex; package test checks bundled source/runtime and first-run state; running installed app, archive and Codex binary match the verified payload | Installer wizard/elevation, uninstall and clean-machine walkthrough remain unverified |
 | System light/dark with persistent overrides | nativeTheme integration; desktop/package tests and light/dark screenshots | No known implementation gap; other Windows display configurations remain untested |
 | Human Canvas sign-in and saved course selection | Narrow login bridge, encrypted credentials, isolated synthetic connection lifecycle tests; earlier user login succeeded before the latest restrictions | Reopen the current build and validate tightened UBC login and a real selected-course refresh |
 | Never start/resume quizzes, submit or message; preserve learning/read state | Denied assessment/action routes, exact pending-request admission, reviewed fixed queries, local network fixtures and request ledger | Historical account invariance cannot be certified without the missing earlier baseline; current UBC resolver/deployment assumptions remain unverified |
