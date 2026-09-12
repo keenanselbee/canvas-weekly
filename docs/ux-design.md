@@ -8,6 +8,9 @@ Target: a personal Windows app usable without a terminal or writing prompts.
 Primary flow
 ------------
 
+The product tagline is "Your week, simplified." Use it consistently in the app,
+standalone guide and installer artwork.
+
 The navigation has four destinations: This week, Courses, Settings, and Data & privacy. A fixed
 sidebar carries the product name, navigation, and connection status. This week
 leads with the academic week, last refresh, and a single primary Update guide
@@ -157,6 +160,8 @@ icon. Its native wizard controls do not yet follow automatic dark mode. This is
 a separate remaining prototype and Windows validation task; the app's existing
 System/Light/Dark behavior does not theme NSIS controls. Validate installer pages,
 focus, high contrast and 125/150/200% scaling before claiming full theme support.
+The proposed existing-installation screen and supported dark-theme implementation
+are described in [installer experience](installer-experience.md).
 
 
 Interaction and accessibility

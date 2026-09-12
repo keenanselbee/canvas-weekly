@@ -811,3 +811,14 @@ Work log
   passed. Full wizard confirmation still needs the user because the native
   inspection helper is unavailable. Existing all-users installations are retained
   when installing a separate per-user copy; no Canvas account operations changed.
+
+- Updated the tagline to "Your week, simplified." across the app, HTML guide and
+  generated installer artwork. The current packaged app detects this computer's
+  dark Windows preference with a fresh System profile. Added a packaged display
+  fixture covering all four navigation pages in both themes at rendering scales
+  1/1.25/1.5/2 and zoom factors 1/2; horizontal layout checks pass. This simulates
+  display scaling and does not certify monitor transitions or native installer
+  controls. An initial cropped screenshot was a capture issue; no responsive CSS
+  change was retained. Guide tests and the rebuilt package checks pass. Documented
+  the proposed maintenance screen and Inno Setup theme candidate separately;
+  installer dark mode and the full human installation flow remain incomplete.

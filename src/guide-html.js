@@ -98,7 +98,7 @@ ${render(checksStart, checksEnd)}<div class="print-detail">${render(checksEnd)}<
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-${cssHash}'; base-uri 'none'; form-action 'none'">
 <title>Study guide | ${escape(guide.week.start)} | Canvas Weekly</title><style>${styles}</style></head>
-<body><div class="layout"><nav aria-label="Guide sections"><p class="brand">Canvas Weekly</p><p>Your week, in view</p><ol>
+<body><div class="layout"><nav aria-label="Guide sections"><p class="brand">Canvas Weekly</p><p>Your week, simplified.</p><ol>
 ${navigation}
 </ol></nav><details class="mobile-navigation"><summary>On this page</summary><ol>${navigation}</ol></details>
 <main><aside class="reading-note">Saved guide. Check off tasks in Canvas Weekly. Use your browser's Print command to print or save as PDF.

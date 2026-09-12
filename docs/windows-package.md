@@ -16,6 +16,13 @@ already installed by npm. Publishing and automatic signing discovery are disable
 `npm run build:windows -- --dir` produces the app directory without an installer;
 the complete package test requires the installer as well.
 
+After a preview build, `node tools/test-display.mjs` checks the packaged app with
+fresh profiles at rendering scales 1/1.25/1.5/2 and normal/200% zoom in both themes.
+It checks horizontal overflow on the four navigation pages and captures the client
+area after painting. Pass scale numbers to narrow a visual recheck, for example
+`node tools/test-display.mjs 1`. These are simulated app rendering scales, not
+installer DPI or physical-monitor transition tests. No Windows preference is changed.
+
 Use `npm run build:windows -- --preview` and `npm run test:package -- --preview`
 to build and verify in `dist/preview` while the ordinary unpacked app is running.
 The preview switch changes only the build directory; it does not create a separate
@@ -91,7 +98,13 @@ Current design preview (2026-09-11)
 
 Artifact: dist/preview/Canvas-Weekly-0.1.0-x64-Setup.exe
 
-SHA256: 813ed0baec0918a472462719dc72190e521142fa3cce4fa8f397b8ead4f4e5ef
+SHA256: e5e44d2b1e7ff6a65f6865417219ab99ea954e6cec2df3f146e3ea1fd2bbcbc8
+
+The latest rebuild retains the per-user fix and changes the app, standalone HTML
+guide and installer tagline to "Your week, simplified." Package and guide checks
+passed. This supersedes the per-user-fix artifact with hash 813ed0ba.... Installer
+dark mode remains unimplemented; see [installer experience](installer-experience.md)
+for the maintenance-screen and theme direction.
 
 This replaces the initial design preview (78ec6ea...) with a per-user selection
 fix. A previous all-users install caused the assisted template to preselect the
