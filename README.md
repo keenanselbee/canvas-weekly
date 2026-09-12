@@ -190,7 +190,10 @@ separate from your existing setup and does not inherit API keys as a paid fallba
 AI receives bounded selected course text, with no Canvas credentials. Failed
 planning preserves the previous output. Real runtime initialization is verified;
 real ChatGPT account restoration and a planning turn using synthetic course evidence
-are now verified. Full real-course planning quality still needs review.
+were verified for the earlier suggestion format. The full weekly-guide format
+still needs a live quality review. See the [AI acceptance procedure](docs/ai-guide-acceptance.md)
+for offline fictional evidence preparation and the explicit `npm run test:ai-live`
+check. Full real-course planning quality also remains unverified.
 
 Requires Node.js 22.13 or later for development. Run `npm ci`, then `npm start`.
 Run `npm test` for settings validation and `npm run test:desktop` for Electron UI

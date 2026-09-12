@@ -1008,3 +1008,21 @@ Work log
   reader-to-evidence-to-AI-view path; recovery tests cover source isolation,
   idempotence and replacement/failed-read behavior. No personal Canvas or AI
   requests were made.
+
+
+- Added a repeatable full weekly-guide acceptance fixture and explicit live-test
+  command. Four fictional courses cover shared deadlines, optional conditions,
+  submitted and undated work, unverified deadline conflicts, missing instructions,
+  a partial imported document and embedded hostile source instructions. Preparation
+  exports the exact bounded input and a ten-point semantic review checklist.
+  The live command uses the development app connection and production planner
+  contract; it records token usage, rejected tool requests and generated output
+  without contacting Canvas or loading personal course data. Schema success
+  leaves semantic review pending. README now distinguishes the older live
+  suggestion test from full-guide quality, which remains unverified.
+  Validation: all 180 unit tests passed and offline preparation succeeded.
+  The attempted live check stopped before runtime startup because the development
+  profile has no current remembered-login marker. Existing encrypted legacy
+  credentials were left untouched; no personal Canvas or AI request was made.
+  See ai-guide-acceptance.md. This is acceptance tooling only, with no change to
+  the installed app or candidate installer.

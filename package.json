@@ -19,6 +19,7 @@
     "test:remember": "node tools/test-remember.mjs",
     "test:document": "node tools/test-guide-document.mjs",
     "test:imports": "node tools/test-course-documents.mjs",
+    "test:ai-live": "node tools/test-ai-live.mjs --live",
     "test:word-layout": "node tools/test-word-layout.mjs",
     "test:websites": "node tools/test-website-network.mjs",
     "build:windows": "node tools/build-windows.mjs",
