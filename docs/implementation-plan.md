@@ -24,7 +24,7 @@ Milestone ledger
 | M5 | Broader course evidence and Word output | Sources/coverage visible, document render verified, no unsupported completeness claims | Reviewed course-message/syllabus reads, public/Basic websites, scoped PDF/DOCX text and Word export implemented; six-page native Word render verified; automatic Canvas instructions/pages/files, live sites and browser-login sites remain incomplete |
 | M6 | Windows package and end-to-end review | Installable local artifact, no secrets, first-run UX, refresh/reconnect tested | Unsigned x64 installer built; package inventory, matching installer payload, first-run themes and bundled Codex tested; installation walkthrough and live reconnect pending |
 | E1 | Shared evidence pack and Export for AI | Full normalized text, source IDs/coverage, explicit AI omissions, offline export and protected files | Implemented; 166 unit tests and synthetic desktop refresh passed |
-| E2 | Full connected weekly guide | Standalone generation from saved evidence; source-linked tasks and questions; failure preserves prior guide | Core generation and shared views implemented; personal planning context and live quality review pending |
+| E2 | Full connected weekly guide | Standalone generation from saved evidence; source-linked tasks and questions; failure preserves prior guide | Core generation, shared views and opt-in personal preferences implemented; live quality review pending |
 | E3 | Improve permitted source coverage | Evidence-driven source additions with provenance and safety review | Pending; no collection permissions expanded by E1 |
 | E4 | Collection and AI routes in the primary UX | Simple collection/coverage/export/generate flow, useful factual fallback, desktop release checks | Initial export actions delivered; main-screen migration and final review pending |
 
@@ -921,3 +921,16 @@ Work log
   no Canvas requests, preserved collection timestamps, exported the AI content,
   and retained identical prior guide state after failure and cancellation.
   No live Canvas or AI account was used.
+
+- Added account-scoped study availability, priorities and guide length with
+  explicit sharing disabled by default. Both AI routes use the same opted-in
+  projection. Existing AI guides retain the preferences they used and flag later
+  changes; clearing settings does not claim to erase prior documents or uploads.
+  Settings drafts survive ordinary status rerenders but reset on account changes.
+  Validation: 171 unit tests passed, including input limits, default non-sharing,
+  restart persistence, cross-account isolation and export/AI parity. The synthetic
+  desktop workflow passed form entry, opt-in sharing, changed-preference notices,
+  generation input, clearing and account-switch checks without Canvas requests.
+  Light/dark screenshot capture returned the wrong window region and does not
+  establish visual QA; verify the form during the primary UI cleanup. Collection
+  permissions remain unchanged; no personal Canvas or AI requests were made.

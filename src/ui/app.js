@@ -5,6 +5,7 @@ let state;
 let page = 'week';
 let preview = false;
 let noticeTimer;
+let planningDraft = null;
 const main = document.querySelector('main');
 
 function node(tag, className, text) {
@@ -30,6 +31,8 @@ function announce(message, persistent = false) {
   if (!persistent) noticeTimer = setTimeout(() => { notice.hidden = true; }, 4500);
 }
 function update(next) {
+  if (state && (JSON.stringify(state.settings.lastGuideAccount) !== JSON.stringify(next.settings.lastGuideAccount)
+    || JSON.stringify(state.planningPreferences) !== JSON.stringify(next.planningPreferences))) planningDraft = null;
   const sharingChanged = state && state.settings.aiEnabled !== next.settings.aiEnabled;
   if (next.canvas.error && next.canvas.error !== state?.canvas.error) announce(next.canvas.error, true);
   const runChanged = state && (state.run?.busy !== next.run?.busy || state.run?.message !== next.run?.message);
@@ -162,6 +165,7 @@ function renderGuide() {
   if (weekly) {
     const overview = card('Your AI weekly guide');
     overview.append(node('p', 'muted', weekly.note), node('small', '', `AI generated: ${format(weekly.generatedAt)}. Collection timestamp remains above.`));
+    if (weekly.preferencesChanged) overview.append(node('p', 'muted', 'Study preferences changed after this guide was generated. Create a new guide to use the current preferences.'));
     const appendCited = (container, entry) => {
       container.append(node('p', '', entry.text));
       for (const source of entry.citations) if (source.url) container.append(button(source.title, () => api.openSource(source.id), 'link'));
@@ -559,6 +563,36 @@ function renderSettings() {
   select.addEventListener('change', () => perform(async () => { update(await api.setTheme(select.value)); }));
   appearance.append(row('Theme', 'Follow Windows, or choose a look for this app.', select));
   main.append(connections);
+  const preferences = card('Study preferences');
+  preferences.append(node('p', 'muted', 'Optional availability, priorities and guide length for this Canvas account. Saved on this device; included in AI exports and generation only when you enable sharing below.'));
+  if (!state.guide) preferences.append(node('p', '', 'Collect course information before saving study preferences.'));
+  else {
+    const saved = planningDraft || state.planningPreferences;
+    const availability = node('textarea'); availability.rows = 3; availability.maxLength = 1500; availability.value = saved.availability;
+    availability.id = 'study-availability'; availability.placeholder = 'For example: Tuesday and Thursday evenings; about 6 hours this week.';
+    const availabilityLabel = node('label', '', 'Available study time'); availabilityLabel.htmlFor = availability.id;
+    const priorities = node('textarea'); priorities.rows = 3; priorities.maxLength = 1500; priorities.value = saved.priorities;
+    priorities.id = 'study-priorities'; priorities.placeholder = 'For example: focus on SQL practice and prepare questions before each lab.';
+    const prioritiesLabel = node('label', '', 'Priorities and preferences'); prioritiesLabel.htmlFor = priorities.id;
+    const detail = node('select'); detail.setAttribute('aria-label', 'Guide length');
+    for (const value of ['brief', 'standard', 'detailed']) { const option = node('option', '', value[0].toUpperCase() + value.slice(1)); option.value = value; detail.append(option); }
+    detail.value = saved.detail;
+    const share = node('input'); share.type = 'checkbox'; share.checked = saved.includeWithAI;
+    const shareLabel = node('label', 'remember-login'); shareLabel.append(share, document.createTextNode(' Include these preferences with AI exports and generation'));
+    share.setAttribute('aria-label', 'Include study preferences with AI');
+    const fields = node('div', 'study-preferences'); fields.append(availabilityLabel, availability, prioritiesLabel, priorities, row('Guide length', '', detail), shareLabel);
+    const actions = node('div', 'actions');
+    const save = button('Save study preferences', async () => { update(await api.savePlanningPreferences({ availability: availability.value, priorities: priorities.value, detail: detail.value, includeWithAI: share.checked })); planningDraft = null; render(); });
+    const clear = button('Clear study preferences', async () => { update(await api.savePlanningPreferences({ availability: '', priorities: '', detail: 'standard', includeWithAI: false })); planningDraft = null; render(); });
+    save.disabled = state.run.busy; clear.disabled = state.run.busy || (!saved.availability && !saved.priorities && !saved.includeWithAI && saved.detail === 'standard');
+    for (const field of [availability, priorities, detail, share]) field.disabled = state.run.busy;
+    for (const field of [availability, priorities, detail, share]) field.addEventListener('input', () => {
+      planningDraft = { availability: availability.value, priorities: priorities.value, detail: detail.value, includeWithAI: share.checked };
+      clear.disabled = state.run.busy || (!planningDraft.availability && !planningDraft.priorities && !planningDraft.includeWithAI && planningDraft.detail === 'standard');
+    });
+    actions.append(save, clear); preferences.append(fields, actions);
+  }
+  main.append(preferences);
   renderReadingSettings();
   main.append(output, appearance);
 }
@@ -647,7 +681,7 @@ function renderPrivacy() {
   sharingStatus.id = 'privacy-sharing-status'; sharingStatus.setAttribute('role', 'status');
   sharing.append(sharingStatus, node('p', '', 'When enabled, relevant course text, including course messages and supplied sender names, is sent through Codex to your connected ChatGPT account for preparation suggestions. Canvas login credentials are not provided to the planner.'),
     node('p', '', 'Export for AI creates Course Information.md locally. It includes collected course text, source coverage and changes, but excludes login storage, local notes and previous AI output. Review it before uploading to an AI chat: course text can contain personal information, and automatic credential filtering may miss unusual formats.'),
-    node('p', 'muted', 'Connecting ChatGPT alone does not enable suggestions. Information sent to the AI service is subject to its data policies and your account settings.'));
+    node('p', 'muted', 'Study preferences are stored per Canvas account. With Include with AI enabled, availability, priorities and guide length are included in exports and AI input. Clearing or disabling them affects future exports and generation; it does not recall older documents or information already uploaded. Connecting ChatGPT alone does not enable suggestions. Information sent to the AI service is subject to its data policies and your account settings.'));
   const changes = card('What the app can change');
   changes.append(node('p', '', 'Canvas Weekly does not start or resume quizzes, submit coursework, or send messages. Study checkmarks update your local guide only.'),
     node('p', 'muted', 'Collection uses restricted requests and stops when required safety checks fail. Opening an original source uses your browser, outside these collection protections.'));

@@ -20,6 +20,13 @@ generation preserves the previous guide. Open guide includes the result in HTML,
 Markdown and Word; local preparation checkmarks remain separate from submissions.
 The older automatic Study suggestions setting still produces limited suggestions.
 
+Settings also has optional **Study preferences** for available time, priorities
+and guide length. They are saved per Canvas account. Sharing is off by default;
+enable **Include these preferences with AI exports and generation** to use them
+in either AI route. Changing shared preferences flags an existing AI guide for
+regeneration. Clearing preferences affects future output, not documents or data
+already shared.
+
 See [the product plan](PRODUCT_PLAN.md) for the proposed end-user experience,
 delivery options, architecture, milestones, and acceptance criteria.
 

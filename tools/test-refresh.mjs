@@ -268,6 +268,7 @@ try {
       globalThis.weeklyTestClient = this;
       this.state.connected = true;
       if (!options?.weekly) return original.call(this, evidence, signal);
+      globalThis.weeklyTestEvidence = evidence;
       if (globalThis.weeklyTestMode === 'fail') throw new Error('Synthetic weekly generation failure');
       if (globalThis.weeklyTestMode === 'wait') return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
       return validateWeeklyGuide({ overview: [{ text: 'Prepare the practice and check the materials.', sourceIds: ['1:assignment:10'] }],
@@ -300,6 +301,32 @@ try {
   assert.deepEqual((await page.evaluate(() => window.canvasWeekly.getState())).guide, generated);
   assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeGeneration);
   await application.evaluate(() => { globalThis.weeklyTestMode = 'success'; });
+  const preferences = { availability: 'Tuesday and Thursday evenings', priorities: 'Practice SQL before the lab', detail: 'brief', includeWithAI: false };
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('Available study time', { exact: true }).fill(preferences.availability);
+  await page.getByLabel('Priorities and preferences', { exact: true }).fill(preferences.priorities);
+  await page.getByLabel('Guide length', { exact: true }).selectOption('brief');
+  await page.getByLabel('Include study preferences with AI', { exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Save study preferences', exact: true }).click();
+  await page.getByText(/Study preferences saved/).waitFor();
+  assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.planningPreferences, null);
+  await page.getByLabel('Include study preferences with AI', { exact: true }).check();
+  await page.getByRole('button', { name: 'Save study preferences', exact: true }).click();
+  await page.waitForFunction(async () => (await window.canvasWeekly.getState()).planningPreferences.includeWithAI);
+  assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.aiPreferencesChanged, true);
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(theme => window.canvasWeekly.setTheme(theme), theme);
+    await page.locator('.study-preferences').screenshot({ path: `.codex-temp/visual/study-preferences-${theme}.png` });
+  }
+  await page.getByRole('button', { name: 'This week', exact: true }).click();
+  await page.evaluate(() => window.canvasWeekly.generateGuide());
+  assert.deepEqual(await application.evaluate(() => globalThis.weeklyTestEvidence.studentPreferences), { availability: preferences.availability, priorities: preferences.priorities, detail: 'brief' });
+  assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.aiPreferencesChanged, false);
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeGeneration);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Clear study preferences', exact: true }).click();
+  await page.waitForFunction(async () => !(await window.canvasWeekly.getState()).planningPreferences.includeWithAI);
+  await page.getByRole('button', { name: 'This week', exact: true }).click();
   await page.evaluate(() => window.canvasWeekly.setAIEnabled(false));
   await page.evaluate(id => window.canvasWeekly.removeWebsite(id), websiteId);
   const beforeMetadata = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
@@ -432,6 +459,7 @@ try {
   assert.deepEqual(switched.websites, []);
   assert.deepEqual(switched.collectionHistory, [], 'A different account cannot see the previous collection history');
   assert.deepEqual(switched.reading.courses, []);
+  assert.deepEqual(switched.planningPreferences, { includeWithAI: false, availability: '', priorities: '', detail: 'standard' });
   console.log('Desktop checks passed: shared refresh hold, enabled metadata coverage notice, synthetic profile/website connections, encrypted website login, in-memory course evidence (not Canvas collection), study plan, persistent local checkmarks, offline Open guide, preserved notes, login errors, account-switch isolation and discarded collection after connection change.');
   await page.evaluate(() => window.canvasWeekly.disconnectCanvas());
 } finally { await application.close(); }

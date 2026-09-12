@@ -10,6 +10,7 @@ import { CodexClient, planningEvidence } from './codex-client.js';
 import { referenceUrl } from './content.js';
 import { guideSources } from './study-plan.js';
 import { STUDY_PROMPT } from './evidence-pack.js';
+import { DEFAULT_PLANNING_PREFERENCES, sharedPlanningPreferences } from './planning-preferences.js';
 import { CourseWebsites } from './course-websites.js';
 import { CollectionHistory } from './collection-history.js';
 import { readingSelection, READING_VERSION, EXPANDED_AVAILABLE, EXPANDED_HOLD } from './reading-policy.js';
@@ -36,6 +37,7 @@ let controller;
 let codex;
 let websiteStore;
 let websites = [];
+let planningPreferences = { ...DEFAULT_PLANNING_PREFERENCES };
 
 function snapshot() {
   return {
@@ -46,6 +48,7 @@ function snapshot() {
     courses,
     websites,
     guide,
+    planningPreferences: guide ? planningPreferences : { ...DEFAULT_PLANNING_PREFERENCES },
     run,
     reading: { available: EXPANDED_AVAILABLE, hold: EXPANDED_HOLD,
       courses: canvas?.profile ? readingSelection(store.value, store.value.canvasBaseUrl, canvas.profile.id, store.value.selectedCourseIds) : [] },
@@ -93,7 +96,10 @@ else {
       return client;
     };
     codex = createCodex();
-    if (store.value.lastGuideAccount) guide = await guides.load(store.value.lastGuideAccount.origin, store.value.lastGuideAccount.userId);
+    if (store.value.lastGuideAccount) {
+      guide = await guides.load(store.value.lastGuideAccount.origin, store.value.lastGuideAccount.userId);
+      planningPreferences = await guides.loadPlanningPreferences(store.value.lastGuideAccount.origin, store.value.lastGuideAccount.userId);
+    }
     if (store.value.lastGuideAccount) {
       try { websites = await websiteStore.list(store.value.lastGuideAccount); }
       catch (error) { run.message = error.message; }
@@ -105,6 +111,7 @@ else {
       const loadedCourses = await canvas.client({ signal: binding.signal }).read('courses', {}, true);
       binding.assertCurrent();
       const loadedGuide = await guides.load(binding.origin, binding.userId);
+      const loadedPreferences = await guides.loadPlanningPreferences(binding.origin, binding.userId);
       binding.assertCurrent();
       const previousAccount = store.value.lastGuideAccount;
       const sameAccount = previousAccount?.origin === binding.origin && previousAccount?.userId === binding.userId;
@@ -117,6 +124,7 @@ else {
       binding.assertCurrent();
       courses = loadedCourses;
       guide = loadedGuide;
+      planningPreferences = loadedPreferences;
       websites = loadedWebsites;
       await history.load(binding.origin, binding.userId);
       historyAccount = JSON.stringify(store.value.lastGuideAccount);
@@ -278,6 +286,7 @@ else {
         }
         binding.assertCurrent();
         const next = buildGuide(reconcile(records, previous, { origin: binding.origin, now: new Date().toISOString(), timeZone: store.value.timeZone }));
+        next.planningPreferences = sharedPlanningPreferences(planningPreferences);
         if (store.value.aiEnabled) {
           run = { busy: true, message: 'Preparing study suggestions with ChatGPT…' }; publish();
           try {
@@ -318,10 +327,11 @@ else {
       run = { busy: true, message: 'Creating your weekly guide from saved course information...' }; publish();
       try {
         const next = buildGuide(saved, new Date().toISOString());
+        next.planningPreferences = sharedPlanningPreferences(planningPreferences);
         // Generation time must not make the collection appear newly refreshed.
         next.generatedAt = saved.generatedAt;
         const evidence = planningEvidence(next);
-        next.aiGuide = { ...await codex.plan(evidence, signal, { weekly: true }), generatedAt: new Date().toISOString() };
+        next.aiGuide = { ...await codex.plan(evidence, signal, { weekly: true }), generatedAt: new Date().toISOString(), preferencesUsed: evidence.studentPreferences };
         next.priorities = next.aiGuide.courses.flatMap(course => course.tasks);
         next.planningCoverage = { omittedTexts: evidence.omissions.length, ...evidence.omittedRecords };
         delete next.planningNote;
@@ -387,6 +397,19 @@ else {
       finally { publish(); }
     });
     handle('guide:copy-prompt', () => { clipboard.writeText(STUDY_PROMPT); });
+    handle('settings:planning', async value => {
+      requireIdle();
+      const account = store.value.lastGuideAccount;
+      if (!account || !guide) throw new Error('Collect course information before saving study preferences for this account.');
+      run = { busy: true, message: 'Saving study preferences on this device...' }; publish();
+      try {
+        planningPreferences = await guides.savePlanningPreferences(account.origin, account.userId, value);
+        guide = await guides.load(account.origin, account.userId);
+        run = { busy: false, message: 'Study preferences saved. Export again or create a new guide to use them.' };
+        return snapshot();
+      } catch (error) { run = { busy: false, message: error.message }; throw error; }
+      finally { run.busy = false; publish(); }
+    });
     handle('guide:source', async id => {
       const source = guide && guideSources(guide).find(item => item.id === id);
       const url = source && referenceUrl(source.sourceUrl, guide.origin);

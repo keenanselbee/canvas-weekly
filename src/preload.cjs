@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('canvasWeekly', {
   openGuide: () => invoke('guide:open'),
   exportForAI: () => invoke('guide:export-ai'),
   generateGuide: () => invoke('guide:generate'),
+  savePlanningPreferences: value => invoke('settings:planning', value),
   copyStudyPrompt: () => invoke('guide:copy-prompt'),
   setStudyTaskDone: (taskId, done) => invoke('guide:task', taskId, done),
   openSource: id => invoke('guide:source', id),

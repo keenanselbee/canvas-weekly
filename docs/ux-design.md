@@ -14,6 +14,13 @@ routes the user to Settings. The legacy automatic Study suggestions option remai
 until the main-flow migration. The flow below remains the
 existing experience during this migration.
 
+Study preferences in Settings provide two optional text fields (available study
+time and priorities), a guide-length choice, and an explicit Include with AI
+checkbox, off by default. Save and Clear operate on the current Canvas account.
+Unsaved edits survive routine connection-status rerenders and are discarded when
+the account or saved preferences change. Existing AI guides indicate when shared
+preferences have changed, so saving settings is not confused with regeneration.
+
 
 Primary flow
 ------------

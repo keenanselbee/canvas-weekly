@@ -72,8 +72,9 @@ Milestones:
    and precise questions. Run it independently of collection and preserve the
    previous successful output on failure. The separate Create my weekly guide
    action, validated output, local checkmarks and app/Markdown/HTML/Word views are
-   implemented. Optional personal planning context and live generation-quality
-   review remain pending. The older automatic Study suggestions setting still
+   implemented. Optional account-scoped availability, priorities and guide length
+   are implemented with explicit sharing off by default. Live generation-quality
+   review remains pending. The older automatic Study suggestions setting still
    uses its legacy output until the primary-flow migration.
 3. Improve collection coverage within reviewed boundaries, guided by actual
    missing sources; improve connected-site discovery and consider user-supplied
@@ -86,3 +87,11 @@ Completion requires both AI routes to be usable, exports to preserve collected
 evidence without silent clipping, connected guides to retain traceable facts,
 and coverage/safety limitations to remain visible. This milestone alone does not
 complete the revised goal or resolve institutional collection restrictions.
+
+Study preferences are stored separately from course evidence in the current
+account's planning-preferences.json. They are not encrypted, and are not course
+requirements. Only the explicit shared projection enters a new evidence export
+or AI request. Student Notes.md and other settings remain excluded. The AI guide
+retains which shared preferences it used; changed or disabled preferences flag
+that guide for regeneration. Clearing current preferences cannot recall earlier
+documents, revisions, AI guide snapshots or data uploaded to an AI service.

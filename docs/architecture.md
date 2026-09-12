@@ -17,6 +17,12 @@ before export, and replaces state only after a successful export. Failures retai
 the previous guide. The shared weekly view model supplies source-recorded dates
 and uncertainties to both UI and documents. AI task changes invalidate local
 preparation checks; no Canvas progress is changed.
+Account-scoped planning preferences live beside guide state, with validated
+text limits and an explicit includeWithAI flag. The source projection includes
+only opted-in availability, priorities and guide length. Main-process handlers
+load the bound account's preferences; neither the AI nor renderer can choose an
+account storage path. Changing preferences updates the regeneration notice,
+without collecting data, invoking AI or rewriting existing exported files.
 The admitted Canvas path is the fixed metadata collector described in
 [its admission decision](canvas-metadata-admission.md), followed by the stored
 [syllabus field](canvas-syllabus-review.md) and two

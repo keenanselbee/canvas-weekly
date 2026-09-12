@@ -10,6 +10,7 @@ export function weeklyView(guide) {
   const date = value => new Intl.DateTimeFormat('en-CA', { timeZone: guide.timeZone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
   return {
     generatedAt: guide.aiGuide.generatedAt,
+    preferencesChanged: Boolean(guide.aiPreferencesChanged),
     note: 'AI interpretation of saved course information. Check source quotes and uncertainties. Suggested study days are not course deadlines; preparation checkmarks stay on this device.',
     overview: guide.aiGuide.overview.map(entry => ({ ...entry, citations: cite(entry.sourceIds) })),
     courses: guide.aiGuide.courses.map(course => ({ ...course,
@@ -43,6 +44,7 @@ export function weeklyMarkdown(guide) {
   const md = value => String(value ?? '').replace(/[\\`*_{}\[\]<>|#]/g, '\\$&').replace(/\r?\n/g, ' ');
   const links = citations => citations.filter(source => source.url).map(source => `[${md(source.title)}](<${source.url}>)`).join(' · ');
   const lines = ['## Your AI weekly guide', '', view.note, '', `AI generated: ${md(view.generatedAt)}. Collection timestamp remains above.`, ''];
+  if (view.preferencesChanged) lines.push('Study preferences changed after this guide was generated. Create a new guide to use the current preferences.', '');
   for (const entry of view.overview) lines.push(`- ${md(entry.text)} ${links(entry.citations)}`, '');
   for (const course of view.courses) {
     lines.push(`### ${md(course.name)}`, '', md(course.focus), '');

@@ -8,6 +8,7 @@ import { renderHtml } from './guide-html.js';
 import { renderWord, wordInputHash } from './guide-word.js';
 import { restoreLegacyEvidence } from './course-evidence.js';
 import { renderEvidencePack } from './evidence-pack.js';
+import { DEFAULT_PLANNING_PREFERENCES, validatePlanningPreferences, sharedPlanningPreferences } from './planning-preferences.js';
 
 const sameBytes = (a, b) => a === undefined || b === undefined ? a === b : a.equals(b);
 
@@ -21,6 +22,8 @@ export class GuideStore {
       let result = JSON.parse(await fs.readFile(path.join(this.directory, this.accountKey(origin, userId), 'state.json'), 'utf8'));
       if (result.schemaVersion !== 1 || !Array.isArray(result.items) || !Array.isArray(result.courses)) throw new Error('Unrecognized course state format.');
       result = restoreLegacyEvidence(result);
+      result.planningPreferences = sharedPlanningPreferences(await this.loadPlanningPreferences(origin, userId));
+      result.aiPreferencesChanged = Boolean(result.aiGuide && JSON.stringify(result.aiGuide.preferencesUsed ?? null) !== JSON.stringify(result.planningPreferences));
       result.studyPlan = buildStudyPlan(result, await this.loadProgress(origin, userId));
       return result;
     } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
@@ -31,6 +34,16 @@ export class GuideStore {
       if (result.version !== 1 || !result.tasks || typeof result.tasks !== 'object' || Array.isArray(result.tasks)) throw new Error('Unrecognized study progress format.');
       return result.tasks;
     } catch (error) { if (error.code === 'ENOENT') return {}; throw error; }
+  }
+  async loadPlanningPreferences(origin, userId) {
+    try {
+      return validatePlanningPreferences(JSON.parse(await fs.readFile(path.join(this.directory, this.accountKey(origin, userId), 'planning-preferences.json'), 'utf8')));
+    } catch (error) { if (error.code === 'ENOENT') return { ...DEFAULT_PLANNING_PREFERENCES }; throw error; }
+  }
+  async savePlanningPreferences(origin, userId, value) {
+    const preferences = validatePlanningPreferences(value);
+    await atomicJson(path.join(this.directory, this.accountKey(origin, userId), 'planning-preferences.json'), preferences);
+    return preferences;
   }
   async setTaskDone(origin, userId, taskId, done) {
     if (typeof taskId !== 'string' || typeof done !== 'boolean') throw new Error('Choose a study task and completion state.');
@@ -46,6 +59,8 @@ export class GuideStore {
   async export(guide, outputDirectory, userId, signal) {
     guide = restoreLegacyEvidence(guide);
     guide = { ...guide, studyPlan: buildStudyPlan(guide, await this.loadProgress(guide.origin, userId)) };
+    guide.planningPreferences = sharedPlanningPreferences(await this.loadPlanningPreferences(guide.origin, userId));
+    guide.aiPreferencesChanged = Boolean(guide.aiGuide && JSON.stringify(guide.aiGuide.preferencesUsed ?? null) !== JSON.stringify(guide.planningPreferences));
     const weekDirectory = path.join(outputDirectory, guide.week.start);
     await fs.mkdir(weekDirectory, { recursive: true });
     const markerFile = path.join(weekDirectory, '.canvas-weekly.json');
