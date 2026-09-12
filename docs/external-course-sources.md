@@ -25,10 +25,23 @@ password in the app's masked login form. Check website retries a connection;
 Remove website stops future reads and removes its saved encrypted credential.
 Existing guides retain last-known evidence, marked stale on the next refresh.
 
-Website setup works for saved courses without reconnecting Canvas. Update guide
-collects the selected courses' configured websites after Canvas reads, then feeds
-the combined evidence to the guide and optional planner. Only explicitly added
-sites are crawled. No source-selection or login prompt is repeated per page.
+Website setup works for saved courses without reconnecting Canvas. Collection
+reads the selected courses' configured websites after Canvas reads. Alternatively,
+Courses → Refresh connected websites updates sites belonging to the saved
+collection without contacting Canvas or AI, even when Canvas is disconnected.
+Only explicitly added sites are crawled. No source-selection or login prompt is
+repeated per page. Both routes keep the existing origin/path and read limits.
+
+A separate website refresh preserves Canvas assessment values, source timestamps,
+syllabus and message records, and imported local documents. Successful pages
+replace matching website sources; unavailable pages remain last-known with their
+original timestamps and extraction limitations. Coverage is updated only for
+the refreshed sites. The guide labels the separate website refresh time and
+uses the current week, while the Canvas collection time remains unchanged.
+No successful pages means the previous guide is kept. Cancellation and manual
+export edits also preserve it. Website connection results and request audit logs
+can still be updated by attempted reads. A saved successful refresh replaces the
+current AI output with a factual reference; create a new AI guide explicitly.
 Discovery uses the existing Canvas page/syllabus/announcement/assignment links;
 module reads remain disabled for safety.
 

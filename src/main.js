@@ -12,6 +12,7 @@ import { guideSources } from './study-plan.js';
 import { STUDY_PROMPT } from './evidence-pack.js';
 import { DEFAULT_PLANNING_PREFERENCES, sharedPlanningPreferences } from './planning-preferences.js';
 import { CourseWebsites } from './course-websites.js';
+import { refreshWebsiteEvidence } from './website-evidence.js';
 import { previewCourseDocument, changeCourseDocument } from './course-documents.js';
 import { CollectionHistory } from './collection-history.js';
 import { readingSelection, READING_VERSION, EXPANDED_AVAILABLE, EXPANDED_HOLD } from './reading-policy.js';
@@ -237,6 +238,33 @@ else {
     handle('website:login', (id, username, password, remember = true) => websiteAction((account, signal) => websiteStore.probe(account, id, { username, password, remember }, signal)));
     handle('website:forget', id => websiteAction(account => websiteStore.forgetLogin(account, id)));
     handle('website:remove', id => websiteAction(account => websiteStore.remove(account, id)));
+    handle('website:refresh', async () => {
+      requireIdle();
+      const saved = guide;
+      const account = store.value.lastGuideAccount;
+      if (!saved?.outputPath || !account) throw new Error('Collect your selected Canvas courses once before refreshing website material separately.');
+      const binding = JSON.stringify(account);
+      const courseIds = saved.courses.map(course => course.id);
+      controller = new AbortController();
+      const signal = controller.signal;
+      run = { busy: true, message: 'Refreshing connected course websites...' }; publish();
+      try {
+        if (!(await websiteStore.list(account)).some(site => courseIds.includes(site.courseId))) throw new Error('Add a website for a course in the saved collection first.');
+        const results = await websiteStore.collect(account, courseIds, { signal, onProgress: message => { run.message = message; publish(); } });
+        signal.throwIfAborted();
+        websites = await websiteStore.list(account);
+        if (guide !== saved || binding !== JSON.stringify(store.value.lastGuideAccount)) throw new Error('The active account or collection changed. Refresh the current course websites again.');
+        const next = refreshWebsiteEvidence(saved, results);
+        const exported = await guides.export(next, path.dirname(path.dirname(saved.outputPath)), account.userId, signal);
+        if (guide !== saved || binding !== JSON.stringify(store.value.lastGuideAccount)) throw new Error('Website evidence was saved for the previous account. Reopen that collection to review it.');
+        guide = exported;
+        run = { busy: false, message: `Website material saved${results.some(site => site.coverage.some(entry => entry.status !== 'ok')) ? ' with gaps' : ''}. Canvas dates and submission status were not refreshed. Export the evidence or create a new AI guide.` };
+        return snapshot();
+      } catch (error) {
+        run = { busy: false, message: signal.aborted ? 'Website refresh cancelled. Your previous guide is preserved.' : error.message };
+        throw new Error(run.message);
+      } finally { controller = null; run.busy = false; publish(); }
+    });
     handle('document:preview', async (courseId, replaceId) => {
       requireIdle();
       pendingDocument = null;

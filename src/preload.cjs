@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('canvasWeekly', {
   connectWebsite: (id, username, password, remember = true) => invoke('website:login', id, username, password, remember),
   forgetWebsiteLogin: id => invoke('website:forget', id),
   removeWebsite: id => invoke('website:remove', id),
+  refreshWebsites: () => invoke('website:refresh'),
   previewDocument: (courseId, replaceId) => invoke('document:preview', courseId, replaceId),
   discardDocument: () => invoke('document:discard'),
   addDocument: (token, title, url) => invoke('document:add', token, title, url),

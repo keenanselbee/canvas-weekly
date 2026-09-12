@@ -177,6 +177,7 @@ function renderGuide() {
   const guide = state.guide;
   const format = value => value ? new Intl.DateTimeFormat(undefined, { timeZone: guide.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value)) : 'No date supplied';
   main.append(node('p', 'footer-note', `${guide.aiGuide ? 'AI weekly guide' : 'Factual reference'} · Collected ${format(guide.generatedAt)} · ${guide.timeZone}`));
+  if (guide.websiteRefreshedAt) main.append(node('p', 'footer-note', `Websites refreshed ${format(guide.websiteRefreshedAt)}. Canvas dates and submission status were not refreshed by that action.`));
   const weekly = weeklyView(guide);
   if (weekly) {
     const overview = card('Your AI weekly guide');
@@ -519,7 +520,11 @@ function renderCourseDocuments() {
 function renderCourseWebsites(courses) {
   if (!state.settings.lastGuideAccount || !courses.length) return;
   const section = card('Course websites');
-  section.append(node('p', 'muted', 'Connect a separate course site for its schedule, readings and lecture pages. The next guide update includes readable pages in the chosen site folder.'));
+  section.append(node('p', 'muted', 'Connect a separate course site for its schedule, readings and lecture pages. Collection includes readable pages in the chosen site folder.'));
+  const refresh = button('Refresh connected websites', async () => { update(await api.refreshWebsites()); render(); }, 'primary');
+  refresh.disabled = state.run.busy || !state.guide?.outputPath || !(state.websites || []).some(site => state.guide.courses.some(course => course.id === site.courseId));
+  section.append(refresh, node('p', 'muted', 'Updates websites for the courses in your saved collection without contacting Canvas or AI. Canvas dates and submission status keep their original collection time. A successful refresh replaces the current AI guide with a factual reference; generate a new guide afterwards.'));
+  if (!state.guide?.outputPath) section.append(node('p', 'muted', 'Collect your Canvas courses once to enable a separate website refresh.'));
   if (state.run.busy) section.append(button('Cancel current operation', () => api.cancelRefresh()));
   for (const course of courses) {
     const id = String(course.id);

@@ -177,6 +177,12 @@ scope and prerequisites. HTML-to-PDF print pagination remains a separate check.
 Under Courses, expand Course websites, choose a discovered link or enter a course
 site address, then Add website. Enter its separate website login if requested.
 The next collection includes supported pages within that site's course folder.
+After the first saved collection, **Refresh connected websites** can update those
+materials independently, including while Canvas needs reconnecting. It does not
+contact Canvas or AI. Canvas deadlines and submission status retain their original
+collection time; a separate website timestamp identifies the newer material.
+Successful refreshes replace current AI output with a factual reference for
+explicit regeneration. Failed or cancelled refreshes preserve the previous guide.
 Website setup itself does not contact Canvas. Read limits and unavailable files
 remain visible as gaps; website text never replaces Canvas deadlines automatically.
 Run `npm run test:websites` for the local HTTPS transport fixture.

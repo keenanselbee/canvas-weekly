@@ -40,6 +40,7 @@ export function buildEvidencePack(guide) {
     'userProvided', 'importedAt', 'documentType', 'documentHash',
   ], origin)));
   return { schemaVersion: 1, generatedAt: guide.generatedAt || guide.observedAt || null,
+    websiteRefreshedAt: guide.websiteRefreshedAt || null,
     week: fields(guide.week || {}, ['start', 'end', 'today'], origin), timeZone: guide.timeZone,
     courses, items, sources,
     studentPreferences: guide.planningPreferences ? fields(guide.planningPreferences, ['availability', 'priorities', 'detail'], origin) : null,
@@ -52,6 +53,7 @@ export function renderEvidencePack(guide) {
   const lines = ['# Canvas Weekly course information pack', '',
     `Week: ${pack.week.start} to ${pack.week.end}. Time zone: ${pack.timeZone}.`,
     `Collected snapshot: ${pack.generatedAt || 'Unknown; check source timestamps'}.`, '',
+    ...(pack.websiteRefreshedAt ? [`Websites refreshed separately: ${pack.websiteRefreshedAt}. Canvas dates and submission status were not refreshed by that action.`, ''] : []),
     `${pack.courses.length} courses; ${pack.items.length} assessment records; ${pack.sources.length} course material records.`, '',
     'This contains all normalized records in this saved snapshot, not all information in Canvas. Source coverage, missing fields and last-known values remain part of the evidence.', '',
     'Review before uploading. Course text can contain personal information. Login storage, session tokens, local notes and prior AI output are excluded. Recognizable credential labels and unsafe links are filtered, but free-text redaction cannot guarantee every secret is detected. Your chosen AI service handles uploaded data under its own policies.', '',
@@ -99,6 +101,7 @@ export function plannerEvidence(guide) {
   const selectedSources = select(pack.sources, 'sources', 'body');
   const selectedChanges = select(pack.changes, 'changes');
   return { week: pack.week, timeZone: pack.timeZone, generatedAt: pack.generatedAt,
+    websiteRefreshedAt: pack.websiteRefreshedAt,
     studentPreferences: pack.studentPreferences,
     coverage: selectedCourses.map(course => ({ course: course.code || course.name,
       gaps: course.coverage.filter(entry => entry.status !== 'ok').map(entry => `${entry.source}: ${entry.message || entry.status}`).join('; '),

@@ -1026,3 +1026,18 @@ Work log
   credentials were left untouched; no personal Canvas or AI request was made.
   See ai-guide-acceptance.md. This is acceptance tooling only, with no change to
   the installed app or candidate installer.
+
+- Added independent refresh for explicitly connected course websites from Courses.
+  It works with a saved collection while Canvas is disconnected and makes no
+  Canvas or AI requests. Website evidence and coverage update separately; Canvas
+  assessment values, collection timestamps and imported documents are preserved.
+  Unavailable pages keep their original timestamps and extraction limitations.
+  No successful pages or cancellation preserves the prior guide; successful
+  refreshes clear current AI output for explicit regeneration. App and exported
+  evidence identify the separate website refresh time.
+  Validation: all 182 unit tests passed. The synthetic desktop workflow passed
+  failed/cancelled refresh preservation, disconnected Canvas use, unchanged
+  Canvas/AI request counters, separate timestamps and cleared AI output, followed
+  by existing metadata and account-switch regression checks. The Inno candidate
+  rebuilt with source matching and package privacy checks. No personal Canvas or
+  AI requests were made, and the installed personal app was not changed.

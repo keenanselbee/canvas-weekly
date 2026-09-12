@@ -85,6 +85,10 @@ Milestones:
    and extraction limitations; they do not establish current Canvas facts.
    Additional Canvas reads remain held; connected-site discovery and live-course
    coverage review remain pending.
+   Connected websites can now refresh independently for saved courses, preserving
+   Canvas records and identifying the website collection time separately. Total
+   failure/cancellation preserves the previous guide; successful refreshes require
+   explicit AI regeneration.
 4. Rework the main screen around collection, coverage and the two AI routes.
    Keep a concise factual deadline view and retire arbitrary rule-based start
    dates. Validate light/dark, keyboard use, installer and live-account limits.

@@ -47,6 +47,11 @@ try {
     CourseWebsites.prototype.reader = function (...args) {
       this.transport = async (url, init) => {
         globalThis.syntheticWebsiteRequests.push(url.href);
+        if (globalThis.websiteRefreshMode === 'fail') return { status: 503, headers: {}, body: '' };
+        if (globalThis.websiteRefreshMode === 'wait') return new Promise((resolve, reject) => {
+          init.signal.addEventListener('abort', () => reject(new Error('Synthetic website read cancelled')), { once: true });
+          if (init.signal.aborted) reject(new Error('Synthetic website read cancelled'));
+        });
         if (url.origin !== 'https://course.example' || !url.pathname.startsWith('/data311/')) throw new Error('Unexpected website request');
         if (init.authorization !== 'Basic ' + Buffer.from('student:website-fixture-password').toString('base64')) return { status: 401, headers: { 'www-authenticate': 'Basic realm="course"' }, body: '' };
         return { status: 200, headers: { 'content-type': 'text/html' }, body: '<main><h1>Course website schedule</h1><p>Supplementary readings are optional. Review the lecture notes before class.</p></main>' };
@@ -316,7 +321,50 @@ try {
   await page.getByRole('button', { name: 'Clear study preferences', exact: true }).click();
   await page.waitForFunction(async () => !(await window.canvasWeekly.getState()).planningPreferences.includeWithAI);
   await page.getByRole('button', { name: 'This week', exact: true }).click();
+  const beforeWebsites = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
+  const websiteCanvasCount = await application.evaluate(() => globalThis.syntheticRequestCount);
+  const websiteAICount = await application.evaluate(() => globalThis.weeklyTestCalls);
+  await application.evaluate(() => {
+    globalThis.websiteSavedProfile = globalThis.syntheticConnection.profile;
+    globalThis.syntheticConnection.profile = null;
+    globalThis.websiteRefreshMode = 'fail';
+  });
+  await assert.rejects(page.evaluate(() => window.canvasWeekly.refreshWebsites()), /No course website material could be refreshed/);
+  assert.deepEqual((await page.evaluate(() => window.canvasWeekly.getState())).guide, beforeWebsites);
+  await application.evaluate(() => { globalThis.websiteRefreshMode = 'wait'; });
+  await page.evaluate(() => { window.websiteRefreshWait = window.canvasWeekly.refreshWebsites().catch(error => error.message); });
+  await page.waitForFunction(async () => (await window.canvasWeekly.getState()).run.busy);
+  await page.evaluate(() => window.canvasWeekly.cancelRefresh());
+  assert.match(await page.evaluate(() => window.websiteRefreshWait), /cancelled/);
+  assert.deepEqual((await page.evaluate(() => window.canvasWeekly.getState())).guide, beforeWebsites);
+  await application.evaluate(() => { globalThis.websiteRefreshMode = 'success'; });
+  await page.getByRole('button', { name: 'Courses', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: 'Refresh connected websites', exact: true }).isEnabled(), true);
+  await page.evaluate(() => {
+    window.websitesFinished = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { unsubscribe(); reject(new Error('Website refresh did not finish')); }, 15000);
+      const unsubscribe = window.canvasWeekly.onStateChanged(state => {
+        if (!state.run.busy && state.guide?.websiteRefreshedAt) { clearTimeout(timer); unsubscribe(); resolve(state.guide); }
+      });
+    });
+  });
+  await page.getByRole('button', { name: 'Refresh connected websites', exact: true }).click();
+  const websiteOnly = await page.evaluate(() => window.websitesFinished);
+  assert.deepEqual(websiteOnly.items, beforeWebsites.items);
+  assert.equal(websiteOnly.generatedAt, beforeWebsites.generatedAt);
+  assert.equal(websiteOnly.aiGuide, undefined);
+  assert.match(await fs.readFile(websiteOnly.evidencePath, 'utf8'), /Websites refreshed separately/);
+  assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), websiteCanvasCount);
+  assert.equal(await application.evaluate(() => globalThis.weeklyTestCalls), websiteAICount);
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(theme => window.canvasWeekly.setTheme(theme), theme);
+    await page.locator(`html[data-theme="${theme}"]`).waitFor();
+    await page.getByRole('heading', { name: 'Course websites', exact: true }).evaluate(element => element.scrollIntoView({ block: 'start' }));
+    await page.screenshot({ path: `.codex-temp/visual/website-refresh-${theme}.png` });
+  }
+  await application.evaluate(() => { globalThis.syntheticConnection.profile = globalThis.websiteSavedProfile; });
   await page.evaluate(id => window.canvasWeekly.removeWebsite(id), websiteId);
+  await page.getByRole('button', { name: 'This week', exact: true }).click();
   const beforeMetadata = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
   await application.evaluate((_electron, moduleUrl) => {
     const require = process.getBuiltinModule('module').createRequire(moduleUrl);

@@ -140,6 +140,7 @@ const md = value => String(value ?? '').replace(/[\\`*_{}\[\]<>|#]/g, '\\$&').re
 export function renderMarkdown(guide) {
   const lines = [guide.aiGuide ? '# Weekly Plan' : '# Course reference', '', `**${guide.week.start} to ${guide.week.end}**`, '', `${guide.aiGuide ? 'AI weekly guide' : 'Factual reference'} · Collected ${formatDate(guide.generatedAt, guide.timeZone)} (${guide.timeZone})`, '', METADATA_NOTICE, '',
     'Generated sections are refreshed by Canvas Weekly. Check off preparation tasks in the app; keep your own notes in Student Notes.md.', ''];
+  if (guide.websiteRefreshedAt) lines.push(`Websites refreshed separately: ${formatDate(guide.websiteRefreshedAt, guide.timeZone)}. Canvas deadlines and submission status were not refreshed by that action.`, '');
   const plan = guide.studyPlan || buildStudyPlan(guide);
   const referenceChecks = !guide.aiGuide && guide.priorities?.length ? buildStudyPlan({ ...guide, priorities: [] }).checks : plan.checks;
   const sources = new Map(guideSources(guide).map(source => [source.id, source]));
