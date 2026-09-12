@@ -47,6 +47,7 @@ test('rejected cookies expose specific diagnostic reasons without cookie content
     const { cookies, options } = setup(list);
     await assert.rejects(watchCanvasSession(options), error => {
       assert.match(error.message, new RegExp('CW_SESSION_' + reason));
+      assert.equal(error.code, 'CW_SESSION_' + reason);
       assert.match(error.message, /previous guide is preserved/);
       assert.equal(error.message.includes('private-cookie-fixture'), false);
       assert.equal(error.message.includes('other.example'), false);

@@ -319,6 +319,7 @@ try {
     assert.deepEqual(await Promise.all(protectedExports.map(file => fs.readFile(file))), beforeConnectionChange, 'A changed connection must not overwrite any guide format');
   }
   for (const reason of ['MISSING', 'FLAGS']) {
+    await page.evaluate(() => window.canvasWeekly.verifyCanvas());
     await application.evaluate(async ({ session }, reason) => {
       const cookies = session.fromPartition('persist:canvas').cookies;
       await cookies.remove('https://canvas.ubc.ca', '_normandy_session');
@@ -333,6 +334,8 @@ try {
     assert.equal(rejectedState.run.message.includes('private-diagnostic-fixture'), false);
     assert.deepEqual(rejectedState.guide, repeatedMetadata);
     assert.equal(rejectedState.collectionHistory[0].status, 'failed');
+    assert.equal(rejectedState.collectionHistory[0].failure.code, 'CW_SESSION_' + reason);
+    assert.match(rejectedState.canvas.collectionIssue, new RegExp('CW_SESSION_' + reason));
     assert.equal(rejectedState.collectionHistory[0].requests.length, 0, 'Session rejection must not invent accessed items');
     assert.deepEqual(await Promise.all(protectedExports.map(file => fs.readFile(file))), beforeConnectionChange, 'Session diagnostics must preserve all guide formats');
   }
@@ -340,6 +343,7 @@ try {
     await session.fromPartition('persist:canvas').cookies.set({ url: 'https://canvas.ubc.ca', name: '_normandy_session',
       value: 'synthetic-restored-refresh-session', path: '/', secure: true, httpOnly: true });
   });
+  await page.evaluate(() => window.canvasWeekly.verifyCanvas());
   await application.evaluate((_electron, moduleUrl) => {
     const require = process.getBuiltinModule('module').createRequire(moduleUrl);
     const { CanvasConnection } = require('./canvas-session.js');

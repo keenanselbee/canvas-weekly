@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 const cookieName = '_normandy_session';
 const changed = () => new DOMException('Canvas browser session changed. Reconnect before refreshing your guide.', 'AbortError');
-const sessionIssues = Object.freeze({
+export const sessionIssues = Object.freeze({
   configuration: 'The session reader is unavailable.',
   lookup: 'The browser session could not be read.',
   timeout: 'Reading the browser session timed out.',
@@ -16,6 +16,7 @@ const sessionIssues = Object.freeze({
 class SessionVerificationError extends Error {
   constructor(reason) {
     super(`Canvas browser session could not be verified. ${sessionIssues[reason]} Your previous guide is preserved. Reconnect Canvas; if this repeats, report CW_SESSION_${reason.toUpperCase()}.`);
+    this.code = `CW_SESSION_${reason.toUpperCase()}`;
   }
 }
 const unavailable = (reason = 'lookup') => new SessionVerificationError(reason);

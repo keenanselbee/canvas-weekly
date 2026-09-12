@@ -46,3 +46,24 @@ test('history storage failure rejects recording and cannot authorize transmissio
   history.file = path.join(directory, 'occupied');
   await assert.rejects(history.record(id, { event: 'request', requestId: '1', operation: 'profile' }), /history could not be saved/);
 });
+
+test('zero-request failures retain only reviewed session diagnostics across restart', async () => {
+  await fs.mkdir('.codex-temp', { recursive: true });
+  const directory = await fs.mkdtemp(path.resolve('.codex-temp/history-diagnostic-'));
+  const history = new CollectionHistory(directory);
+  const origin = 'https://canvas.example.edu';
+  const id = await history.begin(origin, '1', []);
+  await history.finish(id, 'failed', null, 'CW_SESSION_MISSING');
+  const [restored] = await new CollectionHistory(directory).load(origin, '1');
+  assert.deepEqual(restored.failure, { code: 'CW_SESSION_MISSING', reason: 'The expected Canvas session cookie is missing.' });
+  assert.equal(restored.requests.length, 0);
+  const next = await history.begin(origin, '1', []);
+  await history.finish(next, 'failed', null, 'CW_SESSION_private-cookie-value');
+  assert.equal((await new CollectionHistory(directory).load(origin, '1'))[0].failure, undefined);
+  const raw = await fs.readFile(history.file, 'utf8');
+  assert.equal(raw.includes('private-cookie-value'), false);
+  const entries = JSON.parse(raw);
+  entries[1].failure.reason = 'untrusted message';
+  await fs.writeFile(history.file, JSON.stringify(entries));
+  await assert.rejects(new CollectionHistory(directory).load(origin, '1'), /could not be read/);
+});

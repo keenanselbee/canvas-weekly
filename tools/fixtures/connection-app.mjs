@@ -157,6 +157,11 @@ globalThis.connectionFixtureResults = app.whenReady().then(async () => {
   });
   await check('collection session watch reacts to real Electron cookie changes', async () => {
     const state = setup(); await state.connection.verify();
+    await assert.rejects(state.connection.watchSession(state.connection.capture(), new AbortController().signal), /CW_SESSION_MISSING/);
+    assert.match(state.connection.status.collectionIssue, /CW_SESSION_MISSING/);
+    assert.equal(state.connection.status.connected, true);
+    await state.connection.verify();
+    assert.equal(state.connection.status.collectionIssue, null);
     const cookies = state.connection.session.cookies;
     const setCookie = async details => {
       let listener;
@@ -187,6 +192,8 @@ globalThis.connectionFixtureResults = app.whenReady().then(async () => {
     assert.equal(replacement.signal.aborted, true);
     state.connection.token = 'synthetic-token-mode';
     assert.equal(await state.connection.watchSession(state.connection.capture(), new AbortController().signal), null);
+    await state.connection.disconnect();
+    assert.equal(state.connection.status.collectionIssue, null);
   });
   return passed;
 });

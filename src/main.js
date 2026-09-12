@@ -239,6 +239,7 @@ else {
       let sessionWatch;
       let historyId;
       let historyFinished = false;
+      let failureCode;
       run = { busy: true, message: 'Checking Canvas connection…' }; publish();
       try {
         const modes = readingSelection(store.value, binding.origin, userId, binding.courseIds);
@@ -289,11 +290,12 @@ else {
         run = { busy: false, message: records.some(record => record.coverage.some(source => source.status !== 'ok')) ? 'Guide updated with some information unavailable. Review source coverage.' : 'Weekly guide updated.' };
         return snapshot();
       } catch (error) {
+        failureCode = error.code;
         run = { busy: false, message: controller.signal.aborted ? 'Refresh cancelled. Your previous guide is preserved.' : error.message };
         throw new Error(run.message);
       } finally {
         canvas.audit.onEvent = null;
-        try { if (historyId && !historyFinished) await history.finish(historyId, controller.signal.aborted ? 'cancelled' : 'failed'); }
+        try { if (historyId && !historyFinished) await history.finish(historyId, controller.signal.aborted ? 'cancelled' : 'failed', null, failureCode); }
         finally { sessionWatch?.dispose(); controller = null; publish(); }
       }
     });

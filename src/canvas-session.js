@@ -34,6 +34,7 @@ export class CanvasConnection {
     this.token = null;
     this.loginWindow = null;
     this.connectionError = null;
+    this.refreshError = null;
     this.lifetime = new AbortController();
     this.credentialWrites = Promise.resolve();
     this.attachSession();
@@ -53,7 +54,7 @@ export class CanvasConnection {
       callback({ cancel: !(this.#metadataTransport?.allows(details) || this.network.allows(details)) });
     });
   }
-  get collectionIssue() { return null; }
+  get collectionIssue() { return this.refreshError; }
   get status() { return { connected: Boolean(this.profile), canForget: Boolean(this.profile || this.token || this.browserLoginData || existsSync(this.file) || existsSync(this.savedSession.file)), name: this.profile?.name || null, connecting: Boolean(this.loginWindow), error: this.connectionError, collectionIssue: this.collectionIssue, collectionNotice: METADATA_NOTICE }; }
   async refreshLoginData() {
     const currentSession = this.session;
@@ -167,8 +168,18 @@ export class CanvasConnection {
   async watchSession(binding, signal) {
     binding.assertCurrent();
     if (this.token) return null;
-    const watcher = await watchCanvasSession({ cookies: this.session.cookies, origin: binding.origin,
-      signal: AbortSignal.any([signal, binding.signal]) });
+    let watcher;
+    try {
+      watcher = await watchCanvasSession({ cookies: this.session.cookies, origin: binding.origin,
+        signal: AbortSignal.any([signal, binding.signal]) });
+    } catch (error) {
+      binding.assertCurrent();
+      if (error.code?.startsWith('CW_SESSION_')) {
+        this.refreshError = error.message;
+        this.onChange();
+      }
+      throw error;
+    }
     try { binding.assertCurrent(); return watcher; }
     catch (error) { watcher.dispose(); throw error; }
   }
@@ -269,6 +280,7 @@ export class CanvasConnection {
         lifetime.signal.throwIfAborted();
         if ((previousId && previousId !== userId) || (previousGlobalId && previousGlobalId !== identity.globalUserId)) this.invalidate();
         this.profile = { id: userId, globalId: identity.globalUserId, name: String(profile.name || 'Canvas account') };
+        this.refreshError = null;
         return this.status;
       } catch (error) {
         lifetime.signal.throwIfAborted();
@@ -309,6 +321,7 @@ export class CanvasConnection {
     this.token = null;
     this.profile = null;
     this.connectionError = null;
+    this.refreshError = null;
     await this.writeCredential(async () => { await fs.rm(this.file, { force: true }); await this.savedSession.remove(); });
     lifetime.signal.throwIfAborted();
     this.loginWindow = new BrowserWindow({ width: 1000, height: 800, title: 'Sign in to Canvas · Close this window when finished',
@@ -346,6 +359,7 @@ export class CanvasConnection {
     this.profile = null;
     this.token = null;
     this.connectionError = null;
+    this.refreshError = null;
     await this.writeCredential(async () => {
       await fs.rm(this.file, { force: true });
       await this.savedSession.remove();

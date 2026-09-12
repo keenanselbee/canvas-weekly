@@ -2,6 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { atomicJson } from './settings.js';
+import { sessionIssues } from './canvas-session-watch.js';
+
+// Persist only fixed diagnostic codes, never arbitrary exception messages.
+const sessionCodes = new Set(Object.keys(sessionIssues).map(reason => `CW_SESSION_${reason.toUpperCase()}`));
 
 // A separate local history, never a Canvas progress baseline. Persist intent
 // before transmission, including failed runs where no guide is produced.
@@ -18,6 +22,8 @@ export class CollectionHistory {
       entries = JSON.parse(await fs.readFile(file, 'utf8'));
       if (!Array.isArray(entries) || entries.some(run => !run || typeof run.id !== 'string'
         || !Number.isFinite(Date.parse(run.startedAt)) || !['running', 'interrupted', 'completed', 'failed', 'cancelled'].includes(run.status)
+        || (run.failure != null && (!sessionCodes.has(run.failure.code)
+          || run.failure.reason !== sessionIssues[run.failure.code.slice(11).toLowerCase()]))
         || !Array.isArray(run.courses) || !Array.isArray(run.requests)
         || run.courses.some(course => !course || !/^[1-9]\d{0,31}$/.test(course.courseId) || typeof course.name !== 'string'
           || !['limited', 'expanded'].includes(course.requested) || !['limited', 'expanded'].includes(course.effective))
@@ -67,11 +73,12 @@ export class CollectionHistory {
     }
     await this.save();
   }
-  async finish(id, status, changes = null) {
+  async finish(id, status, changes = null, errorCode = null) {
     if (!['completed', 'failed', 'cancelled'].includes(status)) throw new Error('Invalid collection result.');
     const run = this.entries.find(entry => entry.id === id);
     if (!run) throw new Error('Collection history is missing.');
     run.status = status; run.finishedAt = new Date().toISOString();
+    if (status === 'failed' && sessionCodes.has(errorCode)) run.failure = { code: errorCode, reason: sessionIssues[errorCode.slice(11).toLowerCase()] };
     if (Number.isSafeInteger(changes) && changes >= 0) run.changes = changes;
     await this.save();
   }

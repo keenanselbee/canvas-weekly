@@ -105,6 +105,7 @@ function renderWeek() {
   if (state.canvas.collectionIssue) {
     const safety = card('Canvas refresh paused');
     safety.append(node('p', '', state.canvas.collectionIssue));
+    safety.append(button('Open connection settings', () => go('settings')));
     main.append(safety);
   } else if (state.canvas.connected && state.canvas.collectionNotice) {
     const coverage = card('Check source coverage');
@@ -521,6 +522,7 @@ function renderCollectionSummary() {
       go('privacy'); const target = document.getElementById('collection-history'); target?.scrollIntoView({ block: 'start' }); target?.focus({ preventScroll: true });
     }));
   main.append(summary);
+  if (latest.failure) summary.append(node('p', '', `${latest.failure.reason} (${latest.failure.code}) Reconnect Canvas in Settings before trying again.`));
   if (Number.isSafeInteger(latest.changes)) summary.append(node('p', 'muted', `${latest.changes} new or changed information entries in the guide.`));
 }
 
@@ -532,6 +534,7 @@ function renderCollectionHistory() {
   for (const run of state.collectionHistory || []) {
     const details = node('details', 'connection-options');
     details.append(node('summary', '', `${new Date(run.startedAt).toLocaleString()} · ${run.status} · ${run.requests.length} requests`));
+    if (run.failure) details.append(node('p', '', `${run.failure.reason} (${run.failure.code})`));
     for (const course of run.courses) details.append(node('p', '', `${course.name}: ${course.effective} reading${course.requested !== course.effective ? ' (expanded requested; pending validation)' : ''}`));
     if (!run.requests.length) details.append(node('p', 'muted', 'No collector request intents were recorded. Collection may have stopped during local session verification.'));
     for (const request of run.requests) {

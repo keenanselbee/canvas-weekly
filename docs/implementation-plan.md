@@ -768,3 +768,14 @@ Work log
   clean-machine use and a real selected-course refresh remain unverified. The rating
   description source change is newer than that installed build. No automated
   course refresh or personal AI planning request was issued during this inspection.
+
+- Investigated the installed-app CW_SESSION_MISSING report: successful earlier
+  profile/course reads did not establish refresh readiness. The collector stopped
+  at its cookie check with zero request intents. The live cause remains unresolved;
+  no authentication checks or read permissions were relaxed. Session failures now
+  expose a refresh pause, connection-settings action and fixed diagnostic in local
+  history. Replaced mixed Unicode navigation glyphs with consistent outline SVGs.
+  All 158 unit tests, isolated Electron connection/UI checks, Windows build and
+  fresh-profile package validation pass. Navigation was visually checked in both
+  themes. The new installer hash and installed-copy distinction are recorded in
+  windows-package.md; no personal Canvas refresh or AI request was made.

@@ -80,30 +80,32 @@ Current validated build (2026-09-11)
 
 The latest local installer includes the Data & privacy page, contextual Forget
 controls, per-course reading preferences, durable collection history, supplied
-message sender names and partial rubric criterion text. Its application sources
-match commit a2b4c9c. Expanded reading remains unavailable and AI suggestions
+message sender names, partial rubric rating descriptions, consistent navigation
+icons and durable session-failure explanations. Expanded reading remains unavailable and AI suggestions
 default to off; saved pending reading preferences do not enable additional reads.
 
 Artifact: dist/Canvas-Weekly-0.1.0-x64-Setup.exe
 
-SHA256: 307cd49c316b0e0a2475251cdb567dc90294f962181f68bfb1459c579181b01d
+SHA256: 90b961bbac02b3eda1e6d5c9d4e1cdbc5e5b360f47305274b1ceaa15f69cfa1c
 
 test:package passed with a new isolated profile, including matching source and
 installer payload, private-data exclusions, bundled Codex initialization without
 an account, document workers, Desktop output default and theme persistence.
 New checks cover the privacy page, empty collection history, contextual Forget
-buttons, disabled expanded reading and AI-off defaults. Light/dark first-run
-screens were inspected. The test does not install the app, authenticate to UBC
+buttons, disabled expanded reading and AI-off defaults. The navigation icons
+were visually checked in both themes using the UI fixture. The test does not install the app, authenticate to UBC
 or send a planning request. Live login/refresh and installer walkthrough remain
 unverified. This artifact supersedes the earlier hashes below.
 
-Subsequent local inspection found the installed application running from
+Earlier local inspection found the a2b4c9c application running from
 C:\Program Files\Canvas Weekly. Its app.asar, Canvas Weekly.exe and bundled
-codex.exe hashes match the verified win-unpacked payload. This verifies installed
+codex.exe hashes matched the earlier verified win-unpacked payload. This verifies installed
 execution of that build; the installer wizard, elevation behavior, uninstall and
 clean-machine experience were not observed. The installed profile had no collection
-history at inspection, so live course refresh remains unverified. The later rating
-description source commit a27ccfb is not included in this installed artifact.
+history at inspection. A subsequent user refresh reported CW_SESSION_MISSING and
+zero collector requests; see [session diagnostics](session-refresh-diagnostics.md).
+The current artifact above has not replaced that installed copy, and the live
+session mismatch remains unresolved. No weaker cookie check was introduced.
 
 
 Earlier validated builds

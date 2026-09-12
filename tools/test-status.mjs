@@ -134,5 +134,23 @@ try {
   assert.ok((await history.textContent()).includes('final server-side effect is unknown'));
   assert.ok((await history.textContent()).includes('limited reading (expanded requested; pending validation)'));
   await history.screenshot({ path: '.codex-temp/visual/collection-history.png' });
+  state.collectionHistory[0].requests = [];
+  state.collectionHistory[0].failure = { code: 'CW_SESSION_MISSING', reason: 'The expected Canvas session cookie is missing.' };
+  state.canvas.collectionIssue = 'Canvas browser session could not be verified. Reconnect Canvas.';
+  await send(state);
+  await page.getByRole('button', { name: 'This week', exact: true }).click();
+  assert.ok((await page.locator('main').textContent()).includes('CW_SESSION_MISSING'));
+  assert.equal(await page.getByRole('button', { name: 'Update guide', exact: true }).isDisabled(), true);
+  await page.getByRole('button', { name: 'Open connection settings', exact: true }).click();
+  await page.getByRole('heading', { name: 'Settings', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Data & privacy', exact: true }).click();
+  await page.locator('#collection-history summary').click();
+  assert.ok((await page.locator('#collection-history').textContent()).includes('CW_SESSION_MISSING'));
+  for (const theme of ['light', 'dark']) {
+    state.appearance.dark = theme === 'dark';
+    await send(state);
+    await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
+    await page.locator('nav').screenshot({ path: `.codex-temp/visual/navigation-${theme}.png` });
+  }
   console.log('Connection, privacy and history checks passed: themes, usage, setup navigation, runtime detection, live sharing, privacy links, reading controls, unknown request effects and small window. Synthetic state only.');
 } finally { await application.close(); }
