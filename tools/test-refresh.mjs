@@ -2,6 +2,7 @@ import { _electron as electron } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { captureUI } from './capture-ui.mjs';
 
 await fs.mkdir('.codex-temp', { recursive: true });
 const output = await fs.mkdtemp(path.resolve('.codex-temp/desktop-refresh-'));
@@ -54,6 +55,7 @@ try {
     };
   }, new URL('../src/course-websites.js', import.meta.url).href);
   const page = await application.firstWindow();
+  await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1));
   await page.evaluate(async () => {
     await window.canvasWeekly.verifyCanvas();
     for (const site of (await window.canvasWeekly.getState()).websites) await window.canvasWeekly.removeWebsite(site.id);
@@ -68,7 +70,7 @@ try {
   }, new URL('../src/canvas-session.js', import.meta.url).href);
   await page.reload();
   await page.getByRole('heading', { name: 'Canvas refresh paused', exact: true }).waitFor();
-  assert.equal(await page.getByRole('button', { name: 'Update guide', exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole('button', { name: /^(Collect|Refresh) course information$/ }).isDisabled(), true);
   const beforePause = await application.evaluate(() => globalThis.syntheticRequestCount);
   const savedBeforePause = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
   await assert.rejects(page.evaluate(() => window.canvasWeekly.updateGuide()), /refresh is paused/);
@@ -138,7 +140,7 @@ try {
       });
     });
   }, output);
-  await page.getByRole('button', { name: 'Update guide', exact: true }).click();
+  await page.getByRole('button', { name: /^(Collect|Refresh) course information$/ }).click();
   const first = await page.evaluate(() => window.refreshFinished);
   await page.getByRole('heading', { name: 'Example assignment', exact: true }).waitFor();
   assert.equal(first.run.busy, false);
@@ -176,15 +178,16 @@ try {
   const taskId = '1:assignment:10:prepare';
   await page.evaluate(taskId => window.canvasWeekly.setStudyTaskDone(taskId, false), taskId);
   const beforeLocalChanges = await application.evaluate(() => globalThis.syntheticRequestCount);
-  await page.getByRole('heading', { name: 'Start here', exact: true }).waitFor();
+  assert.equal(await page.locator('.legacy-plan').evaluate(element => element.open), false);
   await page.locator('#notice').waitFor({ state: 'hidden', timeout: 6500 });
   for (const theme of ['light', 'dark']) {
     await page.evaluate(theme => window.canvasWeekly.setTheme(theme), theme);
     await page.locator(`html[data-theme="${theme}"]`).waitFor();
     await page.locator('main').evaluate(node => { node.scrollTop = 0; });
-    await page.screenshot({ path: `.codex-temp/visual/start-here-${theme}.png` });
+    await captureUI(application, `.codex-temp/visual/collection-flow-${theme}.png`);
   }
   await page.locator('details.study-day').evaluateAll(nodes => nodes.forEach(node => { node.open = false; }));
+  await page.locator('.legacy-plan > summary').click();
   await page.getByRole('button', { name: 'View task', exact: true }).click();
   await page.waitForFunction(() => document.activeElement?.id === 'study-1:assignment:10:prepare');
   assert.equal(await page.locator('#study-1\\:assignment\\:10\\:prepare').isVisible(), true);
@@ -212,6 +215,7 @@ try {
   assert.match(await fs.readFile(first.guide.outputPath, 'utf8'), /- \[x\]/);
   assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.items[0].status, 'not-submitted');
   await page.reload();
+  await page.locator('.legacy-plan > summary').click();
   assert.equal(await page.getByRole('checkbox', { name: /Preparation done:.*Example assignment/ }).isChecked(), true);
   // This fixture uses persistent test storage. Reset the unchanged undated task
   // so a repeat run actually exercises its change event and focus restoration.
@@ -219,11 +223,13 @@ try {
     await page.evaluate(() => window.canvasWeekly.setStudyTaskDone('1:assignment:11:prepare', false));
     await page.reload();
   }
+  await page.locator('.legacy-plan').evaluate(element => { element.open = true; });
   await timingGroup.locator(':scope > summary').click();
   await page.getByRole('checkbox', { name: /Preparation done:.*Practice exam 2020/ }).check();
   await page.waitForFunction(() => document.getElementById('study-1:assignment:11:prepare') === document.activeElement);
   assert.equal(await timingGroup.evaluate(node => node.open), true, 'Checking a review item preserves its open group and focus');
   assert.equal(await page.getByRole('checkbox', { name: /Preparation done:.*Practice exam 2020/ }).isChecked(), true);
+  await page.locator('.legacy-plan').evaluate(element => { element.open = true; });
   await timingGroup.locator(':scope > summary').click();
   await fs.mkdir('.codex-temp/visual', { recursive: true });
   await page.evaluate(() => window.canvasWeekly.setTheme('light'));
@@ -232,42 +238,22 @@ try {
   await page.evaluate(() => window.canvasWeekly.setTheme('dark'));
   await page.locator('html[data-theme="dark"]').waitFor();
   await page.screenshot({ path: '.codex-temp/visual/factual-guide.png' });
-  await application.evaluate(async (_electron, urls) => {
-    const require = process.getBuiltinModule('module').createRequire(urls.client);
-    const { CodexClient } = require('./codex-client.js');
-    const { validatePriorities } = require('./planning-output.js');
-    CodexClient.prototype.plan = async evidence => validatePriorities({ priorities: [{
-      sourceId: '1:assignment:10', action: 'Prepare the practice', reason: 'Use the required work to identify gaps.', suggestedDate: evidence.week.today,
-      checks: ['Confirm whether any extension applies.'], steps: [
-        { text: 'Complete the practice.', kind: 'required', quote: 'Complete the practice.' },
-        { text: 'Use extra examples if helpful.', kind: 'optional', quote: 'Extra examples are optional.' },
-      ],
-    }] }, evidence);
-  }, { client: new URL('../src/codex-client.js', import.meta.url).href, output: new URL('../src/planning-output.js', import.meta.url).href });
-  await page.evaluate(async () => { await window.canvasWeekly.setAIEnabled(true); await window.canvasWeekly.updateGuide(); });
-  const planned = await page.evaluate(() => window.canvasWeekly.getState());
-  const plannedTask = planned.guide.studyPlan.tasks.find(task => task.id === taskId);
-  assert.equal(plannedTask.ai, true);
-  assert.equal(plannedTask.changedSinceDone, true);
-  assert.equal(plannedTask.dueAt, first.guide.items[0].dueAt);
-  await page.getByText(/ChatGPT refined 1 preparation task/).waitFor();
-  await page.getByText('Suggested preparation', { exact: true }).first().click();
-  await page.getByText(/Required \(AI interpretation\)/).first().waitFor();
-  await page.locator('#notice').waitFor({ state: 'hidden', timeout: 6500 });
-  await page.screenshot({ path: '.codex-temp/visual/study-plan-ai.png' });
-  assert.match(await fs.readFile(first.guide.outputPath, 'utf8'), /Optional \(AI interpretation\)/);
   // Exercise full guide generation from saved evidence with an in-process AI
   // fixture, never a real AI account or a new Canvas collection.
   await application.evaluate((_electron, modules) => {
     const require = process.getBuiltinModule('module').createRequire(modules.client);
     const { CodexClient } = require('./codex-client.js');
     const { validateWeeklyGuide } = require('./weekly-output.js');
-    const original = CodexClient.prototype.plan;
+    CodexClient.prototype.start = async function () {};
+    CodexClient.prototype.readAccount = async function () { this.state.connected = true; };
+    globalThis.weeklyTestCalls = 0;
+    const assertWeekly = options => { if (!options?.weekly) throw new Error('Unexpected automatic AI call'); };
     globalThis.weeklyTestMode = 'success';
     CodexClient.prototype.plan = async function (evidence, signal, options) {
       globalThis.weeklyTestClient = this;
       this.state.connected = true;
-      if (!options?.weekly) return original.call(this, evidence, signal);
+      globalThis.weeklyTestCalls++;
+      assertWeekly(options);
       globalThis.weeklyTestEvidence = evidence;
       if (globalThis.weeklyTestMode === 'fail') throw new Error('Synthetic weekly generation failure');
       if (globalThis.weeklyTestMode === 'wait') return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
@@ -278,8 +264,10 @@ try {
         }] })), questions: [{ text: 'How much study time is available?', sourceIds: ['course:1'] }] }, evidence);
     };
   }, { client: new URL('../src/codex-client.js', import.meta.url).href });
-  // The legacy fixture gives us the existing client without starting a process.
+  await page.evaluate(() => window.canvasWeekly.checkChatGPT());
   await page.evaluate(() => window.canvasWeekly.updateGuide());
+  assert.equal(await application.evaluate(() => globalThis.weeklyTestCalls), 0, 'Collection must not invoke connected AI');
+  assert.equal(await page.evaluate(() => typeof window.canvasWeekly.setAIEnabled), 'undefined');
   await page.reload();
   const beforeGeneration = await application.evaluate(() => globalThis.syntheticRequestCount);
   const savedCollectionTime = (await page.evaluate(() => window.canvasWeekly.getState())).guide.generatedAt;
@@ -316,7 +304,8 @@ try {
   assert.equal((await page.evaluate(() => window.canvasWeekly.getState())).guide.aiPreferencesChanged, true);
   for (const theme of ['light', 'dark']) {
     await page.evaluate(theme => window.canvasWeekly.setTheme(theme), theme);
-    await page.locator('.study-preferences').screenshot({ path: `.codex-temp/visual/study-preferences-${theme}.png` });
+    await page.locator('.study-preferences').evaluate(element => element.scrollIntoView({ block: 'start' }));
+    await captureUI(application, `.codex-temp/visual/study-preferences-${theme}.png`);
   }
   await page.getByRole('button', { name: 'This week', exact: true }).click();
   await page.evaluate(() => window.canvasWeekly.generateGuide());
@@ -327,7 +316,6 @@ try {
   await page.getByRole('button', { name: 'Clear study preferences', exact: true }).click();
   await page.waitForFunction(async () => !(await window.canvasWeekly.getState()).planningPreferences.includeWithAI);
   await page.getByRole('button', { name: 'This week', exact: true }).click();
-  await page.evaluate(() => window.canvasWeekly.setAIEnabled(false));
   await page.evaluate(id => window.canvasWeekly.removeWebsite(id), websiteId);
   const beforeMetadata = (await page.evaluate(() => window.canvasWeekly.getState())).guide;
   await application.evaluate((_electron, moduleUrl) => {
@@ -428,8 +416,8 @@ try {
     CanvasConnection.prototype.collectMetadata = globalThis.originalCollect;
   }, new URL('../src/canvas-client.js', import.meta.url).href);
   await page.reload();
-  await page.getByRole('heading', { name: 'Check source coverage', exact: true }).waitFor();
-  assert.equal(await page.getByRole('button', { name: 'Update guide', exact: true }).isDisabled(), false);
+  await page.locator('.coverage-notice > summary').waitFor();
+  assert.equal(await page.getByRole('button', { name: /^(Collect|Refresh) course information$/ }).isDisabled(), false);
   const beforeOfflineOpen = await application.evaluate(() => globalThis.syntheticRequestCount);
   await page.evaluate(() => window.canvasWeekly.openGuide());
   assert.equal(await application.evaluate(() => globalThis.syntheticRequestCount), beforeOfflineOpen);

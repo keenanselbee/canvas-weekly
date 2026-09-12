@@ -78,7 +78,7 @@ try {
   assert.equal(state.ai.canForget, false);
   await page.getByRole('button', { name: 'Data & privacy', exact: true }).click();
   await page.getByRole('heading', { name: 'Data & privacy', exact: true }).waitFor();
-  assert.match(await page.locator('#privacy-sharing-status').textContent(), /Study suggestions: Off/);
+  assert.match(await page.locator('#privacy-sharing-status').textContent(), /AI sharing: only when you create a guide/);
   assert.match(await page.locator('main').textContent(), /rubric criterion text/);
   assert.match(await page.locator('#collection-history').textContent(), /No collection runs recorded/);
   await page.getByRole('button', { name: 'Manage saved logins', exact: true }).click();

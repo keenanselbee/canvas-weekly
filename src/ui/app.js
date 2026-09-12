@@ -33,7 +33,6 @@ function announce(message, persistent = false) {
 function update(next) {
   if (state && (JSON.stringify(state.settings.lastGuideAccount) !== JSON.stringify(next.settings.lastGuideAccount)
     || JSON.stringify(state.planningPreferences) !== JSON.stringify(next.planningPreferences))) planningDraft = null;
-  const sharingChanged = state && state.settings.aiEnabled !== next.settings.aiEnabled;
   if (next.canvas.error && next.canvas.error !== state?.canvas.error) announce(next.canvas.error, true);
   const runChanged = state && (state.run?.busy !== next.run?.busy || state.run?.message !== next.run?.message);
   const connectionChanged = state && (JSON.stringify(state.canvas) !== JSON.stringify(next.canvas) || ['connected', 'connecting', 'error', 'available'].some(key => state.ai[key] !== next.ai[key]) || JSON.stringify(state.ai.runtime) !== JSON.stringify(next.ai.runtime));
@@ -41,7 +40,7 @@ function update(next) {
   document.documentElement.dataset.theme = state.appearance.dark ? 'dark' : 'light';
   renderConnections();
   if (runChanged) { if (state.run.message) announce(state.run.message, state.run.busy); render(); }
-  else if (connectionChanged || (page === 'privacy' && sharingChanged)) render();
+  else if (connectionChanged) render();
 }
 function renderConnections() {
   for (const [id, connection] of [['connection-status', state.canvas], ['ai-status', state.ai]]) {
@@ -53,7 +52,6 @@ function renderConnections() {
   const collectionStatus = document.querySelector('#canvas-collection-status');
   collectionStatus.hidden = !state.canvas.collectionIssue && !(state.canvas.connected && state.canvas.collectionNotice);
   collectionStatus.textContent = state.canvas.collectionIssue ? 'Refresh paused' : 'Limited Canvas coverage';
-  document.querySelector('#suggestions-status').textContent = state.settings.aiEnabled ? (state.ai.connected ? 'On' : 'Sign in') : 'Off';
   const usage = state.ai.usage;
   const tokens = usage?.tokens;
   const format = value => value.toLocaleString();
@@ -95,12 +93,12 @@ function go(destination) { page = destination; render(); }
 function renderWeek() {
   const actions = node('div', 'actions');
   if (!preview && state.canvas.connected) {
-    const refresh = button(state.run.busy ? 'Updating…' : 'Update guide', async () => { update(await api.updateGuide()); render(); }, 'primary');
+    const refresh = button(state.run.busy ? 'Working…' : state.guide ? 'Refresh course information' : 'Collect course information', async () => { update(await api.updateGuide()); render(); }, state.guide ? '' : 'primary');
     refresh.disabled = state.run.busy || Boolean(state.canvas.collectionIssue);
     actions.append(refresh);
     if (state.run.busy) actions.append(button('Cancel', () => api.cancelRefresh()));
   }
-  if (!preview && state.guide) actions.append(button('Open guide', () => api.openGuide()));
+  if (!preview && state.guide) actions.append(button(state.guide.aiGuide ? 'Open guide' : 'Open factual reference', () => api.openGuide()));
   header('This week', preview ? 'September 14 – 20, 2026' : state.guide ? `${state.guide.week.start} to ${state.guide.week.end}` : 'A clear plan for the week ahead', actions);
   if (!preview) {
     if (state.reading?.courses.some(course => course.requested === 'expanded')) main.append(node('p', 'muted', state.reading.available ? 'Expanded reading enabled for selected courses.' : 'Expanded reading requested. Limited reading is active pending safety validation.'));
@@ -114,27 +112,35 @@ function renderWeek() {
     safety.append(button('Open connection settings', () => go('settings')));
     main.append(safety);
   } else if (state.canvas.connected && state.canvas.collectionNotice) {
-    const coverage = card('Check source coverage');
-    coverage.classList.add('callout');
-    coverage.append(node('p', '', state.canvas.collectionNotice));
+    const coverage = node('details', 'card coverage-notice');
+    coverage.append(node('summary', '', 'Limited source coverage — review what is missing'), node('p', '', state.canvas.collectionNotice));
     main.append(coverage);
   }
   if (state.guide) {
-    const sharing = card('Use your course information with AI');
-    sharing.append(node('p', '', 'Export the collected course information and a study prompt for your preferred AI chat. Review the document before uploading; it includes course messages and may contain personal information.'));
-    const actions = node('div', 'actions');
-    const exportButton = button('Export for AI', async () => { update(await api.exportForAI()); render(); }, 'primary');
+    const sharing = card('Make your weekly study guide');
+    sharing.append(node('p', 'muted', 'Choose how to turn your saved course information into a personal plan. Collecting information never starts an AI run.'));
+    const routes = node('div', 'guide-routes');
+    const manual = node('div', 'guide-route');
+    manual.append(node('h3', '', 'Use your preferred AI chat'), node('p', '', 'Export a document, then upload it with the study prompt. Review it first: course text may contain personal information.'));
+    const manualActions = node('div', 'actions');
+    const exportButton = button('Export for AI', async () => { update(await api.exportForAI()); render(); });
     exportButton.disabled = state.run.busy;
-    actions.append(exportButton, button('Copy study prompt', async () => { await api.copyStudyPrompt(); announce('Study prompt copied. Upload Course Information.md with it.'); }));
+    manualActions.append(exportButton, button('Copy study prompt', async () => { await api.copyStudyPrompt(); announce('Study prompt copied. Upload Course Information.md with it.'); }));
+    manual.append(manualActions);
+    const connected = node('div', 'guide-route');
+    connected.append(node('h3', '', 'Use connected ChatGPT'), node('p', '', state.ai.connected ? 'Create a guide here with tasks, source links and questions to double-check. This sends saved course information to ChatGPT.' : 'Connect ChatGPT in Settings, then create your guide here using the saved course information.'));
     const generate = button('Create my weekly guide', async () => {
       if (!state.ai.connected) { go('settings'); return; }
       update(await api.generateGuide()); render();
-    });
+    }, 'primary');
     generate.disabled = state.run.busy;
-    actions.append(generate);
-    if (state.run.busy && !state.canvas.connected) actions.append(button('Cancel', () => api.cancelRefresh()));
-    sharing.append(node('p', 'muted', 'Create my weekly guide sends the saved course evidence to your connected ChatGPT account. It does not refresh Canvas.'));
-    sharing.append(actions, node('p', 'muted', 'Export uses the saved collection and sends nothing to an AI service. It includes source coverage and last-known information.'));
+    const connectedActions = node('div', 'actions');
+    connectedActions.append(generate);
+    if (state.run.busy && !state.canvas.connected) connectedActions.append(button('Cancel', () => api.cancelRefresh()));
+    connected.append(connectedActions);
+    routes.append(manual, connected);
+    sharing.append(routes);
+    if (state.guide.aiGuide) sharing.append(node('p', 'footer-note', 'Refreshing replaces this week’s output with a fresh factual reference. Your previous generated files are kept in Revisions; create a new AI guide after collecting.'));
     const coverage = state.guide.planningCoverage;
     if (coverage && (coverage.omittedTexts || coverage.items || coverage.sources || coverage.courses || coverage.changes)) sharing.append(node('p', 'muted', `The last connected AI run omitted ${coverage.omittedTexts} full texts, ${coverage.items} assessment records, ${coverage.sources} material records, ${coverage.courses || 0} course summaries and ${coverage.changes || 0} changes because of input limits. The exported pack includes them; review it for a complete account of collected evidence.`));
     main.append(sharing);
@@ -144,7 +150,7 @@ function renderWeek() {
   welcome.classList.add('welcome');
   welcome.append(node('div', 'eyebrow', 'WELCOME TO CANVAS WEEKLY'), node('h2', '', 'Know what to focus on. Keep the details close.'), node('p', '', 'Bring deadlines, readings, and course updates into one weekly guide, with links back to the source.'));
   const steps = node('div', 'steps');
-  [['Connect your courses', 'Use your Canvas account to find the courses you want to follow.'], ['Choose where your guide lives', 'Weekly files go to your Desktop, or a folder you choose.'], ['Refresh as the week changes', 'Keep the same weekly guide up to date and see what changed.']].forEach(([title, description], index) => {
+  [['Connect your courses', 'Choose your Canvas courses and any supported course websites.'], ['Collect course information', 'Save source material and deadlines locally. Check what is missing or needs confirmation.'], ['Create your study guide', 'Export for your preferred AI chat, or use connected ChatGPT. Files go to your Desktop, or a folder you choose.']].forEach(([title, description], index) => {
     const step = node('div', 'step');
     const text = node('div');
     text.append(node('h3', '', title), node('p', '', description));
@@ -208,11 +214,12 @@ function renderGuide() {
   }
   if (guide.studyPlan && !weekly) {
     const plan = guide.studyPlan;
-    const overview = card('Your study plan');
+    const legacy = node('details', 'card legacy-plan');
+    legacy.append(node('summary', '', 'Basic preparation checklist'), node('p', 'muted', 'These generic prompts are retained for local checkmarks. Use the recorded deadlines below and an AI guide for a personal plan.'));
+    const overview = node('section');
     overview.append(node('p', '', plan.summary), node('p', 'muted', plan.note));
     const refined = plan.tasks.filter(task => task.ai).length;
     if (guide.priorities?.length) overview.append(node('p', 'muted', `ChatGPT refined ${refined} preparation task${refined === 1 ? '' : 's'}. Other tasks use basic prompts. Required/optional labels are AI interpretations with source quotes to check.`));
-    if (state.ai.connected && !state.settings.aiEnabled) overview.append(node('p', 'muted', 'ChatGPT is connected. Enable Study suggestions in Settings for more specific preparation advice.'));
     if (plan.focus?.length) {
       overview.append(node('h3', '', 'Start here'), node('p', 'muted', plan.focusNote));
       for (const focus of plan.focus) {
@@ -295,7 +302,7 @@ function renderGuide() {
       }
       overview.append(day);
     }
-    main.append(overview);
+    legacy.append(overview);
     const checks = card('Double-check before relying on this plan');
     if (!plan.checks.length) checks.append(node('p', 'muted', 'No specific gaps identified. Course information can still change.'));
     for (const check of plan.checks) {
@@ -303,7 +310,8 @@ function renderGuide() {
       details.append(node('summary', '', check.title), node('p', '', check.detail), button('Open source', () => api.openSource(check.sourceId), 'link'));
       checks.append(details);
     }
-    main.append(checks);
+    legacy.append(checks);
+    main.append(legacy);
   }
   if (guide.priorities?.length && !guide.studyPlan) {
     const suggestions = card('Suggested focus');
@@ -518,7 +526,7 @@ function renderSettings() {
   const aiActions = node('div', 'actions');
   if (!state.ai.connected) aiActions.append(button(state.ai.connecting ? 'Sign-in open' : 'Connect ChatGPT', async () => { update(await api.connectChatGPT()); render(); }), button('Check sign-in', async () => { update(await api.checkChatGPT()); render(); }));
   if (state.ai.canForget) aiActions.append(button('Forget ChatGPT login', async () => { update(await api.disconnectChatGPT()); render(); announce('Saved ChatGPT connection forgotten.'); }));
-  const aiSettings = row('ChatGPT via Codex', state.ai.connected ? 'Connected. Your account usage limits apply.' : state.ai.error || 'Sign in through the official ChatGPT page to add study suggestions.', aiActions);
+  const aiSettings = row('ChatGPT via Codex', state.ai.connected ? 'Connected. Your account usage limits apply.' : state.ai.error || 'Sign in through the official ChatGPT page to create weekly study guides.', aiActions);
   aiSettings.id = 'ai-settings';
   connections.append(aiSettings);
   const rememberAI = node('input'); rememberAI.type = 'checkbox'; rememberAI.checked = state.settings.rememberChatGPT !== false;
@@ -528,9 +536,7 @@ function renderSettings() {
     finally { update(await api.getState()); render(); }
   }));
   connections.append(row('Remember ChatGPT on this computer', 'Use Windows credential storage. Off keeps authorization in memory for this app session. Changing this signs you out.', rememberAI));
-  const aiToggle = node('input'); aiToggle.type = 'checkbox'; aiToggle.checked = Boolean(state.settings.aiEnabled); aiToggle.setAttribute('aria-label', 'Use ChatGPT suggestions');
-  aiToggle.addEventListener('change', () => perform(async () => { update(await api.setAIEnabled(aiToggle.checked)); }));
-  connections.append(row('Study suggestions', 'When enabled, selected course text is sent to ChatGPT. Factual guides work without it.', aiToggle));
+  connections.append(node('p', 'muted', 'ChatGPT runs only when you choose Create my weekly guide. Connecting or refreshing Canvas does not send course information to AI.'));
   const aiOptions = node('details', 'connection-options'); aiOptions.append(node('summary', '', 'ChatGPT connection options'));
   const runtime = state.ai.runtime;
   const runtimeTitle = state.ai.available ? 'Codex ready' : runtime?.detected ? 'Codex detected' : 'Codex not detected';
@@ -554,7 +560,7 @@ function renderSettings() {
     update(await api.setTimeZone(timeZone.value));
     announce('Timezone saved for the next guide update. Existing guides keep their original timezone.');
   }));
-  output.append(row('Academic timezone', 'Use the timezone your courses follow, even when travelling. Weeks run Monday to Sunday. Changes apply on the next Update guide; saved guides keep their original dates and timezone.', timing));
+  output.append(row('Academic timezone', 'Use the timezone your courses follow, even when travelling. Weeks run Monday to Sunday. Changes apply on the next collection; saved guides keep their original dates and timezone.', timing));
   const appearance = card('Appearance');
   const select = node('select');
   select.setAttribute('aria-label', 'Theme');
@@ -629,8 +635,10 @@ function renderReadingSettings() {
 function renderCollectionSummary() {
   const latest = state.collectionHistory?.[0];
   if (!latest) return;
-  const summary = card('Latest collection');
   const effects = latest.requests.filter(request => request.effectKind === 'possible-view');
+  const summary = node('details', 'card collection-summary');
+  summary.open = latest.status !== 'completed' || effects.length > 0;
+  summary.append(node('summary', '', `Latest collection: ${latest.status}${effects.length ? ' — possible viewing effects' : ''}`));
   summary.append(node('p', '', `${new Date(latest.startedAt).toLocaleString()} · ${latest.status} · ${latest.requests.length} recorded requests`),
     node('p', 'muted', effects.length ? `${effects.length} requests may have affected viewing progress. A failed or cancelled update may still have reached Canvas.` : 'No expanded Canvas material reads were attempted. This is a request history, not proof that Canvas account state stayed unchanged.'),
     button('Review collection history', () => {
@@ -677,11 +685,11 @@ function renderPrivacy() {
   storage.append(node('p', '', 'Settings, collected course information, guides, study checkmarks, and collection history are saved on this computer. History includes course names and item identifiers. Remembered logins use protected Windows storage.'),
     node('p', 'muted', 'Course data and exported guides are not encrypted by the app. A cloud-synced output folder may sync your documents. Forgetting a login keeps your guides.'));
   const sharing = card('When information goes to AI');
-  const sharingStatus = node('p', 'privacy-status', `Study suggestions: ${state.settings.aiEnabled ? 'On' : 'Off'}${state.settings.aiEnabled && !state.ai.connected ? ' - ChatGPT sign-in needed' : ''}`);
+  const sharingStatus = node('p', 'privacy-status', 'AI sharing: only when you create a guide');
   sharingStatus.id = 'privacy-sharing-status'; sharingStatus.setAttribute('role', 'status');
-  sharing.append(sharingStatus, node('p', '', 'When enabled, relevant course text, including course messages and supplied sender names, is sent through Codex to your connected ChatGPT account for preparation suggestions. Canvas login credentials are not provided to the planner.'),
+  sharing.append(sharingStatus, node('p', '', 'Create my weekly guide sends relevant saved course text, including course messages and supplied sender names, through Codex to your connected ChatGPT account. Canvas login credentials are not provided to the planner. Collection and export do not call AI.'),
     node('p', '', 'Export for AI creates Course Information.md locally. It includes collected course text, source coverage and changes, but excludes login storage, local notes and previous AI output. Review it before uploading to an AI chat: course text can contain personal information, and automatic credential filtering may miss unusual formats.'),
-    node('p', 'muted', 'Study preferences are stored per Canvas account. With Include with AI enabled, availability, priorities and guide length are included in exports and AI input. Clearing or disabling them affects future exports and generation; it does not recall older documents or information already uploaded. Connecting ChatGPT alone does not enable suggestions. Information sent to the AI service is subject to its data policies and your account settings.'));
+    node('p', 'muted', 'Study preferences are stored per Canvas account. With Include with AI enabled, availability, priorities and guide length are included in exports and AI input. Clearing or disabling them affects future exports and generation; it does not recall older documents or information already uploaded. Connecting ChatGPT alone does not send course information. Information sent to the AI service is subject to its data policies and your account settings.'));
   const changes = card('What the app can change');
   changes.append(node('p', '', 'Canvas Weekly does not start or resume quizzes, submit coursework, or send messages. Study checkmarks update your local guide only.'),
     node('p', 'muted', 'Collection uses restricted requests and stops when required safety checks fail. Opening an original source uses your browser, outside these collection protections.'));

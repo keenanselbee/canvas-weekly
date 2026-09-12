@@ -26,7 +26,7 @@ Milestone ledger
 | E1 | Shared evidence pack and Export for AI | Full normalized text, source IDs/coverage, explicit AI omissions, offline export and protected files | Implemented; 166 unit tests and synthetic desktop refresh passed |
 | E2 | Full connected weekly guide | Standalone generation from saved evidence; source-linked tasks and questions; failure preserves prior guide | Core generation, shared views and opt-in personal preferences implemented; live quality review pending |
 | E3 | Improve permitted source coverage | Evidence-driven source additions with provenance and safety review | Pending; no collection permissions expanded by E1 |
-| E4 | Collection and AI routes in the primary UX | Simple collection/coverage/export/generate flow, useful factual fallback, desktop release checks | Initial export actions delivered; main-screen migration and final review pending |
+| E4 | Collection and AI routes in the primary UX | Simple collection/coverage/export/generate flow, useful factual fallback, desktop release checks | Explicit collection/export/generate interface and themes verified; factual-export simplification and release review pending |
 
 Scheduling, multi-provider support, public distribution and hosted service are
 subsequent enhancements. They are documented product directions, not prerequisites
@@ -934,3 +934,22 @@ Work log
   Light/dark screenshot capture returned the wrong window region and does not
   establish visual QA; verify the form during the primary UI cleanup. Collection
   permissions remain unchanged; no personal Canvas or AI requests were made.
+
+- Separated Collect/Refresh course information from AI generation and retired
+  automatic Study suggestions, including older saved aiEnabled settings and its
+  renderer IPC. The primary screen presents manual export and connected ChatGPT
+  as separate routes. Successful history and the coverage explanation collapse
+  behind visible summaries; failed runs and possible viewing effects stay open.
+  The generic checklist remains accessible but collapsed. Refresh still replaces
+  current weekly output with a factual reference and preserves prior generated
+  files in Revisions; this is now disclosed beside an existing AI guide.
+  Validation: all 171 unit tests and the synthetic refresh workflow passed,
+  including legacy-setting retirement, zero AI calls during collection, explicit
+  generation, failure/cancellation preservation, local checkmarks and account
+  isolation. Status/UX checks passed small windows, 200% zoom, keyboard routing,
+  privacy and connection states. Light/dark routes and preference controls were
+  visually reviewed. Earlier capture problems were traced to retained 200% test
+  zoom and background render-frame waits; test capture now controls zoom and uses
+  a bounded paint wait with background throttling disabled. No personal Canvas
+  or AI requests were made. Factual exports still contain the older checklist;
+  replacing that output and live-course quality review remain pending.

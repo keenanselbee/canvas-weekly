@@ -287,22 +287,13 @@ else {
         binding.assertCurrent();
         const next = buildGuide(reconcile(records, previous, { origin: binding.origin, now: new Date().toISOString(), timeZone: store.value.timeZone }));
         next.planningPreferences = sharedPlanningPreferences(planningPreferences);
-        if (store.value.aiEnabled) {
-          run = { busy: true, message: 'Preparing study suggestions with ChatGPT…' }; publish();
-          try {
-            const evidence = planningEvidence(next);
-            next.planningCoverage = { omittedTexts: evidence.omissions.length, ...evidence.omittedRecords };
-            next.priorities = await codex.plan(evidence, signal); next.mode = 'Factual guide with AI study suggestions';
-          }
-          catch (error) { signal.throwIfAborted(); next.planningNote = error.message; }
-        }
         signal.throwIfAborted();
         await sessionWatch?.check();
         binding.assertCurrent();
-        run = { busy: true, message: 'Saving your weekly guide…' }; publish();
+        run = { busy: true, message: 'Saving course information…' }; publish();
         guide = await guides.export(next, snapshot().outputDirectory, userId, signal);
         await history.finish(historyId, 'completed', next.changes.length); historyFinished = true;
-        run = { busy: false, message: records.some(record => record.coverage.some(source => source.status !== 'ok')) ? 'Guide updated with some information unavailable. Review source coverage.' : 'Weekly guide updated.' };
+        run = { busy: false, message: records.some(record => record.coverage.some(source => source.status !== 'ok')) ? 'Course information saved with gaps. Review coverage, then export or create an AI guide.' : 'Course information saved. Export it or create your AI weekly guide.' };
         return snapshot();
       } catch (error) {
         failureCode = error.code;
@@ -428,7 +419,6 @@ else {
       await store.update({ rememberChatGPT: remember, aiEnabled: false });
       codex = createCodex();
     }));
-    handle('settings:ai', async enabled => { requireIdle(); await store.update({ aiEnabled: enabled }); return snapshot(); });
     handle('settings:codex', async () => {
       requireIdle();
       const result = await dialog.showOpenDialog(window, { title: 'Choose installed Codex', properties: ['openFile'], filters: [{ name: 'Codex executable', extensions: ['exe'] }] });

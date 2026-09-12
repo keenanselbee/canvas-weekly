@@ -18,7 +18,13 @@ account and produces an overview, course tasks and questions, with source quotes
 and recorded deadlines. Generation never refreshes Canvas. Failed or cancelled
 generation preserves the previous guide. Open guide includes the result in HTML,
 Markdown and Word; local preparation checkmarks remain separate from submissions.
-The older automatic Study suggestions setting still produces limited suggestions.
+Collection and export never start an AI run. Use Create my weekly guide to send
+saved evidence to connected ChatGPT; the older automatic sharing setting is retired.
+
+Refreshing course information replaces this week's output with a factual
+reference. Previous generated files remain in Revisions; generate again to make
+an AI guide from the new collection. The basic preparation checklist remains
+available under a collapsed section during the factual-reference redesign.
 
 Settings also has optional **Study preferences** for available time, priorities
 and guide length. They are saved per Canvas account. Sharing is off by default;
@@ -150,19 +156,19 @@ scope and prerequisites. HTML-to-PDF print pagination remains a separate check.
 
 Under Courses, expand Course websites, choose a discovered link or enter a course
 site address, then Add website. Enter its separate website login if requested.
-The next Update guide includes supported pages within that site's course folder.
+The next collection includes supported pages within that site's course folder.
 Website setup itself does not contact Canvas. Read limits and unavailable files
 remain visible as gaps; website text never replaces Canvas deadlines automatically.
 Run `npm run test:websites` for the local HTTPS transport fixture.
 
-For AI suggestions, open Settings, connect ChatGPT through the official browser
-flow, then enable Study suggestions. ChatGPT can refine up to twelve priorities
-with preparation steps, suggested days and checks. Required/optional claims include
+For an AI guide, open Settings and connect ChatGPT through the official browser
+flow. Collect course information, then choose Create my weekly guide. It produces
+an overview, per-course tasks and questions from saved evidence. Required/optional claims include
 matching source quotes and remain labeled AI interpretations. If Codex cannot be found, choose the installed
 codex.exe under ChatGPT connection options. The app keeps its Codex credentials
 separate from your existing setup and does not inherit API keys as a paid fallback.
 AI receives bounded selected course text, with no Canvas credentials. Failed
-planning falls back to a factual guide. Real runtime initialization is verified;
+planning preserves the previous output. Real runtime initialization is verified;
 real ChatGPT account restoration and a planning turn using synthetic course evidence
 are now verified. Full real-course planning quality still needs review.
 
@@ -201,7 +207,7 @@ No passwords, cookies, access tokens, or browser profiles belong in output files
 
 The default week is Monday-Sunday in America/Vancouver, with a 21-day lookahead.
 Settings > Weekly files exposes Academic timezone. Save the timezone your courses
-follow; it applies on the next Update guide. Existing saved guides retain their
+follow; it applies on the next collection. Existing saved guides retain their
 original timezone, week and dates. Timezone changes are blocked during a refresh.
 Verify the academic timezone against Canvas before publishing real deadlines.
 

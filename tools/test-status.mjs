@@ -2,6 +2,7 @@ import { _electron as electron } from 'playwright';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { buildGuide } from '../src/guide.js';
+import { captureUI } from './capture-ui.mjs';
 
 await fs.mkdir('.codex-temp/visual', { recursive: true });
 const environment = { ...process.env, CANVAS_WEEKLY_TEST: '1' };
@@ -9,6 +10,10 @@ delete environment.ELECTRON_RUN_AS_NODE;
 const application = await electron.launch({ args: ['.'], env: environment });
 try {
   const page = await application.firstWindow();
+  await application.evaluate(({ BrowserWindow }) => {
+    const contents = BrowserWindow.getAllWindows()[0].webContents;
+    contents.setZoomFactor(1); contents.setBackgroundThrottling(false);
+  });
   await page.getByRole('heading', { name: 'This week', exact: true }).waitFor();
   const state = await page.evaluate(() => window.canvasWeekly.getState());
   const send = async value => application.evaluate(({ BrowserWindow }, value) => BrowserWindow.getAllWindows()[0].webContents.send('state:changed', value), value);
@@ -22,12 +27,12 @@ try {
     await send(state);
     await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
     assert.equal(await page.locator('#connection-status').textContent(), 'Connected');
-    assert.equal(await page.locator('#suggestions-status').textContent(), 'Off');
+    assert.equal(await page.locator('#suggestions-status').count(), 0);
     assert.equal(await page.locator('#ai-token-count').textContent(), '—');
     assert.equal(await page.locator('#canvas-collection-status').isVisible(), true);
-    await page.locator('.sidebar-bottom').screenshot({ path: `.codex-temp/visual/connections-${theme}.png` });
+    await captureUI(application, `.codex-temp/visual/connections-${theme}.png`);
     await page.locator('#connection-settings').hover();
-    await page.locator('.sidebar-bottom').screenshot({ path: `.codex-temp/visual/connections-hover-${theme}.png` });
+    await captureUI(application, `.codex-temp/visual/connections-hover-${theme}.png`);
     await page.locator('h1').hover();
   }
   state.ai.usage = { status: 'completed', tokens: { totalTokens: 1500, inputTokens: 1200, cachedInputTokens: 800, outputTokens: 300, reasoningOutputTokens: 100 } };
@@ -46,7 +51,7 @@ try {
     state.appearance.dark = theme === 'dark';
     await send(state);
     await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
-    await page.locator('.sidebar-bottom').screenshot({ path: `.codex-temp/visual/connections-usage-${theme}.png` });
+    await captureUI(application, `.codex-temp/visual/connections-usage-${theme}.png`);
   }
   await page.getByRole('button', { name: 'Manage connections in Settings' }).click();
   await page.getByRole('heading', { name: 'Settings', exact: true }).waitFor();
@@ -60,7 +65,7 @@ try {
   assert.equal(await page.locator('#ai-usage-scope').textContent().then(text => text.includes('not reported')), true);
   assert.equal(await page.evaluate(() => document.querySelector('.sidebar').scrollWidth > document.querySelector('.sidebar').clientWidth), false);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  await page.screenshot({ path: '.codex-temp/visual/connections-small.png' });
+  await captureUI(application, '.codex-temp/visual/connections-small.png');
   state.ai.connecting = false;
   await send(state);
   await page.waitForFunction(() => document.querySelector('#ai-status').textContent === 'Not connected');
@@ -89,14 +94,14 @@ try {
     if (runtime.source === 'manual') assert.ok((await options.textContent()).includes('manual selection'));
     if (!runtime.detected) assert.ok((await options.textContent()).includes('Choose codex.exe manually'));
     await options.scrollIntoViewIfNeeded();
-    await options.screenshot({ path: `.codex-temp/visual/runtime-${runtime.source}.png` });
+    await captureUI(application, `.codex-temp/visual/runtime-${runtime.source}.png`);
   }
   await page.getByRole('button', { name: 'Data & privacy', exact: true }).click();
   await page.getByRole('heading', { name: 'Data & privacy', exact: true }).waitFor();
   for (const enabled of [false, true, false]) {
     state.settings.aiEnabled = enabled;
     await send(state);
-    await page.waitForFunction(enabled => document.querySelector('#privacy-sharing-status')?.textContent === `Study suggestions: ${enabled ? 'On - ChatGPT sign-in needed' : 'Off'}`, enabled);
+    assert.equal(await page.locator('#privacy-sharing-status').textContent(), 'AI sharing: only when you create a guide');
   }
   assert.equal(await page.getByRole('button', { name: 'View source coverage', exact: true }).isDisabled(), true);
   for (const [width, height] of [[1140, 900], [800, 600]]) {
@@ -106,13 +111,36 @@ try {
       await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth || document.querySelector('main').scrollWidth > document.querySelector('main').clientWidth), false);
       await page.locator('h1').scrollIntoViewIfNeeded();
-      await page.screenshot({ path: `.codex-temp/visual/privacy-${width}-${theme}.png` });
+      await captureUI(application, `.codex-temp/visual/privacy-${width}-${theme}.png`);
     }
   }
   await page.getByText('How collection is protected', { exact: true }).click();
   assert.ok((await page.locator('.privacy-details').textContent()).includes('past progress stayed unchanged'));
   state.guide = buildGuide({ observedAt: '2026-09-11T12:00:00Z', timeZone: 'America/Vancouver', origin: 'https://canvas.example.edu', courses: [], items: [], changes: [] });
   await send(state);
+  await page.getByRole('button', { name: 'This week', exact: true }).click();
+  for (const [width, height, zoom] of [[1140, 900, 1], [800, 600, 1], [1140, 900, 2]]) {
+    await application.evaluate(({ BrowserWindow }, { width, height, zoom }) => {
+      const window = BrowserWindow.getAllWindows()[0];
+      window.setSize(width, height); window.webContents.setZoomFactor(zoom);
+    }, { width, height, zoom });
+    for (const theme of ['light', 'dark']) {
+      state.appearance.dark = theme === 'dark'; await send(state);
+      await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
+      await page.locator('.guide-routes').evaluate(element => element.scrollIntoView({ block: 'center' }));
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth || document.querySelector('main').scrollWidth > document.querySelector('main').clientWidth), false);
+      await captureUI(application, `.codex-temp/visual/ai-routes-${width}-${zoom}-${theme}.png`);
+    }
+  }
+  await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1));
+  await page.getByRole('button', { name: 'Export for AI', exact: true }).focus();
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Copy study prompt');
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Create my weekly guide');
+  await page.keyboard.press('Enter');
+  await page.getByRole('heading', { name: 'Settings', exact: true }).waitFor();
+  assert.equal(await page.getByRole('checkbox', { name: 'Use ChatGPT suggestions', exact: true }).count(), 0);
   await page.getByRole('button', { name: 'Data & privacy', exact: true }).click();
   await page.getByRole('button', { name: 'View source coverage', exact: true }).click();
   await page.getByRole('heading', { name: 'Source coverage', exact: true }).waitFor();
@@ -133,14 +161,14 @@ try {
   await history.locator('summary').click();
   assert.ok((await history.textContent()).includes('final server-side effect is unknown'));
   assert.ok((await history.textContent()).includes('limited reading (expanded requested; pending validation)'));
-  await history.screenshot({ path: '.codex-temp/visual/collection-history.png' });
+  await captureUI(application, '.codex-temp/visual/collection-history.png');
   state.collectionHistory[0].requests = [];
   state.collectionHistory[0].failure = { code: 'CW_SESSION_MISSING', reason: 'The expected Canvas session cookie is missing.' };
   state.canvas.collectionIssue = 'Canvas browser session could not be verified. Reconnect Canvas.';
   await send(state);
   await page.getByRole('button', { name: 'This week', exact: true }).click();
   assert.ok((await page.locator('main').textContent()).includes('CW_SESSION_MISSING'));
-  assert.equal(await page.getByRole('button', { name: 'Update guide', exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole('button', { name: /^(Collect|Refresh) course information$/ }).isDisabled(), true);
   await page.getByRole('button', { name: 'Open connection settings', exact: true }).click();
   await page.getByRole('heading', { name: 'Settings', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Data & privacy', exact: true }).click();
@@ -150,7 +178,7 @@ try {
     state.appearance.dark = theme === 'dark';
     await send(state);
     await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
-    await page.locator('nav').screenshot({ path: `.codex-temp/visual/navigation-${theme}.png` });
+    await captureUI(application, `.codex-temp/visual/navigation-${theme}.png`);
   }
-  console.log('Connection, privacy and history checks passed: themes, usage, setup navigation, runtime detection, live sharing, privacy links, reading controls, unknown request effects and small window. Synthetic state only.');
+  console.log('Connection, privacy and history checks passed: themes, usage, setup navigation, runtime detection, explicit AI sharing, privacy links, reading controls, unknown request effects, small window, 200% zoom and keyboard AI routes. Synthetic state only.');
 } finally { await application.close(); }

@@ -74,14 +74,17 @@ Milestones:
    action, validated output, local checkmarks and app/Markdown/HTML/Word views are
    implemented. Optional account-scoped availability, priorities and guide length
    are implemented with explicit sharing off by default. Live generation-quality
-   review remains pending. The older automatic Study suggestions setting still
-   uses its legacy output until the primary-flow migration.
+   review remains pending. Automatic Study suggestions is retired: collection
+   never starts an AI run, including for older saved settings.
 3. Improve collection coverage within reviewed boundaries, guided by actual
    missing sources; improve connected-site discovery and consider user-supplied
    documents. Preserve provenance and make per-source limitations visible.
 4. Rework the main screen around collection, coverage and the two AI routes.
    Keep a concise factual deadline view and retire arbitrary rule-based start
    dates. Validate light/dark, keyboard use, installer and live-account limits.
+   Collection and AI actions are now separated in the primary interface. The
+   generic preparation checklist is collapsed in the app during migration;
+   retiring it from factual exports remains pending.
 
 Completion requires both AI routes to be usable, exports to preserve collected
 evidence without silent clipping, connected guides to retain traceable facts,

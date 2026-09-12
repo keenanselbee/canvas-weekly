@@ -19,6 +19,8 @@ test('settings preserve saved appearance and serialize overlapping updates', asy
       assert.equal((await new SettingsStore(directory).load()).timeZone, 'UTC');
     }
     assert.equal((await new SettingsStore(directory).load()).theme, 'dark');
+    await fs.writeFile(store.file, JSON.stringify({ ...store.value, aiEnabled: true }));
+    assert.equal((await new SettingsStore(directory).load()).aiEnabled, false, 'Legacy automatic sharing is retired on load');
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });
 

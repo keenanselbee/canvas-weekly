@@ -39,7 +39,6 @@ contextBridge.exposeInMainWorld('canvasWeekly', {
   checkChatGPT: () => invoke('ai:check'),
   disconnectChatGPT: () => invoke('ai:logout'),
   setRememberChatGPT: remember => invoke('settings:remember-chatgpt', remember),
-  setAIEnabled: enabled => invoke('settings:ai', enabled),
   chooseCodex: () => invoke('settings:codex'),
   onStateChanged: callback => {
     const listener = (_event, state) => callback(state);

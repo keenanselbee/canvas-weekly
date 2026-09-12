@@ -41,7 +41,8 @@ export function validateSettings(value) {
   if (!Array.isArray(value.selectedCourseIds) || !value.selectedCourseIds.every(id => /^\d+$/.test(id))) {
     throw new Error('Invalid course selection.');
   }
-  return value;
+  // Retire automatic sharing even when an older installation saved it as on.
+  return { ...value, aiEnabled: false };
 }
 
 export async function atomicJson(file, value) {

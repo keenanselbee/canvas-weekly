@@ -7,8 +7,9 @@ projection before either manual AI export or connected planning. A separate
 guide:generate operation uses only the saved collection and the connected AI.
 Its structured output requires every supplied course, known source references,
 matching quotes for required/optional steps and valid optional study dates.
-These checks do not prove semantic correctness. The old automatic suggestion
-path remains during UX migration. Export for AI is a local operation, with no collection or
+These checks do not prove semantic correctness. Collection never invokes AI;
+old aiEnabled settings are normalized to false and the toggle IPC is removed.
+Export for AI is a local operation, with no collection or
 AI request. Its Course Information.md file uses the existing account ownership,
 manual-edit protection, revision and rollback behavior of GuideStore.
 Generation keeps the collection timestamp and records a distinct AI timestamp.

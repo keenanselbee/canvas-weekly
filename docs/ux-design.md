@@ -10,9 +10,8 @@ Markdown document for review and manual upload; it never opens or submits an AI
 chat. Create my weekly guide sends saved evidence to the connected AI without
 refreshing Canvas. It shows the resulting overview, course tasks and questions,
 with local preparation checkmarks and original-source links. A disconnected AI
-routes the user to Settings. The legacy automatic Study suggestions option remains
-until the main-flow migration. The flow below remains the
-existing experience during this migration.
+routes the user to Settings. Automatic Study suggestions is retired. Connecting
+ChatGPT or collecting course information never starts generation.
 
 Study preferences in Settings provide two optional text fields (available study
 time and priorities), a guide-length choice, and an explicit Include with AI
@@ -30,13 +29,18 @@ standalone guide and installer artwork.
 
 The navigation has four destinations: This week, Courses, Settings, and Data & privacy. A fixed
 sidebar carries the product name, navigation, and connection status. This week
-leads with the academic week, last refresh, and a single primary Update guide
-button. Open guide is secondary. Course selection and configuration are not mixed
+leads with the academic week and Collect/Refresh course information. A saved
+collection exposes two routes: Export for AI with Copy study prompt, and Create
+my weekly guide with connected ChatGPT. Open guide (or Open factual reference)
+is secondary. Successful collection history and the coverage explanation are
+collapsed with visible status summaries; failed runs and possible viewing
+effects open automatically. The generic preparation checklist is collapsed in
+the app while its factual-export replacement is pending. Course selection and configuration are not mixed
 into the reading experience.
 
 Data & privacy explains collection, local storage, AI sharing and permitted
-changes in four compact cards. It shows the live Study suggestions preference,
-including when sign-in is still needed. Login settings, the output folder and
+changes in four compact cards. It explains explicit generation-only AI sharing.
+Login settings, the output folder and
 saved-guide source coverage are directly accessible; coverage is unavailable
 until a guide exists. Expandable protection details explain restricted reads and
 institutional limits without promising unchanged server state. The page also
@@ -104,11 +108,11 @@ Screen structure
 ```text
 Native Windows title bar
 +-------------------+--------------------------------------------------+
-| Canvas Weekly     | This week                       [Update guide]   |
+| Canvas Weekly     | This week               [Collect information]   |
 |                   | September 7 - 13                [Open guide]     |
 | This week         | Last updated ...                                 |
 | Courses           |                                                  |
-| Settings          | Priority / deadline list                         |
+| Settings          | [Export for AI] [Create my weekly guide]         |
 |                   | New and changed                                  |
 |                   | Looking ahead                                    |
 |                   | Source coverage / needs confirmation              |
@@ -127,8 +131,8 @@ or UTC. Saving changes only local settings for the next refresh; it neither
 rewrites the saved guide nor changes Canvas. Refreshes block timezone changes.
 Future scheduling is optional, off by default, and must show local-machine limits.
 
-The implemented weekly screen now leads with Your study plan: suggested starting
-days, local preparation checkboxes and collapsible steps. Recorded deadlines stay
+The older preparation checklist remains collapsed during migration: suggested
+starting days, local preparation checkboxes and collapsible steps. Recorded deadlines stay
 separate. Double-check prompts precede the detailed Canvas records. Opening a guide
 updates its local checkmarks without recollecting Canvas. See study-guide-design.md
 for completion semantics, offline behavior and the richer AI planning work.
