@@ -6,11 +6,13 @@ import { randomUUID, createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { writeInstallerPayloadList } from './installer-payload.mjs';
+import { readWindowsVersion } from './windows-version.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 if (process.platform !== 'win32' || process.arch !== 'x64') throw new Error('This check requires Windows x64.');
 if (process.argv.slice(2).some(arg => arg !== '--payload')) throw new Error('Only --payload is supported.');
 const fullPayload = process.argv.includes('--payload');
+const baseVersion = fullPayload ? await readWindowsVersion(root) : '0.1.0';
 const scratch = await fs.mkdtemp(path.join(root, '.codex-temp/setup-lifecycle-'));
 const install = path.join(scratch, 'install');
 const profile = path.join(scratch, 'saved-settings');
@@ -32,7 +34,7 @@ if (!fullPayload) {
 await fs.access(path.join(payload, 'Canvas Weekly.exe'));
 await fs.mkdir(profile);
 await fs.writeFile(path.join(profile, 'settings.json'), '{"fixture":"preserve me"}');
-const versions = fullPayload ? ['0.1.0'] : ['0.1.0', '0.1.1', '0.0.9'];
+const versions = fullPayload ? [baseVersion] : ['0.1.0', '0.1.1', '0.0.9'];
 const executables = new Map();
 const payloadList = path.join(scratch, 'payload.iss');
 await writeInstallerPayloadList(payload, payloadList);
@@ -61,11 +63,11 @@ async function assertPreserved() {
 try {
   // Incomplete synthetic legacy metadata must not authorize a migration.
   execFileSync('reg.exe', ['add', legacyKey, '/v', 'DisplayName', '/t', 'REG_SZ', '/d', 'Canvas Weekly fixture', '/f'], options);
-  assert.equal(run('0.1.0', 'legacy-block'), 1);
+  assert.equal(run(baseVersion, 'legacy-block'), 1);
   assert.match(await fs.readFile(path.join(scratch, 'legacy-block.log'), 'utf8'), /legacy-registration-invalid/);
   await assert.rejects(fs.access(install), { code: 'ENOENT' });
   execFileSync('reg.exe', ['delete', legacyKey, '/f'], options);
-  assert.equal(run('0.1.0', 'first-install'), 0);
+  assert.equal(run(baseVersion, 'first-install'), 0);
   const registration = execFileSync('reg.exe', ['query', registryKey], options);
   assert.ok(registration.includes(install), 'Native registration must point to the isolated installation');
   assert.match(await fs.readFile(path.join(scratch, 'first-install.log'), 'utf8'), /admin=0/);
@@ -85,8 +87,9 @@ try {
     const application = await electron.launch({ executablePath: path.join(install, 'Canvas Weekly.exe'), env: environment });
     try {
       const actual = await application.evaluate(({ app, nativeTheme }) => ({
-        packaged: app.isPackaged, profile: app.getPath('userData'), dark: nativeTheme.shouldUseDarkColors }));
+        packaged: app.isPackaged, version: app.getVersion(), profile: app.getPath('userData'), dark: nativeTheme.shouldUseDarkColors }));
       assert.equal(actual.packaged, true);
+      assert.equal(actual.version, baseVersion, 'Installer and packaged application versions must match');
       assert.equal(actual.profile, appProfile);
       const page = await application.firstWindow();
       const state = await page.evaluate(() => window.canvasWeekly.getState());

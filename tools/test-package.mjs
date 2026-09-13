@@ -9,6 +9,7 @@ import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { word, pdf } from './document-fixtures.mjs';
+import { readWindowsVersion } from './windows-version.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 if (process.argv.slice(2).some(value => value !== '--preview')) throw new Error('Only --preview is supported.');
@@ -21,6 +22,7 @@ assert.ok(!names.some(name => /(^|\/)(\.local|\.codex-temp|\.git|auth\.json|sett
 for (const name of ['playwright', 'electron-builder', '@electron/asar']) assert.ok(!names.includes(`node_modules/${name}/package.json`), `${name} must stay development-only`);
 const manifest = JSON.parse(extractFile(archive, 'package.json'));
 assert.equal(manifest.name, 'canvas-weekly');
+assert.equal(manifest.version, await readWindowsVersion(root), 'Package version must match the release metadata');
 for (const file of await fs.readdir(path.join(root, 'src'), { recursive: true, withFileTypes: true })) {
   if (!file.isFile()) continue;
   const absolute = path.join(file.parentPath, file.name);

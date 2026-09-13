@@ -4,14 +4,15 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { listPackage, extractFile } from '@electron/asar';
 import { writeInstallerPayloadList } from './installer-payload.mjs';
+import { readWindowsVersion, assertInstallerVersionAvailable } from './windows-version.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 if (process.platform !== 'win32' || process.arch !== 'x64') throw new Error('This build requires Windows x64.');
 if (process.argv.length > 2) throw new Error('The candidate build has no command-line options.');
+const version = await readWindowsVersion(root);
+await assertInstallerVersionAvailable(root, version);
 const compiler = path.join(root, '.codex-temp/inno/compiler/ISCC.exe');
 await fs.access(compiler).catch(() => { throw new Error('Prepare the portable Inno Setup compiler described in docs/installer-experience.md.'); });
-const { version } = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
-if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('A numeric release version is required.');
 const environment = { ...process.env, CSC_IDENTITY_AUTO_DISCOVERY: 'false',
   ELECTRON_BUILDER_CACHE: path.join(root, '.codex-temp/builder-cache'),
   ELECTRON_CACHE: path.join(root, '.codex-temp/electron-cache') };

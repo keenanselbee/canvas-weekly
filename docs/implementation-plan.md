@@ -1099,3 +1099,19 @@ Work log
   No personal Canvas requests or course uploads were made. Manual online-chat,
   real-course and installer acceptance remain outstanding; no new installer was
   built or installed for this source-only milestone.
+
+- Advanced the Windows app to 0.1.1 with matching package/lockfile metadata and a
+  changelog preserving earlier local history. Both installer builders validate
+  the version and refuse reuse of an existing installer version in any of the
+  three build destinations before touching packaging output. Package tests now
+  compare manifest versions, and the Inno full-payload fixture compiles and checks
+  the current app version instead of silently assuming 0.1.0.
+  Validation: 190 unit tests passed. Existing 0.1.0 build refusal was exercised,
+  then the 0.1.1 Inno candidate built with archive/source checks. Native payload
+  installation, app launch and uninstall passed in setup-lifecycle-SgFDCS: all
+  136 files matched, version 0.1.1 and System theme were verified, and fixture
+  guides/settings survived removal. The standard/preview builder refused reuse
+  of the new candidate version before packaging. All three 0.1.0 installer hashes
+  were unchanged. The current branding worktree edits are present in the candidate
+  but excluded from this commit. No personal installation or account was changed.
+  Installer SHA-256 and remaining human acceptance limits are in windows-package.md.

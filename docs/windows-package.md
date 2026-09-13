@@ -16,6 +16,15 @@ already installed by npm. Publishing and automatic signing discovery are disable
 `npm run build:windows -- --dir` produces the app directory without an installer;
 the complete package test requires the installer as well.
 
+`package.json` is the authoritative app version; both root version fields in
+`package-lock.json` must match it. Windows builds accept MAJOR.MINOR.PATCH with
+single-digit MINOR and PATCH. The build stops before packaging when an installer
+for that version already exists in `dist`, `dist/preview` or `dist/inno-candidate`.
+Reuse the existing artifact, or finalize the next version and its changelog before
+building changed release contents. Do not remove older installers to bypass this
+check. A successful build reserves the version even if it is not installed yet.
+Scratch iteration can use `--dir` before that version has an installer.
+
 After a preview build, `node tools/test-display.mjs` checks the packaged app with
 fresh profiles at rendering scales 1/1.25/1.5/2 and normal/200% zoom in both themes.
 It checks horizontal overflow on the four navigation pages and captures the client
@@ -41,7 +50,7 @@ It supports system appearance, native install/maintenance and guarded NSIS
 migration. It has not replaced the default build. Its actual fixture and full-payload
 installation checks are described in [installer experience](installer-experience.md).
 
-The default installer is `dist/Canvas-Weekly-0.1.0-x64-Setup.exe`. The unpacked app is
+The default installer is `dist/Canvas-Weekly-<version>-x64-Setup.exe`. The unpacked app is
 `dist/win-unpacked/Canvas Weekly.exe`; keep that entire directory together if
 using it directly. Build outputs and test profiles are ignored by Git.
 
@@ -99,6 +108,33 @@ Remaining release checks
 Unsigned builds have no verified publisher identity and may receive Windows
 reputation prompts. No Windows security settings are changed by the build/test
 workflow. ARM64 and other operating systems have not been packaged or verified.
+
+
+Current themed candidate (2026-09-13)
+------------------------------------
+
+Artifact: `dist/inno-candidate/Canvas-Weekly-0.1.1-x64-Setup.exe`
+
+SHA256: `1fd57db8c91d94c304f33271042187ee51288398ea7f9a8d67d2bbd95c891f45`
+
+Version 0.1.1 is reserved for this payload. It includes the current evidence-first
+app, independent preparation checkmarks, Settings last in navigation, and the
+local white-calendar branding/spacing edits present at build time. The branding
+files remain separate worktree changes, not part of the versioning commit.
+
+The candidate passed archive privacy/source matching, 190 unit tests, and the
+full native fixture install/launch/uninstall check in `setup-lifecycle-SgFDCS`.
+All 136 payload files matched. The installed app reported version 0.1.1, used a
+fresh profile with disconnected accounts, detected bundled Codex and followed
+native System appearance. Fixture guides and settings survived removal. The
+three existing 0.1.0 installers retained their pre-build SHA-256 hashes.
+
+The standard/preview builder also refused to reuse 0.1.1 before starting packaging.
+No personal installation, login or Canvas collection ran. The fixture omits
+shortcuts and scope elevation; human wizard, UAC and migration review remain
+required before making Inno the default installer. The NSIS package smoke test
+was not rerun for this Inno candidate.
+
 
 Current design preview (2026-09-11)
 ---------------------------------

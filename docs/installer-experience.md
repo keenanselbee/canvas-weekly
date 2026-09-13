@@ -100,9 +100,14 @@ Functional installer candidate
 
 `node tools/build-inno.mjs` freshly packages Electron/Codex into
 `dist/inno-candidate/win-unpacked`, checks the application archive boundaries and
-source bytes, then compiles `dist/inno-candidate/Canvas-Weekly-0.1.0-x64-Setup.exe`.
+source bytes, then compiles `dist/inno-candidate/Canvas-Weekly-<version>-x64-Setup.exe`.
 This is an unsigned candidate, separate from the NSIS outputs and the UI-only
 preview. Do not use it to migrate personal NSIS installations yet.
+
+The candidate uses the same validated package/lockfile version as the standard
+build. Existing same-version installers in any build destination stop a new
+build before packaging. Older installers remain available alongside the new
+version. See [Windows package version rules](windows-package.md).
 
 The candidate uses dynamic Windows appearance and defaults to the current user.
 Its native scope dialog offers all-users installation with elevation. It does not
@@ -153,7 +158,8 @@ Validation commands:
   fresh test profile, and uninstall it. The check verifies every payload file,
   packaged mode, isolated profile, no connected accounts or guide, bundled Codex
   detection and System theme matching the native Windows preference. It also
-  checks that Light, Dark and System all use the white calendar.
+  checks that Light, Dark and System all use the white calendar, and that the
+  running app version matches the version compiled into the fixture installer.
 
 Both checks passed. Student-owned guide files inside the install folder and a
 separate settings fixture survive updates and removal. Each test uses a unique,
